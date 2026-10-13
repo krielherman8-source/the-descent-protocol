@@ -1,0 +1,113 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><title>THE DESCENT PROTOCOL</title>
+<style>html,body{margin:0;background:#05090c;overflow:hidden;font-family:monospace}canvas{display:block}</style></head>
+<body><canvas id="c"></canvas><script>
+'use strict';
+// ===== DATA REGISTRIES =====
+const WEAPONS={
+ kinetic:{name:'Kinetic Rifle',dmg:12,rate:9,speed:900,spread:0.04,implemented:true},
+ pulse_shotgun:{name:'Pulse Shotgun',dmg:8,rate:1.5,pellets:7,implemented:false},
+ flamethrower:{name:'Flamethrower',implemented:false},grenade_launcher:{name:'Grenade Launcher',implemented:false},
+ tesla:{name:'Tesla Arc Cannon',implemented:false},railgun:{name:'Needle Railgun',implemented:false},bio:{name:'Bio-Harvester',implemented:false}};
+const MODS={explosive:{name:'Explosive Tips',implemented:false},cryo:{name:'Cryo Chamber',implemented:false},
+ vampiric:{name:'Vampiric Coil',implemented:false},emp:{name:'EMP Converter',implemented:false}};
+const DRONES={aegis:{name:'Aegis',dmg:6,rate:2.5,range:320,orbit:46,implemented:true},
+ torchlet:{name:'Torchlet',implemented:false},needler:{name:'Needler',implemented:false},bastion:{name:'Bastion',implemented:false},
+ harvestor:{name:'Harvestor',implemented:false},specter:{name:'Specter',implemented:false}};
+const ENEMIES={swarmer:{name:'Swarmer',hp:20,speed:110,dmg:10,r:9,color:'#7cff4f'},
+ brute:{name:'Brute',hp:80,speed:70,dmg:25,r:16,color:'#ff6a3d',minFloor:2}};
+const FLOORS=[['Breaching','Restore power systems'],['The Armory','Unlock heavy weapon lockers'],['Gravity Well','Disable magnetic locks'],
+ ['Dark Sector','Navigate in darkness'],['Nesting Grounds','Burn alien biomass'],['Security Network','Hack reactor terminals'],
+ ['Ventilation','Redirect airflow safely'],['Biomass Overgrowth','Purge infestation'],['System Purge','Reboot core systems'],
+ ['Cocooned Outpost','Find keycards under swarm pressure'],['Fusion Complex','Stabilize the central reactor'],['Egg Chamber','Destroy glowing sacs before hatching'],
+ ['Lockdown','Neutralize elite Swarmer Prime'],['Swarm Nest','Survive endless waves'],['Cryo Vault','Defrost frozen systems']]
+ .map(([name,task])=>({name,task,objective:'generators',gens:3})); // placeholder: all use generator objective
+const OBJECTIVES={generators:{label:'Restore power',implemented:true}};
+const UPGRADES=[
+ {id:'dmg',name:'+25% Damage',apply:p=>p.dmgMul*=1.25},{id:'rate',name:'+20% Fire Rate',apply:p=>p.rateMul*=1.2},
+ {id:'speed',name:'+12% Move Speed',apply:p=>p.speed*=1.12},{id:'hp',name:'+25 Max HP',apply:p=>{p.maxHp+=25;p.hp+=25}},
+ {id:'drone',name:'+35% Drone Fire Rate',apply:p=>p.droneRateMul*=1.35},{id:'multi',name:'Multishot +1',apply:p=>p.multishot++},
+ {id:'heal',name:'Full Repair',apply:p=>p.hp=p.maxHp}];
+// ===== SETUP =====
+const cv=document.getElementById('c'),ctx=cv.getContext('2d');let W,H;
+function resize(){W=cv.width=innerWidth;H=cv.height=innerHeight}addEventListener('resize',resize);resize();
+const keys={},mouse={x:0,y:0,down:false};
+addEventListener('keydown',e=>{keys[e.key.toLowerCase()]=true;onKey(e.key.toLowerCase())});addEventListener('keyup',e=>keys[e.key.toLowerCase()]=false);
+cv.addEventListener('mousemove',e=>{mouse.x=e.clientX;mouse.y=e.clientY});
+cv.addEventListener('mousedown',e=>{mouse.down=true;onClick()});addEventListener('mouseup',()=>mouse.down=false);
+const rnd=(a,b)=>a+Math.random()*(b-a),dist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
+let S;
+function newPlayer(){return{x:0,y:0,r:12,hp:100,maxHp:100,speed:230,weapon:'kinetic',drone:'aegis',dmgMul:1,rateMul:1,droneRateMul:1,multishot:1,cd:0,dcd:0,da:0,inv:0,ups:[]}}
+function startGame(){S={state:'play',floor:0,p:newPlayer(),t:0};startFloor()}
+function startFloor(){const f=S.floor;S.p.x=W/2;S.p.y=H/2;S.enemies=[];S.bullets=[];S.parts=[];S.exit=null;S.choices=null;
+ S.gens=[];const n=FLOORS[f%FLOORS.length].gens;for(let i=0;i<n;i++){const a=i/n*Math.PI*2+rnd(-.3,.3);S.gens.push({x:W/2+Math.cos(a)*W*.35,y:H/2+Math.sin(a)*H*.35,prog:0,on:false})}
+ S.waveT=1;S.wave=0;S.banner=3}
+const scale=()=>({hp:1+S.floor*0.35,spd:1+S.floor*0.08,count:1+S.floor*0.5});
+function spawnWave(){const sc=scale(),n=Math.round((5+S.wave*2)*sc.count);
+ for(let i=0;i<n;i++){const types=Object.entries(ENEMIES).filter(([k,e])=>(e.minFloor||1)<=S.floor+1);
+  const [k,e]=Math.random()<.15&&types.length>1?types[1]:types[0];const s=Math.floor(rnd(0,4));
+  const x=s==0?-20:s==1?W+20:rnd(0,W),y=s==2?-20:s==3?H+20:(s<2?rnd(0,H):0);
+  S.enemies.push({type:k,x,y:s>=2?y:y,r:e.r,hp:e.hp*sc.hp,max:e.hp*sc.hp,speed:e.speed*sc.spd*rnd(.85,1.15),dmg:e.dmg,color:e.color})}
+ S.wave++}
+function fire(x,y,a,dmg,speed,col,from){S.bullets.push({x,y,vx:Math.cos(a)*speed,vy:Math.sin(a)*speed,dmg,col,life:1.2,from})}
+function onKey(k){if(!S)return;if(S.state=='dead'&&k=='r')startGame();if(S.state=='upgrade'&&'123'.includes(k)&&k)pick(+k-1)}
+function onClick(){if(!S)return;if(S.state=='dead')startGame();else if(S.state=='upgrade'&&S.choices)S.choices.forEach((c,i)=>{const b=cardRect(i);if(mouse.x>b.x&&mouse.x<b.x+b.w&&mouse.y>b.y&&mouse.y<b.y+b.h)pick(i)})}
+function pick(i){const u=S.choices[i];if(!u)return;u.apply(S.p);S.p.ups.push(u.name);S.floor++;S.state='play';startFloor()}
+function cardRect(i){const w=220,h=140,g=30,x0=W/2-(w*3+g*2)/2;return{x:x0+i*(w+g),y:H/2-h/2,w,h}}
+// ===== UPDATE =====
+function update(dt){S.t+=dt;if(S.banner>0)S.banner-=dt;const p=S.p;if(S.state!='play')return;
+ let mx=(keys.d?1:0)-(keys.a?1:0),my=(keys.s?1:0)-(keys.w?1:0),m=Math.hypot(mx,my)||1;
+ p.x=Math.max(p.r,Math.min(W-p.r,p.x+mx/m*p.speed*dt));p.y=Math.max(p.r,Math.min(H-p.r,p.y+my/m*p.speed*dt));
+ const wpn=WEAPONS[p.weapon],aim=Math.atan2(mouse.y-p.y,mouse.x-p.x);p.cd-=dt;
+ if(mouse.down&&p.cd<=0){p.cd=1/(wpn.rate*p.rateMul);for(let i=0;i<p.multishot;i++){const off=(i-(p.multishot-1)/2)*0.12;fire(p.x,p.y,aim+off+rnd(-wpn.spread,wpn.spread),wpn.dmg*p.dmgMul,wpn.speed,'#7ff',0)}}
+ // drone
+ const dr=DRONES[p.drone];p.da+=dt*2.2;const dx=p.x+Math.cos(p.da)*dr.orbit,dy=p.y+Math.sin(p.da)*dr.orbit;p.dpos={x:dx,y:dy};p.dcd-=dt;
+ if(p.dcd<=0){let best=null,bd=dr.range;for(const e of S.enemies){const d=dist(e,p.dpos);if(d<bd){bd=d;best=e}}
+  if(best){p.dcd=1/(dr.rate*p.droneRateMul);fire(dx,dy,Math.atan2(best.y-dy,best.x-dx),dr.dmg*p.dmgMul,700,'#4fc',1)}}
+ // generators
+ let allOn=true;for(const g of S.gens){if(!g.on){allOn=false;if(keys.e&&dist(g,p)<50){g.prog+=dt/2;if(g.prog>=1){g.on=true;burst(g.x,g.y,'#3ff',30)}}}}
+ // waves
+ if(!allOn){S.waveT-=dt;if(S.waveT<=0){spawnWave();S.waveT=Math.max(4,9-S.floor*.4)}}
+ else if(S.enemies.length==0&&!S.exit){S.exit={x:W/2,y:H/2};}
+ if(S.exit&&dist(S.exit,p)<40){S.state='upgrade';const pool=[...UPGRADES].sort(()=>Math.random()-.5);S.choices=pool.slice(0,3)}
+ // bullets
+ for(const b of S.bullets){b.x+=b.vx*dt;b.y+=b.vy*dt;b.life-=dt;for(const e of S.enemies){if(e.hp>0&&Math.hypot(e.x-b.x,e.y-b.y)<e.r+3){e.hp-=b.dmg;b.life=0;burst(b.x,b.y,'#9ff',3);break}}}
+ S.bullets=S.bullets.filter(b=>b.life>0&&b.x>-50&&b.x<W+50&&b.y>-50&&b.y<H+50);
+ // enemies
+ p.inv-=dt;for(const e of S.enemies){const a=Math.atan2(p.y-e.y,p.x-e.x);e.x+=Math.cos(a)*e.speed*dt;e.y+=Math.sin(a)*e.speed*dt;
+  for(const o of S.enemies){if(o!==e){const d=dist(e,o),mn=e.r+o.r;if(d<mn&&d>0){e.x+=(e.x-o.x)/d*(mn-d)*.5;e.y+=(e.y-o.y)/d*(mn-d)*.5}}}
+  if(dist(e,p)<e.r+p.r&&p.inv<=0){p.hp-=e.dmg;p.inv=0.5;burst(p.x,p.y,'#f55',10)}
+  if(e.hp<=0)burst(e.x,e.y,e.color,14)}
+ S.enemies=S.enemies.filter(e=>e.hp>0);
+ for(const q of S.parts){q.x+=q.vx*dt;q.y+=q.vy*dt;q.life-=dt}S.parts=S.parts.filter(q=>q.life>0);
+ if(p.hp<=0){p.hp=0;S.state='dead'}}
+function burst(x,y,col,n){for(let i=0;i<n;i++){const a=rnd(0,6.28),s=rnd(40,220);S.parts.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s,life:rnd(.2,.6),col})}}
+// ===== RENDER =====
+function glow(c,b){ctx.shadowColor=c;ctx.shadowBlur=b}
+function circ(x,y,r,c){ctx.fillStyle=c;ctx.beginPath();ctx.arc(x,y,r,0,7);ctx.fill()}
+function text(t,x,y,c,sz,al){ctx.fillStyle=c;ctx.font=`${sz||14}px monospace`;ctx.textAlign=al||'left';ctx.fillText(t,x,y)}
+function render(){const p=S.p;ctx.fillStyle='#060b0f';ctx.fillRect(0,0,W,H);
+ ctx.strokeStyle='#0d2228';ctx.lineWidth=1;for(let x=0;x<W;x+=48){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke()}for(let y=0;y<H;y+=48){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke()}
+ ctx.strokeStyle='#1d5a63';ctx.lineWidth=4;ctx.strokeRect(2,2,W-4,H-4);
+ for(const g of S.gens){glow(g.on?'#3ff':'#255',g.on?25:0);ctx.fillStyle=g.on?'#0aa':'#123';ctx.fillRect(g.x-18,g.y-18,36,36);ctx.strokeStyle='#3ff';ctx.lineWidth=2;ctx.strokeRect(g.x-18,g.y-18,36,36);ctx.shadowBlur=0;
+  if(!g.on){ctx.strokeStyle='#7ff';ctx.lineWidth=4;ctx.beginPath();ctx.arc(g.x,g.y,28,-1.57,-1.57+g.prog*6.283);ctx.stroke();if(dist(g,p)<50)text('HOLD E',g.x,g.y-34,'#bff',12,'center')}}
+ if(S.exit){glow('#3ff',30);ctx.strokeStyle='#3ff';ctx.lineWidth=3;ctx.beginPath();ctx.arc(S.exit.x,S.exit.y,30+Math.sin(S.t*4)*4,0,7);ctx.stroke();ctx.shadowBlur=0;text('UPGRADE CHAMBER',S.exit.x,S.exit.y-44,'#7ff',13,'center')}
+ for(const q of S.parts){ctx.globalAlpha=Math.min(1,q.life*3);circ(q.x,q.y,2,q.col)}ctx.globalAlpha=1;
+ for(const e of S.enemies){glow(e.color,10);circ(e.x,e.y,e.r,e.color);ctx.shadowBlur=0;circ(e.x,e.y,e.r*.4,'#000')}
+ glow('#7ff',8);for(const b of S.bullets){circ(b.x,b.y,b.from?2.5:3,b.col)}
+ if(p.inv<=0||Math.floor(S.t*20)%2){glow('#3ff',18);circ(p.x,p.y,p.r,'#0cc');const a=Math.atan2(mouse.y-p.y,mouse.x-p.x);ctx.strokeStyle='#dff';ctx.lineWidth=4;ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.lineTo(p.x+Math.cos(a)*20,p.y+Math.sin(a)*20);ctx.stroke()}
+ if(p.dpos){glow('#4fc',14);circ(p.dpos.x,p.dpos.y,5,'#4fc')}ctx.shadowBlur=0;
+ // HUD
+ const f=FLOORS[S.floor%FLOORS.length];ctx.fillStyle='#0a1a1f';ctx.fillRect(16,16,220,16);ctx.fillStyle='#2ee';ctx.fillRect(16,16,220*p.hp/p.maxHp,16);
+ text(`HP ${Math.ceil(p.hp)}/${p.maxHp}`,22,29,'#012',12);
+ text(`FLOOR ${S.floor+1}: ${f.name.toUpperCase()}`,16,54,'#7ff',16);
+ const on=S.gens.filter(g=>g.on).length;text(on<S.gens.length?`OBJECTIVE: ${OBJECTIVES[f.objective].label} ${on}/${S.gens.length}`:S.exit?'OBJECTIVE: Enter upgrade chamber':`OBJECTIVE: Clear remaining swarm (${S.enemies.length})`,16,74,'#bff',13);
+ text(`Weapon: ${WEAPONS[p.weapon].name}  Drone: ${DRONES[p.drone].name}`,16,94,'#5aa',12);
+ text('UPGRADES:',W-16,24,'#7ff',13,'right');p.ups.forEach((u,i)=>text(u,W-16,42+i*16,'#5cc',12,'right'));
+ if(S.banner>0&&S.state=='play'){ctx.globalAlpha=Math.min(1,S.banner);text(`FLOOR ${S.floor+1} — ${f.name.toUpperCase()}`,W/2,H/3,'#7ff',34,'center');text(f.task+' (placeholder: restore power)',W/2,H/3+30,'#5aa',14,'center');ctx.globalAlpha=1}
+ if(S.state=='upgrade'){ctx.fillStyle='rgba(0,8,12,.85)';ctx.fillRect(0,0,W,H);text('UPGRADE CHAMBER — CHOOSE ONE',W/2,H/2-110,'#7ff',24,'center');
+  S.choices.forEach((c,i)=>{const b=cardRect(i);glow('#3ff',15);ctx.strokeStyle='#3ff';ctx.lineWidth=2;ctx.strokeRect(b.x,b.y,b.w,b.h);ctx.shadowBlur=0;text(`[${i+1}]`,b.x+b.w/2,b.y+40,'#5aa',16,'center');text(c.name,b.x+b.w/2,b.y+80,'#dff',16,'center')})}
+ if(S.state=='dead'){ctx.fillStyle='rgba(20,0,0,.8)';ctx.fillRect(0,0,W,H);text('PROTOCOL TERMINATED',W/2,H/2-20,'#f66',36,'center');text(`Reached floor ${S.floor+1}. Click or press R to restart.`,W/2,H/2+20,'#fbb',16,'center')}}
+let last=performance.now();function loop(now){const dt=Math.min(.05,(now-last)/1000);last=now;update(dt);render();requestAnimationFrame(loop)}
+startGame();requestAnimationFrame(loop);
+window.__game={get S(){return S},pick,update};
+</script></body></html>

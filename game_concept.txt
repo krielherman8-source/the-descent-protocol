@@ -1,0 +1,51 @@
+THE DESCENT PROTOCOL – Game Design Document
+Overview
+THE DESCENT PROTOCOL is a top-down sci-fi shooter that throws players into a 30-floor descent into an alien-infested facility. The gameplay is fast, brutal, and swarm-heavy. With escalating threats, upgrade phases, mid-floor sabotage puzzles, and evolving enemy types, this game balances tension, gore, and strategic action.
+Core Gameplay Loop
+1. Spawn on new floor
+2. Complete critical objective (e.g., restore power, unlock doors)
+3. Survive escalating swarms of enemies
+4. Clear all threats on the floor
+5. Enter upgrade chamber
+6. Choose one of three randomized upgrades
+7. Descend automatically to next floor
+Weapons and Drone System
+Players begin with basic gear and expand their arsenal through upgrades.
+Weapon Types:
+- Kinetic Rifle
+- Pulse Shotgun
+- Flamethrower
+- Grenade Launcher
+- Tesla Arc Cannon
+- Needle Railgun
+- Bio-Harvester
+Weapon Mods:
+- Explosive Tips
+- Cryo Chamber
+- Vampiric Coil
+- EMP Converter
+Drone Variants:
+- Aegis (Default)
+- Torchlet
+- Needler
+- Bastion
+- Harvestor
+- Specter
+Level Progression and Floor Tasks
+Each floor presents a unique objective or hazard before allowing the player to proceed.
+1. Breaching – Restore power systems
+2. The Armory – Unlock heavy weapon lockers
+3. Gravity Well – Disable magnetic locks
+4. Dark Sector – Navigate in darkness
+5. Nesting Grounds – Burn alien biomass
+6. Security Network – Hack reactor terminals
+7. Ventilation – Redirect airflow safely
+8. Biomass Overgrowth – Purge infestation
+9. System Purge – Reboot core systems
+10. Cocooned Outpost – Find keycards under swarm pressure
+11. Fusion Complex – Stabilize the central reactor
+12. Egg Chamber – Destroy glowing sacs before hatching
+13. Lockdown – Neutralize elite Swarmer Prime
+14. Swarm Nest – Survive endless waves until objective clears
+15. Cryo Vault – Defrost frozen systems while under siege
+Concept Art
