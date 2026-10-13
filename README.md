@@ -10,4 +10,5 @@ Controls: WASD move, mouse aim, hold left click fire, hold E interact, 1-7 weapo
 - Weapons: Kinetic Rifle, Pulse Shotgun, Flamethrower, Tesla Arc Cannon, Grenade Launcher, Needle Railgun, Bio-Harvester.
 - Mods (attach to the equipped weapon): Explosive Tips, Cryo Chamber, Vampiric Coil, EMP Converter.
 - Drones: Aegis, Torchlet, Bastion, Needler, Harvestor, Specter.
+- 30 floors (bosses on 10, 13, 20, 25, 30). Victory after The Overmind.
 - Upgrade chambers offer a new weapon and a new drone each time while any remain, plus a mod or stat card. Armory lockers give a weapon, HP, or a mod.
