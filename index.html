@@ -24,12 +24,20 @@ const WEAPONS={
   fire:(p,a)=>shoot(p,a,{dmg:2.6,speed:rnd(340,440),spread:.22,life:.38,col:'#fa4',r:5,pierce:true,burn:2.5,flame:true})},
  tesla:{name:'Tesla Arc Cannon',desc:'Hitscan arc chains through 5 targets',rate:2.3,implemented:true,
   fire:(p,a)=>teslaArc(p,a,26)},
- grenade_launcher:{name:'Grenade Launcher',implemented:false},
- railgun:{name:'Needle Railgun',implemented:false},
- bio_harvester:{name:'Bio-Harvester',implemented:false},
+ grenade_launcher:{name:'Grenade Launcher',desc:'Lobbed grenades blast a wide area',rate:1.3,implemented:true,
+  fire:(p,a)=>shoot(p,a,{dmg:20,speed:560,spread:.03,life:.85,col:'#fd6',r:6,grenade:{r:95,dmg:55}})},
+ railgun:{name:'Needle Railgun',desc:'Hitscan needle pierces every enemy in a line',rate:1.1,implemented:true,
+  fire:(p,a)=>railShot(p,a,75)},
+ bio_harvester:{name:'Bio-Harvester',desc:'Leech beam drains enemies and heals you',rate:10,implemented:true,
+  fire:(p,a)=>leechBeam(p,a,5.5)},
 };
-const MODS={explosive:{name:'Explosive Tips',implemented:false},cryo:{name:'Cryo Chamber',implemented:false},
- vampiric:{name:'Vampiric Coil',implemented:false},emp:{name:'EMP Converter',implemented:false}};
+// Mods attach to a specific weapon (p.mods[weaponKey]); effects apply on that weapon's hits. Proc chances scale with weapon fire rate.
+const MODS={
+ explosive:{name:'Explosive Tips',short:'EXP',color:'#fa5',desc:'Hits can detonate a small blast',implemented:true},
+ cryo:{name:'Cryo Chamber',short:'CRY',color:'#8df',desc:'Hits chill enemies (50% slow, 2s)',implemented:true},
+ vampiric:{name:'Vampiric Coil',short:'VAM',color:'#f46',desc:'Heal 6% of damage dealt',implemented:true},
+ emp:{name:'EMP Converter',short:'EMP',color:'#ff6',desc:'Hits can stun enemies briefly',implemented:true},
+};
 
 // ================= DRONES =================
 const DRONES={
@@ -43,7 +51,19 @@ const DRONES={
   update(p,dt){if(!p.shield){p.shieldT-=dt*p.droneRateMul;if(p.shieldT<=0)p.shield=true}
    p.pulseT-=dt*p.droneRateMul;if(p.pulseT<=0){p.pulseT=5;S.rings.push({x:p.x,y:p.y,r:10,life:.4});
     for(const e of S.enemies){const d=dist(e,p);if(d<150&&d>0&&!ENEMIES[e.type].boss){e.x+=(e.x-p.x)/d*70;e.y+=(e.y-p.y)/d*70;resolve(e);damage(e,18*p.dmgMul)}}}}},
- needler:{name:'Needler',implemented:false},harvestor:{name:'Harvestor',implemented:false},specter:{name:'Specter',implemented:false},
+ needler:{name:'Needler',desc:'Fires piercing 3-needle bursts at the toughest enemy nearby',orbit:52,spin:2.8,color:'#c8f',implemented:true,
+  update(p,dt){p.dcd-=dt;if(p.dcd>0)return;let best=null,bh=0;for(const e of S.enemies){if(e.hp>0&&e.hp>bh&&dist(e,p.dpos)<420&&los(p.dpos,e)){bh=e.hp;best=e}}
+   if(best){p.burstN=(p.burstN||0)+1;p.dcd=p.burstN%3?.09:1.1/p.droneRateMul;const a=Math.atan2(best.y-p.dpos.y,best.x-p.dpos.x);
+    S.bullets.push(mkBullet(p.dpos.x,p.dpos.y,a+rnd(-.04,.04),{dmg:11*p.dmgMul,speed:1100,life:.6,col:'#e9f',r:2,pierce:true}))}}},
+ harvestor:{name:'Harvestor',desc:'Kills drop bio-orbs; the drone flies out to collect them and heals you',orbit:40,spin:2,color:'#7f5',implemented:true,
+  update(p,dt){let tgt=null,bd=600;for(const o of S.orbs){const d=dist(o,p);if(d<bd){bd=d;tgt=o}}
+   const goal=tgt||{x:p.x+Math.cos(p.da)*40,y:p.y+Math.sin(p.da)*40},h=p.hpos,d=dist(goal,h),sp=440*p.droneRateMul*dt;
+   if(d>sp){h.x+=(goal.x-h.x)/d*sp;h.y+=(goal.y-h.y)/d*sp}else{h.x=goal.x;h.y=goal.y}
+   if(tgt&&dist(tgt,h)<16){tgt.life=0;p.hp=Math.min(p.maxHp,p.hp+5);S.stats.healed+=5;S.stats.orbs++;floatText(p.x,p.y-30,'+5 HP','#7f5');burst(tgt.x,tgt.y,'#7f5',10)}
+   p.dpos={x:h.x,y:h.y};p.dcd-=dt;if(p.dcd<=0){p.dcd=.5;for(const e of S.enemies)if(e.hp>0&&dist(e,h)<40){damage(e,6*p.dmgMul);break}}}},
+ specter:{name:'Specter',desc:'Projects a hologram decoy that lures the swarm, then detonates',orbit:34,spin:1.6,color:'#9ef',implemented:true,
+  update(p,dt){p.decoyT=(p.decoyT??2)-dt*p.droneRateMul;if(p.decoyT<=0&&S.enemies.length&&!S.decoy){p.decoyT=9;S.decoy={x:p.x,y:p.y,life:4.5};S.stats.decoys++;
+   S.rings.push({x:p.x,y:p.y,r:10,life:.4,col:'#9ef'});floatText(p.x,p.y-30,'DECOY DEPLOYED','#9ef')}}},
 };
 
 // ================= ENEMIES =================
@@ -149,14 +169,14 @@ const setM=e=>{mouse.cx=e.clientX;mouse.cy=e.clientY;mouse.sx=e.clientX/hs;mouse
 addEventListener('mousemove',setM);addEventListener('mousedown',e=>{setM(e);mouse.down=true;onClick()});addEventListener('mouseup',()=>mouse.down=false);
 addEventListener('contextmenu',e=>e.preventDefault());
 let S;
-function newPlayer(){return{x:0,y:0,r:12,hp:100,maxHp:100,speed:230,weapons:['kinetic'],weapon:'kinetic',drones:['aegis'],drone:'aegis',
+function newPlayer(){return{x:0,y:0,r:12,hp:100,maxHp:100,speed:230,weapons:['kinetic'],weapon:'kinetic',drones:['aegis'],drone:'aegis',mods:{},hpos:{x:0,y:0},
  dmgMul:1,rateMul:1,droneRateMul:1,multishot:1,cd:0,dcd:0,da:0,inv:0,ups:[],shield:false,shieldT:0,pulseT:5,slow:1,dpos:{x:0,y:0}}}
-function startGame(){S={state:'play',floor:0,p:newPlayer(),t:0,texts:[],stats:{kills:0,shots:0,dmg:0,taken:0,time:0}};startFloor()}
+function startGame(){S={state:'play',floor:0,p:newPlayer(),t:0,texts:[],stats:{kills:0,shots:0,dmg:0,taken:0,time:0,healed:0,orbs:0,decoys:0,booms:0,rails:0,leech:0,procs:0}};startFloor()}
 function startFloor(){const f=FLOORS[S.floor];S.f=f;S.obj=OBJECTIVES[f.objective];
  S.walls=f.walls.map(([cx,cy,cw,ch])=>({x:cx*CELL,y:cy*CELL,w:cw*CELL,h:ch*CELL}));
  S.grid=new Uint8Array(GW*GH);for(let y=0;y<GH;y++)for(let x=0;x<GW;x++)S.grid[x+y*GW]=S.walls.some(w=>cp(x)>w.x&&cp(x)<w.x+w.w&&cp(y)>w.y&&cp(y)<w.y+w.h)?1:0;
  S.flow=new Int16Array(GW*GH);S.flowT=0;
- Object.assign(S.p,P(...f.spawn));S.enemies=[];S.bullets=[];S.ebullets=[];S.parts=[];S.arcs=[];S.rings=[];S.exit=null;S.choices=null;S.texts=[];
+ Object.assign(S.p,P(...f.spawn));S.enemies=[];S.bullets=[];S.ebullets=[];S.parts=[];S.arcs=[];S.rings=[];S.beams=[];S.orbs=[];S.booms=[];S.decoy=null;S.p.hpos={x:S.p.x,y:S.p.y};S.exit=null;S.choices=null;S.texts=[];
  S.winds=null;S.well=null;S.obj.setup(S,f);S.waveT=2;S.wave=0;S.cleared=false;showBanner(`FLOOR ${S.floor+1} — ${f.name.toUpperCase()}`,f.task,3.5)}
 function showBanner(a,b,t){S.banner={a,b,life:t}}
 function floatText(x,y,t,col){S.texts.push({x,y,t,col:col||'#bff',life:1.6})}
@@ -172,7 +192,7 @@ function resolve(o){for(const w of S.walls){const nx=clamp(o.x,w.x,w.x+w.w),ny=c
  o.x=clamp(o.x,o.r,W-o.r);o.y=clamp(o.y,o.r,H-o.r)}
 function buildFlow(){const p=S.p,D=S.flow;D.fill(9999);const s=clamp(Math.floor(p.x/CELL),0,GW-1)+clamp(Math.floor(p.y/CELL),0,GH-1)*GW;D[s]=0;const q=[s];let h=0;
  while(h<q.length){const i=q[h++],x=i%GW,y=(i/GW)|0;for(const[dx,dy]of[[1,0],[-1,0],[0,1],[0,-1]]){const nx=x+dx,ny=y+dy;if(nx<0||ny<0||nx>=GW||ny>=GH)continue;const j=nx+ny*GW;if(S.grid[j]||D[j]<=D[i]+1)continue;D[j]=D[i]+1;q.push(j)}}}
-function chaseAngle(e){const p=S.p,direct=Math.atan2(p.y-e.y,p.x-e.x);const d=dist(e,p);if(d<220&&los(e,p))return direct;
+function chaseAngle(e){if(S.decoy&&dist(e,S.decoy)<520)return Math.atan2(S.decoy.y-e.y,S.decoy.x-e.x);const p=S.p,direct=Math.atan2(p.y-e.y,p.x-e.x);const d=dist(e,p);if(d<220&&los(e,p))return direct;
  const cx=clamp(Math.floor(e.x/CELL),0,GW-1),cy=clamp(Math.floor(e.y/CELL),0,GH-1),D=S.flow;let best=D[cx+cy*GW],bx=-1,by=-1;
  for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){if(!dx&&!dy)continue;const nx=cx+dx,ny=cy+dy;if(nx<0||ny<0||nx>=GW||ny>=GH)continue;
   if(dx&&dy&&(S.grid[cx+dx+cy*GW]||S.grid[cx+(cy+dy)*GW]))continue;const v=D[nx+ny*GW];if(v<best){best=v;bx=nx;by=ny}}
@@ -188,19 +208,37 @@ function spawnWave(){const f=S.f,n=Math.round((f.wave[0]+S.wave*f.wave[1])*scale
  for(let i=0;i<n&&S.enemies.length<110;i++){const pt=edgeSpawn();spawnEnemy(rollType(f.mix),pt.x+rnd(-8,8),pt.y+rnd(-8,8))}S.wave++}
 function lootLocker(it,weapon){const p=S.p;const un=Object.keys(WEAPONS).filter(k=>WEAPONS[k].implemented&&!p.weapons.includes(k));
  if(weapon&&un.length){const k=pickR(un);p.weapons.push(k);p.weapon=k;floatText(it.x,it.y-30,`NEW WEAPON: ${WEAPONS[k].name} [${p.weapons.length}]`,'#ff5')}
- else if(it.idx%2){p.hp=Math.min(p.maxHp,p.hp+30);floatText(it.x,it.y-30,'+30 HP','#5f9')}else{p.dmgMul*=1.08;p.ups.push('+8% Damage (locker)');floatText(it.x,it.y-30,'+8% DAMAGE','#ff5')}}
+ else if(it.idx%2){p.hp=Math.min(p.maxHp,p.hp+30);floatText(it.x,it.y-30,'+30 HP','#5f9')}
+ else if(freeMods(p,p.weapon).length){const m=pickR(freeMods(p,p.weapon));addMod(p,p.weapon,m);p.ups.push(`${MODS[m].name} (${WEAPONS[p.weapon].name})`);floatText(it.x,it.y-30,`MOD: ${MODS[m].name} → ${WEAPONS[p.weapon].name}`,MODS[m].color)}else{p.dmgMul*=1.08;p.ups.push('+8% Damage (locker)');floatText(it.x,it.y-30,'+8% DAMAGE','#ff5')}}
 
 // ================= COMBAT =================
-function mkBullet(x,y,a,o){return{x,y,vx:Math.cos(a)*o.speed,vy:Math.sin(a)*o.speed,dmg:o.dmg,life:o.life,col:o.col,r:o.r||3,pierce:o.pierce,burn:o.burn,flame:o.flame,hit:o.pierce?new Set():null}}
-function shoot(p,a,o){const ang=a+rnd(-o.spread,o.spread);S.bullets.push(mkBullet(p.x+Math.cos(a)*14,p.y+Math.sin(a)*14,ang,Object.assign({},o,{dmg:o.dmg*p.dmgMul})))}
+function mkBullet(x,y,a,o){return{x,y,vx:Math.cos(a)*o.speed,vy:Math.sin(a)*o.speed,dmg:o.dmg,life:o.life,col:o.col,r:o.r||3,pierce:o.pierce,burn:o.burn,flame:o.flame,hit:o.pierce?new Set():null,mods:o.mods,grenade:o.grenade,wk:o.wk,life0:o.life}}
+function shoot(p,a,o){const ang=a+rnd(-o.spread,o.spread);S.bullets.push(mkBullet(p.x+Math.cos(a)*14,p.y+Math.sin(a)*14,ang,Object.assign({},o,{dmg:o.dmg*p.dmgMul,mods:p.mods[p.weapon],wk:p.weapon})))}
 function hittables(){return S.enemies.filter(e=>e.hp>0).concat(S.items.filter(i=>i.kind==='shoot'&&!i.done&&i.active))}
 function damage(t,amt,o){o=o||{};if(t.kind==='shoot'){if(o.flame&&t.burnBonus)amt*=2;t.hp-=amt;S.stats.dmg+=amt;t.flash=.08;
   if(t.hp<=0&&!t.done){t.done=true;burst(t.x,t.y,t.color,30);t.onDone&&t.onDone(t)}return}
- t.hp-=amt;t.flash=.06;S.stats.dmg+=amt;if(o.burn)t.burn=Math.max(t.burn,o.burn)}
+ t.hp-=amt;t.flash=.06;S.stats.dmg+=amt;if(o.burn)t.burn=Math.max(t.burn,o.burn);if(o.mods&&o.mods.length)applyMods(t,amt,o)}
+const freeMods=(p,wk)=>Object.keys(MODS).filter(m=>MODS[m].implemented&&!(p.mods[wk]||[]).includes(m));
+const addMod=(p,wk,m)=>(p.mods[wk]=p.mods[wk]||[]).push(m);
+function applyMods(e,amt,o){const p=S.p,ms=o.mods,rate=WEAPONS[o.wk||p.weapon].rate,boss=ENEMIES[e.type].boss;
+ if(ms.includes('cryo'))e.slowT=2;
+ if(ms.includes('vampiric')){const h=amt*.06;p.hp=Math.min(p.maxHp,p.hp+h);S.stats.healed+=h}
+ if(ms.includes('emp')&&!boss&&Math.random()<Math.min(1,1.2/rate)){e.stun=.7;S.stats.procs++;burst(e.x,e.y,'#ff6',6)}
+ if(ms.includes('explosive')&&Math.random()<Math.min(1,2/rate)){S.stats.procs++;explodeAt(e.x,e.y,55,Math.max(12,amt*.6),'#fa5')}}
+function explodeAt(x,y,r,dmg,col){S.stats.booms++;for(const t of hittables()){const d=dist(t,{x,y});if(d<r+t.r)damage(t,dmg*(1-.5*Math.min(1,d/r)))}
+ S.rings.push({x,y,r:10,life:.3,col});S.booms.push({x,y,life:.18,col});burst(x,y,col,26);burst(x,y,'#fff',8)}
+function railShot(p,a,dmg){S.stats.rails++;const cx=Math.cos(a),cy=Math.sin(a);let L=0;while(L<1300&&!inWall(p.x+cx*L,p.y+cy*L))L+=8;
+ const x2=p.x+cx*L,y2=p.y+cy*L,o={mods:p.mods[p.weapon],wk:p.weapon};
+ for(const t of hittables()){const dx=t.x-p.x,dy=t.y-p.y,pr=dx*cx+dy*cy;if(pr<0||pr>L)continue;if(Math.abs(dx*cy-dy*cx)<t.r+6){damage(t,dmg*p.dmgMul,o);burst(t.x,t.y,'#e9f',8)}}
+ S.beams.push({x1:p.x,y1:p.y,x2,y2,col:'#d9f',life:.3,w:7})}
+function leechBeam(p,a,dmg){let best=null,bs=1e9;for(const t of hittables()){const d=dist(t,p);if(d>290)continue;const da=Math.abs(angDiff(Math.atan2(t.y-p.y,t.x-p.x),a));if(da>.6)continue;const sc=d*(1+da*2);if(sc<bs&&los(p,t)){bs=sc;best=t}}
+ if(!best){S.beams.push({x1:p.x,y1:p.y,x2:p.x+Math.cos(a)*60,y2:p.y+Math.sin(a)*60,col:'#6f6',life:.06,w:1.5});return}
+ S.stats.leech++;const d=dmg*p.dmgMul;damage(best,d,{mods:p.mods[p.weapon],wk:p.weapon});if(!best.kind){const h=d*.3;p.hp=Math.min(p.maxHp,p.hp+h);S.stats.healed+=h}
+ S.beams.push({x1:p.x,y1:p.y,x2:best.x,y2:best.y,col:'#6f6',life:.1,w:4});if(Math.random()<.5)S.parts.push({x:best.x,y:best.y,vx:(p.x-best.x)*2,vy:(p.y-best.y)*2,life:.4,col:'#7f7'})}
 function teslaArc(p,a,dmg){const T=hittables();let best=null,bs=1e9;
  for(const t of T){const d=dist(t,p);if(d>430)continue;const da=Math.abs(angDiff(Math.atan2(t.y-p.y,t.x-p.x),a));if(da>.5)continue;const s=d*(1+da*2);if(s<bs&&los(p,t)){bs=s;best=t}}
  const pts=[{x:p.x,y:p.y}];if(!best){pts.push({x:p.x+Math.cos(a)*110,y:p.y+Math.sin(a)*110});S.arcs.push({pts,life:.12});return}
- const hit=new Set();let cur=best,dm=dmg*p.dmgMul;for(let j=0;j<5&&cur;j++){hit.add(cur);pts.push({x:cur.x,y:cur.y});damage(cur,dm);dm*=.85;
+ const hit=new Set();let cur=best,dm=dmg*p.dmgMul;for(let j=0;j<5&&cur;j++){hit.add(cur);pts.push({x:cur.x,y:cur.y});damage(cur,dm,{mods:p.mods[p.weapon],wk:p.weapon});dm*=.85;
   let nx=null,nd=170;for(const t of T){if(hit.has(t))continue;const d=dist(t,cur);if(d<nd&&los(cur,t)){nd=d;nx=t}}cur=nx}
  S.arcs.push({pts,life:.15})}
 function hurtPlayer(amt){const p=S.p;if(p.inv>0||S.god)return;if(p.drone==='bastion'&&p.shield){p.shield=false;p.shieldT=4;p.inv=.3;floatText(p.x,p.y-25,'BLOCKED','#8af');return}
@@ -211,22 +249,26 @@ function ebullet(x,y,a,speed,dmg,col){S.ebullets.push({x,y,vx:Math.cos(a)*speed,
 // ================= FLOW / STATE =================
 function onKey(k){if(!S)return;if((S.state==='dead'||S.state==='victory')&&k==='r'){startGame();return}
  if(S.state==='upgrade'){if('123'.includes(k))pick(+k-1);return}
- if(S.state==='play'){if('1234'.includes(k)&&S.p.weapons[+k-1])S.p.weapon=S.p.weapons[+k-1];
+ if(S.state==='play'){if('1234567'.includes(k)&&S.p.weapons[+k-1])S.p.weapon=S.p.weapons[+k-1];
   if(k==='q'){const d=S.p.drones;S.p.drone=d[(d.indexOf(S.p.drone)+1)%d.length]}}}
 function onClick(){if(!S)return;if(S.state==='dead'||S.state==='victory')startGame();
  else if(S.state==='upgrade'&&S.choices)S.choices.forEach((c,i)=>{const b=cardRect(i);if(mouse.sx>b.x&&mouse.sx<b.x+b.w&&mouse.sy>b.y&&mouse.sy<b.y+b.h)pick(i)})}
-function rollChoices(){const p=S.p,gear=[];
- for(const[k,w]of Object.entries(WEAPONS))if(w.implemented&&!p.weapons.includes(k))gear.push({name:'Weapon: '+w.name,desc:w.desc,gear:true,apply:p=>{p.weapons.push(k);p.weapon=k}});
- for(const[k,d]of Object.entries(DRONES))if(d.implemented&&!p.drones.includes(k))gear.push({name:'Drone: '+d.name,desc:d.desc,gear:true,apply:p=>{p.drones.push(k);p.drone=k}});
- const out=[];const g=shuffle(gear);if(g.length&&Math.random()<.75)out.push(g.shift());if(g.length&&Math.random()<.25)out.push(g.shift());
- for(const u of shuffle(UPGRADES)){if(out.length>=3)break;out.push(u)}return shuffle(out)}
-function pick(i){const u=S.choices&&S.choices[i];if(!u)return;u.apply(S.p);S.p.ups.push(u.name);S.floor++;S.state='play';startFloor()}
+function rollChoices(){const p=S.p,Wc=[],Dc=[],Mc=[];S.offerN=(S.offerN||0)+1;
+ for(const[k,w]of Object.entries(WEAPONS))if(w.implemented&&!p.weapons.includes(k))Wc.push({name:'Weapon: '+w.name,desc:w.desc,gear:true,apply:p=>{p.weapons.push(k);p.weapon=k}});
+ for(const[k,d]of Object.entries(DRONES))if(d.implemented&&!p.drones.includes(k))Dc.push({name:'Drone: '+d.name,desc:d.desc,gear:true,apply:p=>{p.drones.push(k);p.drone=k}});
+ const wk=p.weapon;for(const m of freeMods(p,wk))Mc.push({name:'Mod: '+MODS[m].name,desc:`${MODS[m].desc} → ${WEAPONS[wk].name}`,gear:true,mod:true,apply:p=>{addMod(p,wk,m);p.ups.push(`${MODS[m].name} (${WEAPONS[wk].name})`)},noUp:true});
+ // Weighted for variety: every chamber offers one new weapon AND one new drone while any remain (so a run sees all categories),
+ // the third card is a mod for the equipped weapon (45%) or a stat upgrade; when gear runs out, mods and stats fill in.
+ const out=[];if(Wc.length)out.push(pickR(Wc));if(Dc.length)out.push(pickR(Dc));
+ if(Mc.length&&(out.length<2||Math.random()<.45))out.push(pickR(Mc));
+ for(const u of shuffle(UPGRADES)){if(out.length>=3)break;out.push(u)}return shuffle(out.slice(0,3))}
+function pick(i){const u=S.choices&&S.choices[i];if(!u)return;u.apply(S.p);if(!u.noUp)S.p.ups.push(u.name);S.floor++;S.state='play';startFloor()}
 function cardRect(i){const w=260,h=150,g=30,x0=VW/2-(w*3+g*2)/2;return{x:x0+i*(w+g),y:VH/2-h/2,w,h}}
 
 // ================= UPDATE =================
 function update(dt){S.t+=dt;if(S.banner&&S.banner.life>0)S.banner.life-=dt;
  for(const t of S.texts){t.life-=dt;t.y-=20*dt}S.texts=S.texts.filter(t=>t.life>0);
- for(const a of S.arcs)a.life-=dt;S.arcs=S.arcs.filter(a=>a.life>0);for(const r of S.rings){r.life-=dt;r.r+=400*dt}S.rings=S.rings.filter(r=>r.life>0);
+ for(const a of S.arcs)a.life-=dt;S.arcs=S.arcs.filter(a=>a.life>0);for(const r of S.rings){r.life-=dt;r.r+=400*dt}S.rings=S.rings.filter(r=>r.life>0);for(const b of S.beams)b.life-=dt;S.beams=S.beams.filter(b=>b.life>0);for(const b of S.booms)b.life-=dt;S.booms=S.booms.filter(b=>b.life>0);
  if(S.state!=='play')return;const p=S.p,f=S.f;S.stats.time+=dt;
  p.slow=1;S.obj.update&&S.obj.update(dt,S,f);resolve(p);
  let mx=(keys.d?1:0)-(keys.a?1:0),my=(keys.s?1:0)-(keys.w?1:0),m=Math.hypot(mx,my)||1;
@@ -249,7 +291,7 @@ function update(dt){S.t+=dt;if(S.banner&&S.banner.life>0)S.banner.life-=dt;
  S.flowT-=dt;if(S.flowT<=0){buildFlow();S.flowT=.2}
  p.inv-=dt;
  for(const e of S.enemies){if(e.hp<=0)continue;const T=ENEMIES[e.type];if(e.burn>0){e.burn-=dt;e.hp-=8*dt;S.stats.dmg+=8*dt;if(Math.random()<.2)S.parts.push({x:e.x,y:e.y,vx:0,vy:-40,life:.3,col:'#f84'})}e.flash-=dt;
-  let ang=chaseAngle(e),spd=e.speed;const d=dist(e,p);
+  let ang=chaseAngle(e),spd=e.speed;const d=dist(e,p);if(e.slowT>0){e.slowT-=dt;spd*=T.boss?.75:.5}if(e.stun>0){e.stun-=dt;spd=0;e.cd=Math.max(e.cd,.2)}
   if(T.ai==='ranged'){const see=d<520&&los(e,p);if(see&&d<250){ang=Math.atan2(e.y-p.y,e.x-p.x)+e.side*1.2;spd*=.6}
    e.cd-=dt;if(e.cd<=0&&see){e.cd=2.2;ebullet(e.x,e.y,Math.atan2(p.y-e.y,p.x-e.x),280,e.dmg)}}
   else if(T.ai==='explode'){if(d<e.r+p.r+14){if(d<80)hurtPlayer(e.dmg);burst(e.x,e.y,'#fc3',40);S.rings.push({x:e.x,y:e.y,r:10,life:.25});e.hp=0;continue}}
@@ -259,14 +301,17 @@ function update(dt){S.t+=dt;if(S.banner&&S.banner.life>0)S.banner.life-=dt;
   e.x+=Math.cos(ang)*spd*dt;e.y+=Math.sin(ang)*spd*dt;
   for(const o of S.enemies){if(o===e)continue;const dx=e.x-o.x,dy=e.y-o.y,mn=e.r+o.r;if(Math.abs(dx)>mn||Math.abs(dy)>mn)continue;const dd=Math.hypot(dx,dy);if(dd<mn&&dd>0){const k=T.boss?.1:.5;e.x+=dx/dd*(mn-dd)*k;e.y+=dy/dd*(mn-dd)*k}}
   resolve(e);if(T.ai!=='explode'&&dist(e,p)<e.r+p.r)hurtPlayer(e.dmg)}
- for(const e of S.enemies)if(e.hp<=0){S.stats.kills++;burst(e.x,e.y,e.color,ENEMIES[e.type].boss?120:14)}
+ for(const e of S.enemies)if(e.hp<=0){S.stats.kills++;if(p.drone==='harvestor'&&Math.random()<.4)S.orbs.push({x:e.x,y:e.y,life:12});burst(e.x,e.y,e.color,ENEMIES[e.type].boss?120:14)}
  S.enemies=S.enemies.filter(e=>e.hp>0);
  // bullets
  const T=hittables();
  for(const b of S.bullets){b.x+=b.vx*dt;b.y+=b.vy*dt;b.life-=dt;if(inWall(b.x,b.y)){b.life=0;continue}
   for(const t of T){if(t.hp<=0||t.done)continue;if(Math.abs(t.x-b.x)>t.r+b.r||Math.abs(t.y-b.y)>t.r+b.r)continue;if(Math.hypot(t.x-b.x,t.y-b.y)<t.r+b.r){
    if(b.pierce){if(b.hit.has(t))continue;b.hit.add(t);damage(t,b.dmg,b)}else{damage(t,b.dmg,b);b.life=0;burst(b.x,b.y,'#9ff',3);break}}}}
+ for(const b of S.bullets)if(b.life<=0&&b.grenade)explodeAt(b.x,b.y,b.grenade.r,b.grenade.dmg*p.dmgMul,'#fb4');
  S.bullets=S.bullets.filter(b=>b.life>0);
+ for(const o of S.orbs){o.life-=dt;if(dist(o,p)<22){o.life=0;p.hp=Math.min(p.maxHp,p.hp+3);S.stats.healed+=3}}S.orbs=S.orbs.filter(o=>o.life>0);
+ if(S.decoy){S.decoy.life-=dt;if(S.decoy.life<=0){explodeAt(S.decoy.x,S.decoy.y,120,30*p.dmgMul,'#9ef');S.decoy=null}}
  for(const b of S.ebullets){b.x+=b.vx*dt;b.y+=b.vy*dt;b.life-=dt;if(inWall(b.x,b.y))b.life=0;else if(Math.hypot(b.x-p.x,b.y-p.y)<b.r+p.r){hurtPlayer(b.dmg);b.life=0}}
  S.ebullets=S.ebullets.filter(b=>b.life>0);
  for(const q of S.parts){q.x+=q.vx*dt;q.y+=q.vy*dt;q.life-=dt}S.parts=S.parts.filter(q=>q.life>0);if(S.parts.length>1500)S.parts.splice(0,S.parts.length-1500);
@@ -325,9 +370,15 @@ function makeBug(type){const T=ENEMIES[type],r=T.r,g=new THREE.Group(),col=new T
  if(type==='brute'){g.add(box(r*1.4,r*.35,r*1.3,mat.armorDark,-r*.2,r*1.25,0))}
  if(type==='warden'){for(let i=0;i<7;i++){const c=new THREE.Mesh(new THREE.ConeGeometry(r*.14,r*.7,6),emis(0xff3d7a,1.6,0x220008));c.position.set(-r*.9+i*r*.28,r*1.35,(i%2?1:-1)*r*.3);c.rotation.z=-.4;c.castShadow=true;g.add(c)}}
  g.userData={legs,abd};g.scale.setScalar(type==='warden'?1.1:1.4);return g}
-const bugTpl={};const bugClone=t=>{if(!bugTpl[t])bugTpl[t]=makeBug(t);const c=bugTpl[t].clone();c.userData={legs:c.children.slice(0,3),abd:c.children[3]};return c};
+const bugTpl={};const bugClone=t=>{if(!bugTpl[t])bugTpl[t]=makeBug(t);const c=bugTpl[t].clone();const r=ENEMIES[t].r;const fr=new THREE.Mesh(geoFx,add(0x88ddff,.35));fr.scale.setScalar(r*1.15);fr.position.y=r*.7;
+ const st=new THREE.Mesh(geoTorus,add(0xffff66,.9));st.rotation.x=Math.PI/2;st.scale.setScalar(r*.9);st.position.y=r*1.7;c.add(fr,st);
+ c.userData={legs:c.children.slice(0,3),abd:c.children[3],fr,st};return c};
+const geoFx=new THREE.SphereGeometry(1,12,8),geoTorus=new THREE.TorusGeometry(1,.12,6,16);
 function makeDrone(k){const g=new THREE.Group(),c=DRONES[k].color;g.add(cyl(9,6,4,mat.armor,0,0,0),new THREE.Mesh(new THREE.TorusGeometry(10,1.4,6,20),emis(c,1.4)),sph(3.5,emis(c,1.6),0,-3,0));
- g.children[1].rotation.x=Math.PI/2;if(k==='torchlet'){const a=new THREE.Mesh(new THREE.SphereGeometry(42,16,10),add(0xff7a30,.12));a.name='aura';g.add(a)}return g}
+ g.children[1].rotation.x=Math.PI/2;if(k==='torchlet'){const a=new THREE.Mesh(new THREE.SphereGeometry(42,16,10),add(0xff7a30,.12));a.name='aura';g.add(a)}
+ if(k==='needler')for(let i=0;i<4;i++){const c2=new THREE.Mesh(new THREE.ConeGeometry(2,14,5),emis(c,1.2,0x220033));c2.rotation.z=Math.PI/2;c2.rotation.y=i*Math.PI/2;c2.position.set(Math.cos(i*Math.PI/2)*12,0,-Math.sin(i*Math.PI/2)*12);c2.rotation.order='YZX';g.add(c2)}
+ if(k==='harvestor'){for(const sd of[-1,1]){const cl=box(2,10,2,mat.armor,sd*5,-8,0,false);cl.rotation.z=sd*.4;g.add(cl)}g.add(new THREE.Mesh(new THREE.SphereGeometry(5,10,8),add(0x88ff55,.6)))}
+ if(k==='specter'){g.children[0].material=add(0x99eeff,.35);const h=new THREE.Mesh(new THREE.ConeGeometry(14,30,16,1,true),add(0x99eeff,.08));h.position.y=-18;g.add(h)}return g}
 function makeItem(it){const g=new THREE.Group(),c=new THREE.Color(it.color),u={};
  if(it.kind==='hold'){g.add(cyl(22,26,8,mat.steel,0,4,0));const L=it.label;
   if(L==='LOCKER'){g.add(box(34,62,22,mat.steel,0,39,0),box(30,56,2,mat.dark,0,39,12));u.core=box(4,50,1,emis(c,1),0,39,13.5,false)}
@@ -370,7 +421,9 @@ const shield=new THREE.Mesh(new THREE.SphereGeometry(26,20,12),add(0x88aaff,.18)
 const flash=new THREE.Mesh(new THREE.SphereGeometry(6,8,6),add(0xddffff,.9));scene.add(flash);
 const exitG=new THREE.Group();{const r=new THREE.Mesh(new THREE.TorusGeometry(34,3,8,40),emis(0x33ffee,1.5));r.rotation.x=Math.PI/2;r.position.y=3;
  const b=new THREE.Mesh(new THREE.CylinderGeometry(30,34,220,24,1,true),add(0x33ffee,.15));b.position.y=110;exitG.add(r,b);const L=new THREE.PointLight(0x33ffee,12000,300,2);L.position.y=40;exitG.add(L)}scene.add(exitG);
-const geoB=new THREE.SphereGeometry(1,8,6);
+const geoB=new THREE.SphereGeometry(1,8,6),geoRing=new THREE.RingGeometry(.85,1,40),geoBeam=new THREE.BoxGeometry(1,1,1);const beamMeshes=new Map(),orbMeshes=new Map();
+const boomL=new THREE.PointLight(0xffaa44,0,340,2);scene.add(boomL);
+const decoyG=makeMarine();decoyG.traverse(o=>{if(o.isMesh){o.material=add(0x77eeff,.3);o.castShadow=false}});const decoyRing=new THREE.Mesh(new THREE.RingGeometry(26,30,32),add(0x99eeff,.5));decoyRing.rotation.x=-Math.PI/2;decoyRing.position.y=2;decoyG.add(decoyRing);scene.add(decoyG);
 const PMAX=2000,pGeo=new THREE.BufferGeometry(),pPos=new Float32Array(PMAX*3),pCol=new Float32Array(PMAX*3);
 pGeo.setAttribute('position',new THREE.BufferAttribute(pPos,3));pGeo.setAttribute('color',new THREE.BufferAttribute(pCol,3));
 const points=new THREE.Points(pGeo,new THREE.PointsMaterial({size:6,vertexColors:true,transparent:true,blending:THREE.AdditiveBlending,depthWrite:false}));points.frustumCulled=false;scene.add(points);
@@ -388,11 +441,13 @@ function render(dt){const snap=dt===undefined;dt=dt||1/60;const p=S.p,f=S.f;if(b
  const flick=f.dark&&Math.random()<.05?.35:1;pLight.position.set(p.x,110,p.y+30);pLight.intensity=(f.dark?26000:14000)*flick;
  if(S.stats.shots!==lastShots){lastShots=S.stats.shots;muzzleT=.06}muzzleT-=dt;
  const tip={x:p.x+Math.cos(aim)*34-Math.sin(aim)*9,y:p.y+Math.sin(aim)*34+Math.cos(aim)*9};
- muzzle.position.set(tip.x,32,tip.y);muzzle.intensity=muzzleT>0?16000:0;muzzle.color.set(p.weapon==='flamethrower'?0xff8840:0xbfffff);
+ muzzle.position.set(tip.x,32,tip.y);muzzle.intensity=muzzleT>0?16000:0;muzzle.color.set({flamethrower:0xff8840,grenade_launcher:0xffcc55,railgun:0xdd99ff,bio_harvester:0x66ff66}[p.weapon]||0xbfffff);
  flash.visible=muzzleT>0;flash.position.copy(muzzle.position);flash.scale.setScalar(rnd(.7,1.4));
  // drone
  if(droneKey!==p.drone){if(droneMesh)scene.remove(droneMesh);droneMesh=makeDrone(p.drone);scene.add(droneMesh);droneKey=p.drone}
- droneMesh.position.set(p.dpos.x,46+Math.sin(S.t*4)*4,p.dpos.y);droneMesh.rotation.y=S.t*3;
+ droneMesh.position.set(p.dpos.x,46+Math.sin(S.t*4)*4,p.dpos.y);droneMesh.rotation.y=S.t*3;if(p.drone==='specter')droneMesh.visible=Math.random()>.12;else droneMesh.visible=true;
+ decoyG.visible=!!S.decoy;if(S.decoy){decoyG.position.set(S.decoy.x,0,S.decoy.y);decoyG.rotation.y=S.t*.5;decoyG.visible=Math.random()>.1;decoyRing.scale.setScalar(1+((S.t*2)%1)*.6)}
+ if(S.booms.length){const b=S.booms[S.booms.length-1];boomL.position.set(b.x,40,b.y);boomL.color.set(b.col);boomL.intensity=60000*b.life/.18}else boomL.intensity=0;
  shield.visible=p.drone==='bastion'&&p.shield;shield.position.set(p.x,26,p.y);
  // level animation
  lamps.forEach((L,i)=>{L.intensity=Math.sin(S.t*(2+i*.7)+i*3)>-.2&&Math.random()>.08?14000:0});
@@ -410,11 +465,14 @@ function render(dt){const snap=dt===undefined;dt=dt||1/60;const p=S.p,f=S.f;if(b
  sync(S.enemies,enemyMeshes,e=>bugClone(e.type),(e,g)=>{const u=g.userData;const vx=e.x-(u.px??e.x),vy=e.y-(u.py??e.y);
   if(vx*vx+vy*vy>.01)u.h=Math.atan2(vy,vx);u.px=e.x;u.py=e.y;g.position.set(e.x,0,e.y);g.rotation.y=-(u.h||0);
   const t=S.t*18+(e.x+e.y)*.05;u.legs.forEach((l,i)=>l.rotation.y=(i-1)*.45+Math.sin(t+i*2)*.3);g.scale.setScalar((e.type==='warden'?1.1:1.4)*(e.flash>0?1.15:1));
-  if(e.type==='exploder')u.abd.scale.set(1.35+Math.sin(S.t*12)*.15,.8,1.05)});
- sync(S.bullets,bulletMeshes,b=>{const m=new THREE.Mesh(geoB,b.flame?add(0xff7a30,.55):basic(b.col));m.scale.setScalar(b.r*(b.flame?2:1.2));return m},(b,m)=>{
+  if(e.type==='exploder')u.abd.scale.set(1.35+Math.sin(S.t*12)*.15,.8,1.05);u.fr.visible=e.slowT>0;u.st.visible=e.stun>0;if(e.stun>0)u.st.rotation.z=S.t*10});
+ sync(S.bullets,bulletMeshes,b=>{const m=new THREE.Mesh(geoB,b.flame?add(0xff7a30,.55):b.grenade?emis(0xffbb33,1.5,0x332200):basic(b.col));m.scale.setScalar(b.r*(b.flame?2:1.2));return m},(b,m)=>{
+  if(b.grenade){const t=1-b.life/b.life0;m.position.set(b.x,28+Math.sin(t*Math.PI)*70,b.y);m.scale.setScalar(b.r);m.rotation.x+=.3;return}
   m.position.set(b.x,b.flame?24:28,b.y);if(b.flame)m.scale.setScalar(b.r*(1+(0.38-b.life)*8));else{m.rotation.y=-Math.atan2(b.vy,b.vx);m.scale.set(b.r*2.6,b.r*.6,b.r*.6)}});
  sync(S.ebullets,ebMeshes,b=>{const m=new THREE.Mesh(geoB,basic(b.col));m.scale.setScalar(b.r*1.3);return m},(b,m)=>m.position.set(b.x,22,b.y));
- sync(S.rings,ringMeshes,()=>{const m=new THREE.Mesh(new THREE.RingGeometry(.85,1,40),add(0x99bbff,.6));m.rotation.x=-Math.PI/2;return m},(r,m)=>{m.position.set(r.x,4,r.y);m.scale.setScalar(r.r);m.material.opacity=r.life*1.5});
+ sync(S.rings,ringMeshes,r=>{const m=new THREE.Mesh(geoRing,new THREE.MeshBasicMaterial({color:new THREE.Color(r.col||'#9bf'),transparent:true,opacity:.6,blending:THREE.AdditiveBlending,depthWrite:false}));m.rotation.x=-Math.PI/2;return m},(r,m)=>{m.position.set(r.x,4,r.y);m.scale.setScalar(r.r);m.material.opacity=r.life*1.5});
+ sync(S.beams,beamMeshes,b=>new THREE.Mesh(geoBeam,add(b.col,.85)),(b,m)=>{const dx=b.x2-b.x1,dy=b.y2-b.y1,L=Math.hypot(dx,dy);m.position.set((b.x1+b.x2)/2,28,(b.y1+b.y2)/2);m.rotation.y=-Math.atan2(dy,dx);const w=b.w*Math.min(1,b.life*8);m.scale.set(L,w,w)});
+ sync(S.orbs,orbMeshes,()=>{const m=new THREE.Mesh(geoB,add(0x88ff55,.9));m.scale.setScalar(5);return m},(o,m)=>m.position.set(o.x,10+Math.sin(S.t*5+o.x)*3,o.y));
  // arcs
  arcGroup.children.forEach(l=>l.geometry.dispose());arcGroup.clear();
  for(const a of S.arcs)for(let rep=0;rep<2;rep++){const pts=[];for(let i=1;i<a.pts.length;i++){const A=a.pts[i-1],B=a.pts[i];for(let k=0;k<=5;k++){const t=k/5,j=k%5?10:0;pts.push(new THREE.Vector3(A.x+(B.x-A.x)*t+rnd(-j,j),28+rnd(-j,j)*.6,A.y+(B.y-A.y)*t+rnd(-j,j)))}}
@@ -439,13 +497,14 @@ function drawHUD(){const p=S.p,f=S.f;ctx.setTransform(1,0,0,1,0,0);ctx.clearRect
  ctx.globalAlpha=1;if(S.exit){const s=toScreen(S.exit.x,120,S.exit.y);text(S.floor===FLOORS.length-1?'EXTRACTION':'UPGRADE CHAMBER',s.x,s.y,'#7ff',fs+2,'center')}
  for(const t of S.texts){const s=toScreen(t.x,70,t.y);ctx.globalAlpha=Math.min(1,t.life);text(t.t,s.x,s.y,t.col,fs+2,'center')}ctx.globalAlpha=1;ctx.shadowBlur=0;
  ctx.setTransform(hs,0,0,hs,0,0);
- ctx.fillStyle='rgba(2,10,13,.72)';ctx.fillRect(10,10,480,112);ctx.strokeStyle='#1d5a63';ctx.strokeRect(10,10,480,112);
+ ctx.fillStyle='rgba(2,10,13,.72)';ctx.fillRect(10,10,500,150);ctx.strokeStyle='#1d5a63';ctx.strokeRect(10,10,500,150);
  ctx.fillStyle='#0a1a1f';ctx.fillRect(18,18,240,16);ctx.fillStyle=p.hp/p.maxHp<.3?'#f55':'#2ee';ctx.fillRect(18,18,240*p.hp/p.maxHp,16);
  text(`HP ${Math.ceil(p.hp)}/${p.maxHp}`+(p.drone==='bastion'?(p.shield?'  [SHIELD]':'  [shield charging]'):''),24,31,'#012',12);
  text(`FLOOR ${S.floor+1}/${FLOORS.length}: ${f.name.toUpperCase()}`,18,54,'#7ff',16);
  text('OBJECTIVE: '+(S.exit?(S.floor===FLOORS.length-1?'Reach extraction':'Enter the upgrade chamber'):S.obj.done(S)?`Clear remaining swarm (${S.enemies.length})`:S.obj.progress(S)),18,74,'#bff',12);
- ctx.font='12px monospace';let x=18;p.weapons.forEach((k,i)=>{const s=`[${i+1}] ${WEAPONS[k].name}`;text(s,x,94,k===p.weapon?'#fff':'#477',12);x+=ctx.measureText(s).width+14});
- text(`Drone [Q]: ${p.drones.map(k=>k===p.drone?'>'+DRONES[k].name+'<':DRONES[k].name).join('  ')}`,18,112,'#4fc',12);
+ ctx.font='11px monospace';let x=18,y=94;p.weapons.forEach((k,i)=>{const s=`[${i+1}] ${WEAPONS[k].name}`,w=ctx.measureText(s).width;if(x+w>500){x=18;y+=15}text(s,x,y,k===p.weapon?'#fff':'#477',11);x+=w+12});
+ const cm=p.mods[p.weapon]||[];text('Mods: '+(cm.length?cm.map(m=>MODS[m].name).join(', '):'none'),18,y+18,cm.length?'#fc8':'#466',11);
+ text(`Drone [Q]: ${p.drones.map(k=>k===p.drone?'>'+DRONES[k].name+'<':DRONES[k].name).join('  ')}`,18,y+36,'#4fc',11);
  text('UPGRADES',VW-16,24,'#7ff',13,'right');p.ups.slice(-14).forEach((u,i)=>text(u,VW-16,42+i*15,'#5cc',11,'right'));
  const boss=S.enemies.find(e=>ENEMIES[e.type].boss);if(boss){ctx.fillStyle='#200';ctx.fillRect(VW/2-250,VH-34,500,14);ctx.fillStyle='#f3a';ctx.fillRect(VW/2-250,VH-34,500*boss.hp/boss.max,14);text('BROOD WARDEN',VW/2,VH-40,'#f9c',13,'center')}
  if(S.banner&&S.banner.life>0&&S.state==='play'){ctx.globalAlpha=Math.min(1,S.banner.life);ctx.shadowColor='#000';ctx.shadowBlur=8;text(S.banner.a,VW/2,VH/3,'#7ff',34,'center');text(S.banner.b,VW/2,VH/3+30,'#9cc',15,'center');ctx.globalAlpha=1;ctx.shadowBlur=0}
@@ -459,10 +518,10 @@ function drawHUD(){const p=S.p,f=S.f;ctx.setTransform(1,0,0,1,0,0);ctx.clearRect
   [`Time: ${mmss(st.time)}`,`Kills: ${st.kills}`,`Shots fired: ${st.shots}`,`Damage dealt: ${Math.round(st.dmg)}`,`Damage taken: ${Math.round(st.taken)}`,`Final HP: ${Math.ceil(p.hp)}/${p.maxHp}`,
    `Weapons: ${p.weapons.map(k=>WEAPONS[k].name).join(', ')}`,`Drones: ${p.drones.map(k=>DRONES[k].name).join(', ')}`,`Upgrades (${p.ups.length}): ${p.ups.join(', ')}`]
    .forEach((l,i)=>text(l,VW/2,220+i*30,'#bff',15,'center'));text('Click or press R to play again',VW/2,520,'#5aa',15,'center')}}
-let last=performance.now();function loop(now){const dt=Math.min(.05,(now-last)/1000);last=now;if(mouse.moved)aimRaycast();update(dt);render(dt);requestAnimationFrame(loop)}
+let last=performance.now();function loop(now){const dt=Math.min(.05,(now-last)/1000);last=now;if(mouse.moved)aimRaycast();if(!window.__pause)update(dt);render(dt);requestAnimationFrame(loop)}
 requestAnimationFrame(loop);
 Object.defineProperty(window,'S',{get:()=>S});
-Object.assign(window,{update,render,startGame,startFloor,spawnWave,onKey,damage,pick,inWall,P,cp,dist,keys,mouse,WEAPONS,DRONES,FLOORS,ENEMIES,OBJECTIVES,rollChoices,THREE,renderer,camera,aimRaycast,GAME_READY:true});
+Object.assign(window,{update,render,startGame,startFloor,spawnWave,onKey,damage,pick,inWall,P,cp,dist,keys,mouse,WEAPONS,DRONES,FLOORS,ENEMIES,OBJECTIVES,rollChoices,MODS,explodeAt,spawnNear,rnd,THREE,renderer,camera,aimRaycast,GAME_READY:true});
 
 startGame();
 </script></body></html>
