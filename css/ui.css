@@ -1,0 +1,21 @@
+/* THE DESCENT PROTOCOL — story crawl, credits and touch controls */
+#crawl{display:none;position:fixed;inset:0;z-index:20;overflow:hidden;background:radial-gradient(ellipse at center,#021619 0%,#000 75%);color:#bff;font:18px/1.7 monospace;cursor:pointer;
+ -webkit-mask-image:linear-gradient(transparent 0%,#000 18%,#000 80%,transparent 100%);mask-image:linear-gradient(transparent 0%,#000 18%,#000 80%,transparent 100%)}
+#crawl.on{display:block}
+#crawl .cr-in{position:absolute;left:50%;width:min(720px,86vw);transform:translate(-50%,100vh);text-align:center}
+#crawl h1{font:bold 40px monospace;letter-spacing:8px;color:#dff;text-shadow:0 0 18px #3ff;margin:0 0 40px}
+#crawl p{margin:0 0 30px;text-shadow:0 0 6px rgba(40,255,230,.3)}#crawl b{color:#7ff}#crawl i{color:#8aa}
+#crawl .cr-skip{position:fixed;bottom:18px;width:100%;text-align:center;color:#477;font:12px monospace;letter-spacing:3px;-webkit-mask-image:none}
+@keyframes crawlUp{from{transform:translate(-50%,100vh)}to{transform:translate(-50%,-100%)}}
+.cr-row{display:flex;justify-content:space-between;gap:30px;width:440px;font:13px monospace;padding:3px 0;border-bottom:1px solid rgba(40,170,170,.2)}.cr-row span{color:#6cc}.cr-row b{color:#eff;text-align:right}
+#menu button:focus{outline:none;background:rgba(30,90,96,.9);color:#fff;box-shadow:0 0 14px #3ff}
+#touchui{display:none;position:fixed;inset:0;z-index:4;pointer-events:none;user-select:none;-webkit-user-select:none}
+body.touch #touchui{display:block}
+.stk-base{position:fixed;width:112px;height:112px;margin:-56px 0 0 -56px;border-radius:50%;border:2px solid rgba(80,255,240,.45);background:rgba(10,50,56,.25);box-shadow:0 0 18px rgba(40,255,230,.25);display:none}
+.stk-base.on{display:block}.stk-knob{position:absolute;left:50%;top:50%;width:50px;height:50px;margin:-25px 0 0 -25px;border-radius:50%;background:rgba(120,255,245,.55);box-shadow:0 0 12px #3ff}
+#stkR .stk-knob{background:rgba(255,140,120,.6);box-shadow:0 0 12px #f86}
+.tbtn{position:fixed;pointer-events:auto;width:64px;height:64px;border-radius:50%;border:2px solid rgba(80,255,240,.6);background:rgba(4,30,34,.6);color:#cff;font:bold 13px monospace;display:flex;align-items:center;justify-content:center;touch-action:none}
+.tbtn.dn{background:rgba(60,200,190,.6);color:#012}
+#tb-e{right:24px;bottom:150px;width:78px;height:78px;border-color:#ff5;color:#ff8}#tb-w{right:118px;bottom:200px}#tb-d{right:118px;bottom:118px}#tb-p{right:16px;top:16px;width:46px;height:46px;border-radius:8px}
+.thint{position:fixed;left:50%;bottom:8px;transform:translateX(-50%);color:rgba(150,230,230,.55);font:11px monospace;letter-spacing:2px}
+#touchui.hidden{display:none!important}body.touch #hud{touch-action:none}body.touch{touch-action:none}
