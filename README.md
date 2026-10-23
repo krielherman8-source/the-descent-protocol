@@ -12,7 +12,7 @@ Three.js and its postprocessing addons are vendored in `vendor/`. When you open 
 - 1-7: switch weapon. Q: cycle drone.
 - 1/2/3 or click: pick an upgrade card.
 - Esc: pause, or go back in menus. R: restart after death.
-- **Gamepad:** left stick move, right stick aim (auto-fire), A use, X/Y weapon/drone, Start pause.
+- **Gamepad:** left stick/d-pad move, right stick aim, RT/LT fire, A or X use, LB/RB switch weapon, Y cycle drone, Start pause, B back.
 - **Touch** (auto-detected, or `?touch=1`): floating left stick to move, right stick to aim and fire, plus USE/WPN/DRN/pause buttons.
 
 ## Features
