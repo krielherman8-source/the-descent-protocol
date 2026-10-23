@@ -30,8 +30,8 @@ const CREDITS=[
  ['Playtesting','The audit bot (died many, many times)'],
  ['','© All rights reserved. See LICENSE.']];
 function crawl(lines,opt){opt=opt||{};let el=document.getElementById('crawl');if(!el){el=document.createElement('div');el.id='crawl';document.body.appendChild(el)}
- el.innerHTML='<div class="cr-in">'+lines.map(l=>l.startsWith('<h1>')?l:'<p>'+l+'</p>').join('')+(opt.extra||'')+'</div><div class="cr-skip">'+(opt.hint||'Click / Space / tap to continue')+'</div>';
- el.className='on'+(opt.cls?' '+opt.cls:'');const inner=el.firstChild;const dur=opt.dur||(lines.length*3.2+4);
+ el.innerHTML='<div class="cr-mask"><div class="cr-in">'+lines.map(l=>l.startsWith('<h1>')?l:'<p>'+l+'</p>').join('')+(opt.extra||'')+'</div></div><div class="cr-skip">'+(opt.hint||'Click / Space / tap to continue')+'</div>';
+ el.className='on'+(opt.cls?' '+opt.cls:'');const inner=el.querySelector(".cr-in");const dur=opt.dur||(lines.length*3.2+4);
  inner.style.animation='none';void inner.offsetWidth;inner.style.animation=`crawlUp ${dur}s linear forwards`;
  let done=false,t0=performance.now(),armed=false;setTimeout(()=>armed=true,400);
  const finish=()=>{if(done)return;done=true;el.className='';el.innerHTML='';removeEventListener('keydown',kh,true);el.removeEventListener('pointerdown',ph);clearTimeout(to);opt.onDone&&opt.onDone()};

@@ -108,7 +108,7 @@ const ENEMIES={
  prime:{name:'Swarmer Prime',hp:4400,speed:110,dmg:22,r:26,color:'#ff5533',ai:'boss',boss:true},
  colossus:{name:'Hive Colossus',hp:6800,speed:48,dmg:28,r:46,color:'#b04aff',ai:'boss',boss:true},
  matriarch:{name:'Hive Matriarch',hp:7400,speed:40,dmg:24,r:42,color:'#ff4fa0',ai:'boss',boss:true},
- overmind:{name:'The Overmind',hp:9000,speed:0,dmg:40,r:56,color:'#ff2050',ai:'boss',boss:true},
+ overmind:{name:'The Overmind',hp:16000,speed:0,dmg:40,r:56,color:'#ff2050',ai:'boss',boss:true},
 };
 
 // ================= UPGRADES =================
@@ -142,7 +142,7 @@ const OBJECTIVES={
  biomass:{label:'Burn alien biomass',setup:(S,f)=>{S.items=shootItems(f,'BIOMASS','#9f3',200*(1+S.floor*.05),{burnBonus:true,r:24,spawnT:rnd(3,6)})},
   update(dt,S){for(const it of S.items){if(it.done)continue;it.spawnT-=dt;if(it.spawnT<=0){it.spawnT=6.5;spawnNear('swarmer',it.x,it.y,2)}}},
   progress:S=>`Biomass burned ${nDone(S)}/${S.items.length}  (shoot it — flames x2)`,done:allDone},
- hack:{label:'Hack reactor terminals',setup:(S,f)=>{S.items=holdItems(f,'TERMINAL','#3fc',3.5,{decay:.35})},
+ hack:{label:'Hack reactor terminals',setup:(S,f)=>{S.items=holdItems(f,'TERMINAL','#3fc',3.5,{decay:.25})},
   update(dt,S){for(const it of S.items)if(it.prog>0&&!it.alarm){it.alarm=true;floatText(it.x,it.y-30,'ALARM!','#f66');spawnNear('swarmer',it.x,it.y,5,180)}},
   progress:S=>`Terminals hacked ${nDone(S)}/${S.items.length}  (stay close, progress decays)`,done:allDone},
  vents:{label:'Redirect airflow safely',setup:(S,f)=>{S.items=holdItems(f,'VALVE','#7df',2);S.winds=f.winds},
@@ -470,7 +470,7 @@ function update(dt){S.t+=dt;S._dt=dt;if(S.banner&&S.banner.life>0)S.banner.life-
  const D=DRONES[p.drone];p.da+=dt*D.spin;p.dpos={x:p.x+Math.cos(p.da)*D.orbit,y:p.y+Math.sin(p.da)*D.orbit};D.update(p,dt);
  // items
  S.holding=null;for(const it of S.items){if(it.done||!it.active)continue;const d=dist(it,p);
-  if(it.kind==='hold'){if(d<55&&keys.e){it.prog+=dt/it.time;S.holding=it;sfx('progress');if(it.prog>=1){it.done=true;it.prog=1;burst(it.x,it.y,it.color,30);sfx('complete');floatText(it.x,it.y-30,it.label+' DONE',it.color);it.onDone&&it.onDone(it)}}
+  if(it.kind==='hold'){if(d<70&&keys.e){it.prog+=dt/it.time;S.holding=it;sfx('progress');if(it.prog>=1){it.done=true;it.prog=1;burst(it.x,it.y,it.color,30);sfx('complete');floatText(it.x,it.y-30,it.label+' DONE',it.color);it.onDone&&it.onDone(it)}}
    else if(it.decay)it.prog=Math.max(0,it.prog-it.decay*dt)}
   else if(it.kind==='zone'){if(d<it.r){it.prog+=dt/it.time;sfx('progress');if(it.prog>=1){it.done=true;it.prog=1;burst(it.x,it.y,it.color,40);sfx('complete');floatText(it.x,it.y-40,it.label+' STABLE',it.color)}}}
   else if((it.kind==='touch'||it.kind==='pickup')&&d<it.r+p.r+8){it.done=true;burst(it.x,it.y,it.color,25);sfx('pickup');if(it.kind==='touch')floatText(it.x,it.y-30,it.label+' RELAYED',it.color);it.onDone&&it.onDone(it)}
@@ -729,7 +729,7 @@ function render(dt){const snap=dt===undefined;dt=dt||1/60;const p=S.p,f=S.f;if(b
   else if(it.kind==='pickup'){g.visible=!it.done;c.rotation.y+=.05;c.position.y=22+Math.sin(S.t*4)*3}});
  exitG.visible=!!S.exit;if(S.exit){exitG.position.set(S.exit.x,0,S.exit.y);exitG.children[0].rotation.z=S.t}
  // enemies
- sync(S.enemies,enemyMeshes,e=>bugClone(e.type),(e,g)=>{const u=g.userData;u.hf.visible=e.flash>0;const vx=e.x-(u.px??e.x),vy=e.y-(u.py??e.y);
+ sync(S.enemies,enemyMeshes,e=>bugClone(e.type),(e,g)=>{const u=g.userData;u.hf.visible=e.flash>0;const lod=S.enemies.length>60&&!ENEMIES[e.type].boss;if(u.lod!==lod){u.lod=lod;g.traverse(o=>{if(o.isMesh){if(o.userData.cs===undefined)o.userData.cs=o.castShadow;o.castShadow=o.userData.cs&&!lod}})}const vx=e.x-(u.px??e.x),vy=e.y-(u.py??e.y);
   if(vx*vx+vy*vy>.01)u.h=Math.atan2(vy,vx);u.px=e.x;u.py=e.y;g.position.set(e.x,0,e.y);g.rotation.y=-(u.h||0);
   const t=S.t*18+(e.x+e.y)*.05;u.legs.forEach((l,i)=>l.rotation.y=(i-1)*.45+Math.sin(t+i*2)*.3);g.scale.setScalar((ENEMIES[e.type].boss?1:1.4)*(e.flash>0?1.15:1));if(ENEMIES[e.type].cloak)g.visible=dist(e,p)<170||Math.random()<.25;if(e.type==='overmind'){g.rotation.y=0;u.legs.forEach((l,i)=>l.rotation.y=S.t*.3*(i%2?1:-1));u.abd.scale.setScalar(1+Math.sin(S.t*4)*.05+(e.inv>0?.15:0))}
   if(e.type==='exploder')u.abd.scale.set(1.35+Math.sin(S.t*12)*.15,.8,1.05);u.fr.visible=e.slowT>0;u.st.visible=e.stun>0;if(e.stun>0)u.st.rotation.z=S.t*10},e=>'e'+e.type);
