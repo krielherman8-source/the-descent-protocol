@@ -251,7 +251,7 @@ function recordBest(win){if(!S||S.demo)return;const b=LS('tdp_best',{floor:0,kil
 // ================= AUDIO (procedural Web Audio — no sample files) =================
 const AU={ctx:null,last:{},intensity:0,step:0,next:0};
 function audioInit(){if(AU.ctx)return;try{const Ctor=window.AudioContext||window.webkitAudioContext;if(!Ctor)return;const c=AU.ctx=new Ctor();
- AU.master=c.createGain();const comp=c.createDynamicsCompressor();comp.threshold.value=-14;comp.ratio.value=4;AU.master.connect(comp);comp.connect(c.destination);
+ AU.master=c.createGain();const comp=c.createDynamicsCompressor();comp.threshold.value=-14;comp.ratio.value=4;AU.master.connect(comp);const lim=c.createDynamicsCompressor();lim.threshold.value=-6;lim.knee.value=0;lim.ratio.value=20;lim.attack.value=.002;lim.release.value=.12;comp.connect(lim);lim.connect(c.destination);AU.limiter=lim;AU.out=lim;
  AU.sfx=c.createGain();AU.sfx.connect(AU.master);AU.music=c.createGain();AU.music.connect(AU.master);
  const b=c.createBuffer(1,c.sampleRate*2,c.sampleRate),d=b.getChannelData(0);for(let i=0;i<d.length;i++)d[i]=Math.random()*2-1;AU.noise=b;applyVolumes();musicStart()}catch(e){console.warn('audio unavailable',e);AU.ctx=null}}
 function applyVolumes(){if(!AU.ctx)return;AU.master.gain.value=CFG.vol.master;AU.sfx.gain.value=CFG.vol.sfx;AU.music.gain.value=CFG.vol.music*.7}
@@ -333,7 +333,8 @@ function spread(c,n,taken){const out=[];const pts=taken.slice();for(let k=0;k<n&
   for(const q of tries){const pt=P(...q);let d=pts.length?Math.min(...pts.map(t=>dist(t,pt))):rnd(0,1);if(d>bd){bd=d;best=q}}out.push(best);pts.push(P(...best))}return out}
 function autoPoints(n){return spread(candidates(S.f.objective==='maglocks'||S.f.objective==='reactor'?[{...P(20,11),r:170}]:[],170),n,[])}
 function makeHazards(f){const hz=f.hz||{},avoid=[...S.items.map(i=>({x:i.x,y:i.y,r:180+(i.muck||0)})),{...S.p,r:160},{...P(...(f.exit||[20,11])),r:150},{...P(20,11),r:S.f.objective==='reactor'?150:0}];
- for(const t of['acid','frost'])if(hz[t]){const c=candidates(avoid,200);for(const q of spread(c,hz[t],S.items.map(i=>({x:i.x,y:i.y}))))S.hazards.push({type:t,...P(...q),r:rnd(55,85)})}
+ const open=([x,y])=>{for(let dy=-3;dy<=3;dy++)for(let dx=-3;dx<=3;dx++){const X=x+dx,Y=y+dy;if(X>=0&&Y>=0&&X<GW&&Y<GH&&S.grid[X+Y*GW])return false}return true};
+ for(const t of['acid','frost'])if(hz[t]){const c0=candidates(avoid,200),cw=c0.filter(open),c=cw.length>=hz[t]*3?cw:c0;/* pools stay out of corridors and doorways */for(const q of spread(c,hz[t],S.items.map(i=>({x:i.x,y:i.y}))))S.hazards.push({type:t,...P(...q),r:rnd(55,85)})}
  for(const[cx,cy,len,sp]of hz.lasers||[]){const c=P(cx,cy);let L=len;for(const it of S.items)if(it.kind!=='zone'){const d=dist(it,c);if(d<L+45)L=Math.max(70,d-45)}S.hazards.push({type:'laser',...c,len:L,el:L,sp,a:rnd(0,6),dmg:18})}
  if(f.dark&&!f.lamps)S.lamps=spread(candidates([],0),6,[]);else S.lamps=f.lamps||null}
 function updateHazards(dt){const p=S.p;S.hazards=S.hazards.filter(h=>!h.owner||h.owner.hp>0);for(const h of S.hazards){
@@ -403,10 +404,10 @@ const freeMods=(p,wk)=>Object.keys(MODS).filter(m=>MODS[m].implemented&&!(p.mods
 const addMod=(p,wk,m)=>(p.mods[wk]=p.mods[wk]||[]).push(m);
 function applyMods(e,amt,o){const p=S.p,ms=o.mods,rate=WEAPONS[o.wk||p.weapon].rate,boss=ENEMIES[e.type].boss;
  if(ms.includes('cryo'))e.slowT=2;
- if(ms.includes('vampiric')){const h=amt*.06;p.hp=Math.min(p.maxHp,p.hp+h);S.stats.healed+=h}
+ if(ms.includes('vampiric')){const h=amt*(o.splash?.02:.06);p.hp=Math.min(p.maxHp,p.hp+h);S.stats.healed+=h}
  if(ms.includes('emp')&&!boss&&Math.random()<Math.min(1,1.2/rate)){e.stun=.7;S.stats.procs++;burst(e.x,e.y,'#ff6',6)}
- if(ms.includes('explosive')&&Math.random()<Math.min(1,2/rate)){S.stats.procs++;explodeAt(e.x,e.y,55,Math.max(12,amt*.6),'#fa5',o)}}
-function explodeAt(x,y,r,dmg,col,o){if(o&&o.mods)o={mods:o.mods.filter(m=>m!=='explosive'),wk:o.wk};S.stats.booms++;sfx('explosion');S.events.push({t:'boom',x,y,r});S.shake=Math.min(18,S.shake+r/14);for(const t of hittables()){const d=dist(t,{x,y});if(d<r+t.r)damage(t,dmg*(1-.5*Math.min(1,d/r)),o)}
+ if(ms.includes('explosive')&&S.t-(S._expT||-9)>.12&&Math.random()<Math.min(1,2/rate)){S._expT=S.t;S.stats.procs++;explodeAt(e.x,e.y,55,Math.max(12,amt*.6),'#fa5',o)}}
+function explodeAt(x,y,r,dmg,col,o){if(o&&o.mods)o={mods:o.mods.filter(m=>m!=='explosive'),wk:o.wk,splash:true};S.stats.booms++;sfx('explosion');S.events.push({t:'boom',x,y,r});S.shake=Math.min(18,S.shake+r/14);for(const t of hittables()){const d=dist(t,{x,y});if(d<r+t.r)damage(t,dmg*(1-.5*Math.min(1,d/r)),o)}
  S.rings.push({x,y,r:10,life:.3,col});S.booms.push({x,y,life:.18,col});burst(x,y,col,26);burst(x,y,'#fff',8)}
 function railShot(p,a,dmg){S.stats.rails++;S.shake=Math.min(18,S.shake+2.5);const cx=Math.cos(a),cy=Math.sin(a);let L=0;while(L<1300&&!inWall(p.x+cx*L,p.y+cy*L))L+=8;
  const x2=p.x+cx*L,y2=p.y+cy*L,o={mods:p.mods[p.weapon],wk:p.weapon};
@@ -575,15 +576,22 @@ function makeBug(type){const T=ENEMIES[type],r=T.r,g=new THREE.Group(),col=new T
  for(let i=0;i<3;i++){const l=box(r*.18,r*.18,r*(type==='leaper'?4.2:3.0),legM,r*(.5-i*.45),r*.35,0,false);l.rotation.y=(i-1)*.45;legs.push(l);g.add(l)}
  g.add(abd,tho,head,eyes);
  if(type==='brute'){g.add(box(r*1.4,r*.35,r*1.3,mat.armorDark,-r*.2,r*1.25,0))}
- if(type==='carrier'){abd.material=new THREE.MeshPhysicalMaterial({color:0x6a5410,emissive:0xffc040,emissiveIntensity:.55,transparent:true,opacity:.62,roughness:.2,transmission:0});abd.scale.set(1.5,1.35,1.4);abd.position.set(-r*.75,r*1.05,0);
-  for(let i=0;i<6;i++)g.add(sph(r*.16,M({color:0x1a1408,emissive:0x704010,emissiveIntensity:.4}),-r*.75+Math.cos(i)*r*.4,r*1.0+Math.sin(i*2)*r*.25,Math.sin(i)*r*.4));
-  for(let i=0;i<5;i++){const c=new THREE.Mesh(new THREE.ConeGeometry(r*.1,r*.6,5),emis(0xffd060,1.2));c.position.set(-r*1.3+i*r*.32,r*1.85,0);c.rotation.z=.35;g.add(c)}}
- if(type==='prime'){abd.scale.set(1.9,.6,.75);head.scale.set(1.4,.9,.8);
-  for(const sd of[-1,1]){const arm=box(r*1.1,r*.2,r*.2,shell,r*.95,r*1.05,sd*r*.62,false);arm.rotation.z=.55;const blade=box(r*1.7,r*.07,r*.26,emis(0xff6a3a,1.8),r*1.75,r*1.25,sd*r*.8,false);blade.rotation.z=-.5;blade.rotation.y=sd*.25;g.add(arm,blade)}
-  for(let i=0;i<3;i++){const c=new THREE.Mesh(new THREE.ConeGeometry(r*.16,r*(1.3-i*.25),5),emis(0xff5533,1.4,0x220800));c.position.set(r*(.5-i*.45),r*(1.5-i*.1),0);c.rotation.z=.5;c.castShadow=true;g.add(c)}}
+ if(type==='carrier'){ // bloated brood-sac on stubby legs: translucent amber dome with glowing larvae, a chitin band and dangling tendrils
+  abd.material=new THREE.MeshPhysicalMaterial({color:0x6a5410,emissive:0xffb030,emissiveIntensity:.5,transparent:true,opacity:.5,roughness:.15,depthWrite:false});abd.scale.set(2.0,1.75,1.8);abd.position.set(-r*.7,r*1.35,0);
+  const lm=emis(0xffe070,1.6,0x402000);for(let i=0;i<7;i++){const l=new THREE.Mesh(new THREE.CapsuleGeometry(r*.1,r*.28,3,6),lm);l.position.set(-r*.7+Math.cos(i*.9)*r*.55,r*1.3+Math.sin(i*1.7)*r*.35,Math.sin(i*.9)*r*.55);l.rotation.set(i,i*2,0);g.add(l)}
+  const band=new THREE.Mesh(new THREE.TorusGeometry(r*.95,r*.12,6,18),mat.armorDark);band.rotation.x=Math.PI/2;band.position.set(-r*.7,r*1.05,0);g.add(band);
+  for(let i=0;i<6;i++){const t=cyl(r*.05,r*.02,r*.8,emis(0xc89030,.6),-r*.7+Math.cos(i)*r*.8,r*.45,Math.sin(i)*r*.8,5);g.add(t)}
+  head.scale.set(.8,.7,.9);head.position.y=r*.45;for(const sd of[-1,1]){const m=box(r*.45,r*.08,r*.08,mat.armorDark,r*1.25,r*.4,sd*r*.18,false);m.rotation.y=-sd*.5;g.add(m)}}
+ if(type==='prime'){ // armoured mantis elite: upright thorax, back plates, crown of horns, twin scythes
+  abd.scale.set(1.9,.55,.75);tho.scale.set(1,1.5,.9);tho.position.y=r*1.0;head.scale.set(1.25,1,.85);head.position.set(r*.95,r*1.35,0);eyes.position.set(r*1.25,r*1.42,0);
+  for(let i=0;i<3;i++)g.add(box(r*.7,r*.16,r*1.05-i*r*.15,mat.armorDark,-r*(.15+i*.55),r*(1.05-i*.1),0));
+  for(const sd of[-1,1]){const arm=box(r*1.1,r*.22,r*.22,mat.armorDark,r*.9,r*1.45,sd*r*.6,false);arm.rotation.z=.75;
+   const blade=new THREE.Mesh(new THREE.ConeGeometry(r*.2,r*2.2,4),emis(0xff6a3a,2.2));blade.rotation.z=-1.9;blade.rotation.x=sd*.25;blade.position.set(r*1.8,r*1.65,sd*r*.8);g.add(arm,blade)}
+  for(let i=0;i<5;i++){const c=new THREE.Mesh(new THREE.ConeGeometry(r*.09,r*.7,5),emis(0xffaa33,2));c.position.set(r*(.85+Math.cos(i*.8-1.6)*.15),r*1.75,Math.sin(i*.8-1.6)*r*.35);c.rotation.z=-.35;g.add(c)}
+  const stripe=box(r*2.2,r*.05,r*.12,emis(0xff3311,2.5),-r*.4,r*1.22,0,false);g.add(stripe)}
  if(type==='colossus')g.add(box(r*1.6,r*.4,r*1.5,mat.armorDark,-r*.2,r*1.3,0),box(r*.8,r*.3,r*1.2,mat.armorDark,r*.4,r*1.1,0));
  if(['warden','colossus','matriarch'].includes(type)){for(let i=0;i<7;i++){const c=new THREE.Mesh(new THREE.ConeGeometry(r*.14,r*.7,6),emis(0xff3d7a,1.6,0x220008));c.position.set(-r*.9+i*r*.28,r*1.35,(i%2?1:-1)*r*.3);c.rotation.z=-.4;c.castShadow=true;g.add(c)}}
- g.userData={legs,abd};g.scale.setScalar(T.boss?1.1:1.4);return g}
+ g.userData={legs,abd};g.scale.setScalar(type==='prime'?1.25:T.boss?1.1:1.4);return g}
 function makeOvermind(){const g=new THREE.Group(),col=new THREE.Color('#ff2050'),tm=M({color:0x2a0812,emissive:col,emissiveIntensity:.25,roughness:.5});const legs=[];
  for(let i=0;i<3;i++){const t=new THREE.Group();for(let j=0;j<3;j++){const c=cyl(5,9,70,tm,0,0,0,8);c.rotation.z=Math.PI/2;c.position.x=70;const a=new THREE.Group();a.rotation.y=(i*3+j)*0.698;a.add(c);t.add(a)}legs.push(t);g.add(t)}
  const brain=new THREE.Mesh(new THREE.IcosahedronGeometry(50,2),M({color:0x501020,emissive:col,emissiveIntensity:.6,roughness:.35,flatShading:true}));brain.position.y=60;brain.castShadow=true;g.add(brain);
@@ -673,7 +681,8 @@ function fxUpdate(dt){const p=S.p;
   _d.position.set(g.x,g.y,g.z);_d.rotation.set(g.rx,g.ry,0);_d.scale.setScalar(g.life<=0?0:g.s*Math.min(1,g.life*2));_d.updateMatrix();gibMesh.setMatrixAt(g.i,_d.matrix);any=true;if(g.life<=0)gibs.splice(k,1)}
  if(any){gibMesh.instanceMatrix.needsUpdate=true;gibMesh.instanceColor.needsUpdate=true}
  // walls between camera and player fade out (camera sits at +z of the player, so the occluder is the wall just "south" of them)
- for(const w of wallFade){const occ=p.x>w.x-26&&p.x<w.x+w.w+26&&p.y<w.y+w.h+14&&p.y>w.y-58;const t=occ?.22:1;w.o+=(t-w.o)*Math.min(1,dt*10);for(const m of w.mats){m.opacity=w.o*(m.userData.base||1);m.depthWrite=w.o>.9}}
+ const near=wallFade.length?S.enemies.filter(e=>ENEMIES[e.type].boss||Math.abs(e.x-p.x)+Math.abs(e.y-p.y)<300).slice(0,40):[];const ins=(o,w,m)=>o.x>w.x-m&&o.x<w.x+w.w+m&&o.y<w.y+w.h+14&&o.y>w.y-58;
+ for(const w of wallFade){const occ=ins(p,w,26);const t=occ?.22:near.some(e=>ins(e,w,e.r))?.45:1;w.o+=(t-w.o)*Math.min(1,dt*10);for(const m of w.mats){m.opacity=w.o*(m.userData.base||1);m.depthWrite=w.o>.9}}
  if(S.shake>0)S.shake*=Math.exp(-dt*9);if(S.hurtT>0)S.hurtT-=dt}
 function drawArcs(){let n=0;const seg=(A,B,w,m)=>{let o=arcMeshes[n++];if(!o){o=new THREE.Mesh(geoBeam,m);arcGroup.add(o);arcMeshes.push(o)}o.material=m;o.visible=true;const dx=B.x-A.x,dy=B.y-A.y;o.position.set((A.x+B.x)/2,28,(A.y+B.y)/2);o.rotation.set(0,-Math.atan2(dy,dx),0);o.scale.set(Math.hypot(dx,dy)+w,w,w)};
  for(const a of S.arcs)for(let i=1;i<a.pts.length;i++){const A=a.pts[i-1],B=a.pts[i];let prev={x:A.x,y:A.y};for(let k=1;k<=5;k++){const t=k/5,j=k<5?12:0,q={x:A.x+(B.x-A.x)*t+rnd(-j,j),y:A.y+(B.y-A.y)*t+rnd(-j,j)};seg(prev,q,3,arcMat2);seg(prev,q,9,arcMat3);prev=q}}
@@ -749,6 +758,11 @@ function aimRaycast(){ray.setFromCamera(new THREE.Vector2(mouse.cx/innerWidth*2-
 // ---- HUD overlay ----
 const _v=new THREE.Vector3();function toScreen(x,h,y){_v.set(x,h,y).project(camera);return{x:(_v.x+1)/2*innerWidth,y:(1-_v.y)/2*innerHeight,vis:_v.z<1}}
 function text(t,x,y,c,sz,al){ctx.fillStyle=c;ctx.font=`${sz||14}px monospace`;ctx.textAlign=al||'left';ctx.fillText(t,x,y)}
+function hudPanel(x,y,w,h){const g=ctx.createLinearGradient(x,y,x,y+h);g.addColorStop(0,'rgba(4,26,32,.82)');g.addColorStop(1,'rgba(1,8,11,.7)');ctx.fillStyle=g;ctx.fillRect(x,y,w,h);
+ ctx.strokeStyle='rgba(40,170,180,.45)';ctx.lineWidth=1;ctx.strokeRect(x+.5,y+.5,w-1,h-1);ctx.strokeStyle='#5ff';ctx.lineWidth=2;ctx.shadowColor='#3ff';ctx.shadowBlur=6;const c=10;ctx.beginPath();
+ for(const[px,py,dx,dy]of[[x,y,1,1],[x+w,y,-1,1],[x,y+h,1,-1],[x+w,y+h,-1,-1]]){ctx.moveTo(px+dx*c,py);ctx.lineTo(px,py);ctx.lineTo(px,py+dy*c)}ctx.stroke();ctx.shadowBlur=0;ctx.lineWidth=1}
+function hudBar(x,y,w,h,f,cols,seg){f=Math.max(0,Math.min(1,f));ctx.fillStyle='#061418';ctx.fillRect(x,y,w,h);const g=ctx.createLinearGradient(x,0,x+w,0);g.addColorStop(0,cols[0]);g.addColorStop(1,cols[1]);ctx.fillStyle=g;ctx.shadowColor=cols[1];ctx.shadowBlur=8;ctx.fillRect(x,y,w*f,h);ctx.shadowBlur=0;
+ ctx.fillStyle='rgba(255,255,255,.18)';ctx.fillRect(x,y,w*f,h*.35);ctx.fillStyle='rgba(0,0,0,.35)';for(let i=1;i<seg;i++)ctx.fillRect(x+w*i/seg,y,1,h);ctx.strokeStyle='rgba(120,255,250,.5)';ctx.strokeRect(x+.5,y+.5,w-1,h-1)}
 function drawHUD(){const p=S.p,f=S.f;ctx.setTransform(1,0,0,1,0,0);ctx.clearRect(0,0,hud.width,hud.height);if(S.state==='title')return;
  if(S.hurtT>0){const g=ctx.createRadialGradient(hud.width/2,hud.height/2,hud.height*.3,hud.width/2,hud.height/2,hud.height*.8);g.addColorStop(0,'rgba(255,0,0,0)');g.addColorStop(1,`rgba(255,20,20,${S.hurtT*1.2})`);ctx.fillStyle=g;ctx.fillRect(0,0,hud.width,hud.height)}const fs=Math.max(10,11*hs);
  ctx.shadowColor='#000';ctx.shadowBlur=4;
@@ -760,8 +774,8 @@ function drawHUD(){const p=S.p,f=S.f;ctx.setTransform(1,0,0,1,0,0);ctx.clearRect
  for(const t of S.texts){const s=toScreen(t.x,70,t.y);ctx.globalAlpha=Math.min(1,t.life);text(t.t,s.x,s.y,t.col,fs+2,'center')}ctx.globalAlpha=1;ctx.shadowBlur=0;
  if(S.state==='play')TDP_MINIMAP.arrows(ctx,S,toScreen,innerWidth,innerHeight,hs);
  ctx.setTransform(hs,0,0,hs,0,0);
- ctx.fillStyle='rgba(2,10,13,.72)';ctx.fillRect(10,10,500,150);ctx.strokeStyle='#1d5a63';ctx.strokeRect(10,10,500,150);
- ctx.fillStyle='#0a1a1f';ctx.fillRect(18,18,240,16);ctx.fillStyle=p.hp/p.maxHp<.3?'#f55':'#2ee';ctx.fillRect(18,18,240*p.hp/p.maxHp,16);
+ hudPanel(10,10,500,150);
+ hudBar(18,18,240,16,p.hp/p.maxHp,p.hp/p.maxHp<.3?['#f33','#f88']:['#0bb','#6ff'],10);
  text(`HP ${Math.ceil(p.hp)}/${p.maxHp}`+(p.drone==='bastion'?(p.shield?'  [SHIELD]':'  [shield charging]'):''),24,31,'#012',12);
  text(`FLOOR ${S.floor+1}/${FLOORS.length}: ${f.name.toUpperCase()}`,18,54,'#7ff',16);
  text('OBJECTIVE: '+(S.exit?(S.floor===FLOORS.length-1?'Reach extraction':'Enter the upgrade chamber'):S.obj.done(S)?`Clear remaining swarm (${S.enemies.length})`:S.obj.progress(S)),18,74,'#bff',12);
@@ -773,11 +787,11 @@ function drawHUD(){const p=S.p,f=S.f;ctx.setTransform(1,0,0,1,0,0);ctx.clearRect
  if(S.tut&&S.floor===0&&TUT[S.tut.i]&&S.state==='play'){const st=TUT[S.tut.i],msg=st[IN.src]||st.kbm;ctx.font='16px monospace';const w=ctx.measureText(msg).width+40;
   ctx.fillStyle='rgba(2,20,24,.85)';ctx.fillRect(VW/2-w/2,VH-130,w,44);ctx.strokeStyle='#3ff';ctx.shadowColor='#3ff';ctx.shadowBlur=10;ctx.strokeRect(VW/2-w/2,VH-130,w,44);ctx.shadowBlur=0;
   text(`TUTORIAL ${S.tut.i+1}/${TUT.length}`,VW/2,VH-136,'#6ff',11,'center');text(msg,VW/2,VH-102,'#eff',16,'center')}
- const boss=S.enemies.find(e=>ENEMIES[e.type].boss);if(boss){ctx.fillStyle='#200';ctx.fillRect(VW/2-250,VH-34,500,14);ctx.fillStyle='#f3a';ctx.fillRect(VW/2-250,VH-34,500*boss.hp/boss.max,14);text(ENEMIES[boss.type].name.toUpperCase()+(boss.type==='overmind'?`  — PHASE ${boss.phase||1}`:''),VW/2,VH-40,'#f9c',13,'center')}
+ const boss=S.enemies.find(e=>ENEMIES[e.type].boss);if(boss){hudPanel(VW/2-260,VH-58,520,46);hudBar(VW/2-250,VH-34,500,14,boss.hp/boss.max,['#a02','#f5a'],20);text(ENEMIES[boss.type].name.toUpperCase()+(boss.type==='overmind'?`  — PHASE ${boss.phase||1}`:''),VW/2,VH-40,'#f9c',13,'center')}
  if(S.banner&&S.banner.life>0&&S.state==='play'){ctx.globalAlpha=Math.min(1,S.banner.life);ctx.shadowColor='#000';ctx.shadowBlur=8;text(S.banner.a,VW/2,VH/3,'#7ff',34,'center');text(S.banner.b,VW/2,VH/3+30,'#9cc',15,'center');ctx.globalAlpha=1;ctx.shadowBlur=0}
- if(S.state==='upgrade'){ctx.fillStyle='rgba(0,8,12,.85)';ctx.fillRect(0,0,VW,VH);text('UPGRADE CHAMBER — CHOOSE ONE  [1/2/3 or click]',VW/2,VH/2-110,'#7ff',22,'center');
+ if(S.state==='upgrade'){ctx.fillStyle='rgba(0,8,12,.85)';ctx.fillRect(0,0,VW,VH);text('UPGRADE CHAMBER — CHOOSE ONE  '+({pad:'[X / A / B]',touch:'[tap a card]'}[IN.src]||'[1/2/3 or click]'),VW/2,VH/2-110,'#7ff',22,'center');
   S.choices.forEach((c,i)=>{const b=cardRect(i),col=c.gear?'#ff5':'#3ff';ctx.fillStyle='rgba(10,30,36,.8)';ctx.fillRect(b.x,b.y,b.w,b.h);ctx.shadowColor=col;ctx.shadowBlur=15;ctx.strokeStyle=col;ctx.lineWidth=2;ctx.strokeRect(b.x,b.y,b.w,b.h);ctx.shadowBlur=0;
-   text(`[${i+1}]`,b.x+b.w/2,b.y+36,'#5aa',16,'center');text(c.name,b.x+b.w/2,b.y+75,'#eff',15,'center');text(c.desc||'',b.x+b.w/2,b.y+105,'#7aa',10,'center')})}
+   text(IN.src==='pad'?['X','A','B'][i]:IN.src==='touch'?'TAP':`[${i+1}]`,b.x+b.w/2,b.y+36,'#5aa',16,'center');text(c.name,b.x+b.w/2,b.y+75,'#eff',15,'center');text(c.desc||'',b.x+b.w/2,b.y+105,'#7aa',10,'center')})}
  const st=S.stats,mmss=t=>`${Math.floor(t/60)}:${String(Math.floor(t%60)).padStart(2,'0')}`;
  if(S.state==='dead'){ctx.fillStyle='rgba(20,0,0,.82)';ctx.fillRect(0,0,VW,VH);text('PROTOCOL TERMINATED',VW/2,VH/2-30,'#f66',36,'center');
   text(`Reached floor ${S.floor+1} (${f.name})  ·  Kills ${st.kills}  ·  Time ${mmss(st.time)}`,VW/2,VH/2+10,'#fbb',15,'center');text('Click or press R to restart from floor 1  ·  Esc: title (Continue resumes your last checkpoint)',VW/2,VH/2+40,'#fbb',15,'center')}
