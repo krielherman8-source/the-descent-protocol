@@ -29,7 +29,7 @@ s.textContent=JSON.stringify({imports:{three:local?'./vendor/three.module.js':cd
 <div class="panel" id="m-controls"><h2>CONTROLS</h2><table>
 <tr><td>WASD</td><td>Move (screen-relative)</td></tr><tr><td>MOUSE</td><td>Aim · hold LMB to fire</td></tr><tr><td>1 – 7</td><td>Switch weapon</td></tr><tr><td>Q</td><td>Cycle drone</td></tr>
 <tr><td>E (hold)</td><td>Interact with objectives</td></tr><tr><td>1/2/3 · click</td><td>Choose upgrade in chamber</td></tr><tr><td>ESC</td><td>Pause</td></tr><tr><td>R</td><td>Restart after death</td></tr><tr><td>GAMEPAD</td><td>L-stick move · R-stick aim+fire · RT fire · A use · LB/RB weapon · Y drone · Start pause</td></tr><tr><td>TOUCH</td><td>Left thumb move · right thumb aim+fire · USE / WPN / DRN buttons</td></tr></table><button data-a="back">BACK</button></div></div>
-<link rel="stylesheet" href="css/ui.css"><script src="js/story.js"></script><script src="js/input.js"></script><script src="js/minimap.js"></script><script src="js/content.js"></script><script src="js/instancing.js"></script><script src="js/settings.js"></script>
+<link rel="stylesheet" href="css/ui.css"><script src="js/story.js"></script><script src="js/input.js"></script><script src="js/minimap.js"></script><script src="js/content.js"></script><script src="js/instancing.js"></script><script src="js/settings.js"></script><script src="js/stats.js"></script>
 <div id="load">LOADING THE DESCENT PROTOCOL…</div><script type="module">
 'use strict';
 let THREE;
@@ -428,7 +428,7 @@ function teslaArc(p,a,dmg){const T=hittables();let best=null,bs=1e9;
   let nx=null,nd=170;for(const t of T){if(hit.has(t))continue;const d=dist(t,cur);if(d<nd&&los(cur,t)){nd=d;nx=t}}cur=nx}
  S.arcs.push({pts,life:.15})}
 function hurtPlayer(amt){const p=S.p;if(p.inv>0||S.god)return;if(p.drone==='bastion'&&p.shield){p.shield=false;p.shieldT=4;p.inv=.3;floatText(p.x,p.y-25,'BLOCKED','#8af');sfx('shield');return}
- p.hp-=amt;S.stats.taken+=amt;p.inv=.6;sfx('hurt');S.shake=Math.min(18,S.shake+5);S.hurtT=.35;burst(p.x,p.y,'#f55',10)}
+ p.hp-=amt;S.stats.taken+=amt;TDP_STATS.hit(S,amt);p.inv=.6;sfx('hurt');S.shake=Math.min(18,S.shake+5);S.hurtT=.35;burst(p.x,p.y,'#f55',10)}
 function burst(x,y,col,n){for(let i=0;i<n;i++){const a=rnd(0,6.28),s=rnd(40,220);S.parts.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s,life:rnd(.2,.6),col})}}
 function ebullet(x,y,a,speed,dmg,col){S.ebullets.push({x,y,vx:Math.cos(a)*speed,vy:Math.sin(a)*speed,dmg,life:4,col:col||'#c6f',r:5})}
 
@@ -464,7 +464,7 @@ function update(dt){S.t+=dt;S._dt=dt;if(S.banner&&S.banner.life>0)S.banner.life-
  for(const t of S.texts){t.life-=dt;t.y-=20*dt}S.texts=S.texts.filter(t=>t.life>0);
  for(const a of S.arcs)a.life-=dt;S.arcs=S.arcs.filter(a=>a.life>0);for(const r of S.rings){r.life-=dt;r.r+=400*dt}S.rings=S.rings.filter(r=>r.life>0);for(const b of S.beams)b.life-=dt;S.beams=S.beams.filter(b=>b.life>0);for(const b of S.booms)b.life-=dt;S.booms=S.booms.filter(b=>b.life>0);
  if(S.state==='descent'){S.descT+=dt;if(!S.descDone&&S.descT>=.9){S.descDone=true;S.floor++;startFloor();saveGame()}if(S.descT>=1.8)S.state='play';return}
- if(S.state!=='play')return;const p=S.p,f=S.f;S.stats.time+=dt;tutTick(dt);
+ if(S.state!=='play')return;const p=S.p,f=S.f;S.stats.time+=dt;TDP_STATS.tick(S,dt);tutTick(dt);
  S.floorT+=dt;p.slow=1;S.obj.update&&S.obj.update(dt,S,f);
  if(f.elite&&!S.eliteSpawned&&S.floorT>=f.elite.at){S.eliteSpawned=true;const pt=edgeSpawn(),e=spawnEnemy(f.elite.type,pt.x,pt.y);e.hp=e.max=e.max*(f.elite.hp||.55);e.elite=true;sfx('roar');S.shake=12;showBanner('ELITE: '+ENEMIES[f.elite.type].name.toUpperCase(),f.elite.line||'A champion of the hive joins the fight',2.5)}updateHazards(dt);resolve(p);
  let mx=(keys.d?1:0)-(keys.a?1:0),my=(keys.s?1:0)-(keys.w?1:0);if(IN.mx||IN.my){mx=IN.mx;my=IN.my}const m=Math.max(1,Math.hypot(mx,my));
@@ -500,7 +500,7 @@ function update(dt){S.t+=dt;S._dt=dt;if(S.banner&&S.banner.life>0)S.banner.life-
   e.x+=Math.cos(ang)*spd*dt;e.y+=Math.sin(ang)*spd*dt;
   {const ix=(e.x/48)|0,iy=(e.y/48)|0;for(let gy=iy-1;gy<=iy+1;gy++)for(let gx=ix-1;gx<=ix+1;gx++){const a=SH.get(gx+gy*64);if(!a)continue;for(const o of a){if(o===e||o.hp<=0)continue;const dx=e.x-o.x,dy=e.y-o.y,mn=(e.r+o.r)*1.15;if(Math.abs(dx)>mn||Math.abs(dy)>mn)continue;const dd=Math.hypot(dx,dy);if(dd<mn&&dd>0){const k=T.boss?.1:ENEMIES[o.type].boss?.9:.45;e.x+=dx/dd*(mn-dd)*k;e.y+=dy/dd*(mn-dd)*k}}}}
   resolve(e);if(T.ai!=='explode'&&dist(e,p)<e.r+p.r){const was=p.inv;hurtPlayer(e.dmg);if(T.boss&&was<=0&&p.inv>0){p.inv=1;const k=Math.max(dist(e,p),1);p.x+=(p.x-e.x)/k*46;p.y+=(p.y-e.y)/k*46;resolve(p)}}}
- for(const e of S.enemies)if(e.hp<=0){S.stats.kills++;if(ENEMIES[e.type].split&&S.enemies.length<110)spawnNear(ENEMIES[e.type].split,e.x,e.y,4,20);if(p.drone==='harvestor'&&Math.random()<.4)S.orbs.push({x:e.x,y:e.y,life:12});burst(e.x,e.y,e.color,ENEMIES[e.type].boss?120:14);const bs=!!ENEMIES[e.type].boss;if(!S.demo){const ch=(.03+(p.hp<p.maxHp*.4?.03:0))*DF().heal;if(bs)for(let i=0;i<3;i++)S.pickups.push({x:e.x+rnd(-60,60),y:e.y+rnd(-60,60),life:30,heal:30,big:true});else if(Math.random()<ch&&S.pickups.length<6)S.pickups.push({x:e.x,y:e.y,life:14,heal:18})}sfx(bs?'roar':'death');if(bs)S.shake=20;S.events.push({t:'die',x:e.x,y:e.y,col:e.color,r:e.r,boss:bs})}if(S.events.length>300)S.events.splice(0,S.events.length-300);
+ for(const e of S.enemies)if(e.hp<=0){S.stats.kills++;TDP_STATS.kill(S,e.type);if(ENEMIES[e.type].split&&S.enemies.length<110)spawnNear(ENEMIES[e.type].split,e.x,e.y,4,20);if(p.drone==='harvestor'&&Math.random()<.4)S.orbs.push({x:e.x,y:e.y,life:12});burst(e.x,e.y,e.color,ENEMIES[e.type].boss?120:14);const bs=!!ENEMIES[e.type].boss;if(!S.demo){const ch=(.03+(p.hp<p.maxHp*.4?.03:0))*DF().heal;if(bs)for(let i=0;i<3;i++)S.pickups.push({x:e.x+rnd(-60,60),y:e.y+rnd(-60,60),life:30,heal:30,big:true});else if(Math.random()<ch&&S.pickups.length<6)S.pickups.push({x:e.x,y:e.y,life:14,heal:18})}sfx(bs?'roar':'death');if(bs)S.shake=20;S.events.push({t:'die',x:e.x,y:e.y,col:e.color,r:e.r,boss:bs})}if(S.events.length>300)S.events.splice(0,S.events.length-300);
  S.enemies=S.enemies.filter(e=>e.hp>0);
  // bullets
  const T=hittables();
@@ -515,7 +515,7 @@ function update(dt){S.t+=dt;S._dt=dt;if(S.banner&&S.banner.life>0)S.banner.life-
  for(const b of S.ebullets){b.x+=b.vx*dt;b.y+=b.vy*dt;b.life-=dt;if(inWall(b.x,b.y))b.life=0;else if(Math.hypot(b.x-p.x,b.y-p.y)<b.r+p.r){hurtPlayer(b.dmg);b.life=0}}
  S.ebullets=S.ebullets.filter(b=>b.life>0);
  for(const q of S.parts){q.x+=q.vx*dt;q.y+=q.vy*dt;q.life-=dt}S.parts=S.parts.filter(q=>q.life>0);if(S.parts.length>1500)S.parts.splice(0,S.parts.length-1500);
- if(p.hp<=0){p.hp=0;S.state='dead';recordBest(false);sfx('gameover')}}
+ if(p.hp<=0){p.hp=0;S.state='dead';TDP_STATS.died(S,LS,LSset);recordBest(false);sfx('gameover')}}
 
 // ================= RENDER (Three.js, angled top-down) =================
 // Simulation stays on the 2D ground plane: sim (x,y) -> world (x, height, y).
@@ -808,12 +808,7 @@ function drawHUD(){const p=S.p,f=S.f;ctx.setTransform(1,0,0,1,0,0);ctx.clearRect
   S.choices.forEach((c,i)=>{const b=cardRect(i),col=c.gear?'#ff5':'#3ff';ctx.fillStyle='rgba(10,30,36,.8)';ctx.fillRect(b.x,b.y,b.w,b.h);ctx.shadowColor=col;ctx.shadowBlur=15;ctx.strokeStyle=col;ctx.lineWidth=2;ctx.strokeRect(b.x,b.y,b.w,b.h);ctx.shadowBlur=0;
    text(IN.src==='pad'?['X','A','B'][i]:IN.src==='touch'?'TAP':`[${i+1}]`,b.x+b.w/2,b.y+36,'#5aa',16,'center');text(c.name,b.x+b.w/2,b.y+75,'#eff',15,'center');text(c.desc||'',b.x+b.w/2,b.y+105,'#7aa',10,'center')})}
  const st=S.stats,mmss=t=>`${Math.floor(t/60)}:${String(Math.floor(t%60)).padStart(2,'0')}`;
- if(S.state==='dead'){ctx.fillStyle='rgba(20,0,0,.82)';ctx.fillRect(0,0,VW,VH);text('PROTOCOL TERMINATED',VW/2,VH/2-30,'#f66',36,'center');
-  text(`Reached floor ${S.floor+1} (${f.name})  ·  Kills ${st.kills}  ·  Time ${mmss(st.time)}`,VW/2,VH/2+10,'#fbb',15,'center');text('Click or press R to restart from floor 1  ·  Esc: title (Continue resumes your last checkpoint)',VW/2,VH/2+40,'#fbb',15,'center')}
- if(S.state==='victory'){ctx.fillStyle='rgba(0,12,14,.9)';ctx.fillRect(0,0,VW,VH);text('DESCENT COMPLETE — THE OVERMIND IS DEAD',VW/2,150,'#7ff',32,'center');
-  [`Time: ${mmss(st.time)}`,`Kills: ${st.kills}`,`Shots fired: ${st.shots}`,`Damage dealt: ${Math.round(st.dmg)}`,`Damage taken: ${Math.round(st.taken)}`,`Final HP: ${Math.ceil(p.hp)}/${p.maxHp}`,
-   `Weapons: ${p.weapons.map(k=>WEAPONS[k].name).join(', ')}`,`Drones: ${p.drones.map(k=>DRONES[k].name).join(', ')}`,`Upgrades (${p.ups.length}): ${p.ups.join(', ')}`]
-   .forEach((l,i)=>text(l,VW/2,220+i*30,'#bff',15,'center'));text('Click or press R to play again  ·  Esc for title',VW/2,520,'#5aa',15,'center')}
+ if(S.state==='dead'||S.state==='victory')TDP_STATS.draw(ctx,S,S.state,{VW,VH,text,WEAPONS,DRONES,name:t=>ENEMIES[t]?ENEMIES[t].name:(t||'unknown')});
  if(S.state==='descent'){const k=S.descT<.9?S.descT/.9:Math.max(0,1-(S.descT-.9)/.9);ctx.fillStyle=`rgba(0,5,7,${Math.min(1,k*1.15)})`;ctx.fillRect(0,0,VW,VH);ctx.strokeStyle=`rgba(80,255,240,${k*.55})`;ctx.lineWidth=2;
   for(let i=0;i<46;i++){const x=(i*97.3)%VW,y=((i*53+S.t*1500)%(VH+200))-100;ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x,y+50+(i%5)*24);ctx.stroke()}
   ctx.globalAlpha=Math.min(1,k*1.4);const nf=S.descDone?S.floor:S.floor+1;text(`DESCENDING — FLOOR ${nf+1}`,VW/2,VH/2-10,'#7ff',30,'center');text(FLOORS[nf].name.toUpperCase(),VW/2,VH/2+26,'#5aa',16,'center');ctx.globalAlpha=1}}

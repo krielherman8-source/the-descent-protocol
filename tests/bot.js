@@ -16,7 +16,11 @@ function cellOf(o){return [Math.max(0,Math.min(GW-1,Math.floor(o.x/C))),Math.max
 function pathDir(p,goal){const[gx,gy]=cellOf(goal),gi=gx+gy*GW;if(gi!==goalCell||S.t-field.t>1){field=bfs(gx,gy);field.t=S.t;goalCell=gi}
  const[px,py]=cellOf(p),D=field;let best=null,bd=D[px+py*GW]<0?1e9:D[px+py*GW];if(bd<=3)return norm(goal.x-p.x,goal.y-p.y);
  for(const[dx,dy]of[[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]]){const nx=px+dx,ny=py+dy;if(nx<0||ny<0||nx>=GW||ny>=GH)continue;const v=D[nx+ny*GW];if(v>=0&&v<bd){bd=v;best=[nx,ny]}}
- if(!best)return norm(goal.x-p.x,goal.y-p.y);return norm(best[0]*C+16-p.x,best[1]*C+16-p.y)}
+ if(!best)return norm(goal.x-p.x,goal.y-p.y);let tgt=best,cur=best;
+ for(let s2=0;s2<7;s2++){let nb=null,nv=D[cur[0]+cur[1]*GW];for(const[dx,dy]of[[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]]){const nx=cur[0]+dx,ny=cur[1]+dy;if(nx<0||ny<0||nx>=GW||ny>=GH)continue;const v=D[nx+ny*GW];if(v>=0&&v<nv){nv=v;nb=[nx,ny]}}
+  if(!nb)break;cur=nb;if(clear(p,{x:cur[0]*C+16,y:cur[1]*C+16}))tgt=cur;else break}
+ return norm(tgt[0]*C+16-p.x,tgt[1]*C+16-p.y)}
+function clear(a,b){const d=dist(a,b),n=Math.ceil(d/8);for(let i=1;i<=n;i++){const x=a.x+(b.x-a.x)*i/n,y=a.y+(b.y-a.y)*i/n;if(inWall(x,y,15))return false}return true}
 function norm(x,y){const m=Math.hypot(x,y)||1;return{x:x/m,y:y/m}}
 function los(a,b){const d=dist(a,b),n=Math.ceil(d/10);for(let i=1;i<n;i++){if(inWall(a.x+(b.x-a.x)*i/n,a.y+(b.y-a.y)*i/n,2))return false}return true}
 function choosePick(){const c=S.choices||[],p=S.p;let bi=0,bs=-1e9;c.forEach((u,i)=>{const n=u.name;let s=Math.random()*1.5;
@@ -39,17 +43,23 @@ function tick(st){st.n=(st.n||0)+1;const RT=Math.round(1+(1-SK)*12);if(st.n%RT!=
   if((mode==='escort'||mode==='defend')&&dGoal<goal.r*.5)want=false;
   if(mode==='shoot'&&dGoal<230&&los(p,goal))want=false;
   if(mode==='hunt'&&dGoal<(boss?300:180)&&los(p,goal))want=false;
-  if(want){const d=pathDir(p,goal);mv.x+=d.x;mv.y+=d.y}}
+  st.want=want;if(want){const d=pathDir(p,goal);mv.x+=d.x;mv.y+=d.y}}else st.want=false;
  if(boss&&(mode==='hunt'||mode==='exit'||!goal)){const d=dist(boss,p),ux=(p.x-boss.x)/d,uy=(p.y-boss.y)/d;st.sd=st.sd||1;if(Math.random()<.004)st.sd*=-1;
   const rad=d<270?1.3:d>360?-1:0;mv.x=ux*rad-uy*st.sd*.9;mv.y=uy*rad+ux*st.sd*.9;}
- for(let k=0;k<8;k++){const a=k*Math.PI/4,cx=Math.cos(a),cy=Math.sin(a);if(inWall(p.x+cx*34,p.y+cy*34)){mv.x-=cx*.7;mv.y-=cy*.7;if(boss)st.sd*=(Math.random()<.02?-1:1)}}
+ for(let k=0;k<8;k++){const a=k*Math.PI/4,cx=Math.cos(a),cy=Math.sin(a);if(inWall(p.x+cx*30,p.y+cy*30)){const wk=(mode==='exit'||st.stuckT>0)?.25:.55;mv.x-=cx*wk;mv.y-=cy*wk;if(boss)st.sd*=(Math.random()<.02?-1:1)}}
  // threats
  const hold=keys.e||((mode==='zone'||mode==='escort'||mode==='defend')&&dGoal<goal.r*.6);
- for(const e of en){const d=dist(e,p),T=ENEMIES[e.type],R=T.boss?240:(e.type==='exploder'?150:95)+e.r;if(d<R){const k=(mode==='hold'&&dGoal<60&&!T.boss?.15:1)*(R-d)/R*(hold?(T.boss?1.4:.6):2.2);mv.x-=(e.x-p.x)/d*k;mv.y-=(e.y-p.y)/d*k}}
+ for(const e of en){const d=dist(e,p),T=ENEMIES[e.type],R=T.boss?240:(e.type==='exploder'?150:95)+e.r;if(d<R){const k=(mode==='hold'&&dGoal<60&&!T.boss?.15:mode==='exit'&&!T.boss&&e.type!=='exploder'?.3:1)*(R-d)/R*(hold?(T.boss?1.4:.6):2.2);mv.x-=(e.x-p.x)/d*k;mv.y-=(e.y-p.y)/d*k}}
  if(Math.random()<SK)for(const b of S.ebullets){const dx=b.x-p.x,dy=b.y-p.y,d=Math.hypot(dx,dy);if(d>140)continue;const vm=Math.hypot(b.vx,b.vy)||1,ux=b.vx/vm,uy=b.vy/vm;if(dx*ux+dy*uy>0)continue;
   const side=dx*uy-dy*ux;mv.x+=uy*Math.sign(side||1)*-1.2;mv.y+=-ux*Math.sign(side||1)*-1.2}
  for(const h of S.hazards){if(h.type==='laser'||h.type==='fissure'){if(mode==='exit'&&dGoal<140)continue;if(h.type==='fissure'&&h.t<-.45)continue;const L=h.el??h.len,cx=Math.cos(h.a),cy=Math.sin(h.a),dx=p.x-h.x,dy=p.y-h.y,pr=dx*cx+dy*cy,pe=dx*cy-dy*cx;if(pr>(h.r0||0)&&pr<L&&Math.abs(pe)<50){mv.x+=cy*Math.sign(pe)*1.5;mv.y+=-cx*Math.sign(pe)*1.5}}
   else if(h.type!=='steam'||h.on||h.warn){const d=dist(h,p);if(d<h.r+25&&!(goal&&dist(goal,h)<h.r)){const k=(mode==='exit'||mode==='hold')?.35:1.1;mv.x+=(p.x-h.x)/(d||1)*k;mv.y+=(p.y-h.y)/(d||1)*k}}}
+ if(S.winds)for(const z of S.winds){if(S.items[z.valve]&&S.items[z.valve].done)continue;if(p.y>z.y0-10&&p.y<z.y1+10&&(mode==='hold'||mode==='exit'||mode==='hunt')){mv.x-=Math.sign(z.vx)*(mode==='hold'&&dGoal<60?1.6:.9)}}
+ // stuck recovery: if path distance to the goal has not dropped for 1.5s, jitter sideways for .6s
+ if(goal&&field&&(mode==='exit'||mode==='hunt'||mode==='hold'||mode==='touch'||mode==='cell'||mode==='pickup')){const[cx2,cy2]=cellOf(p),dv=field[cx2+cy2*GW];
+  if(st.bestD==null||dv<st.bestD-1||st.goalI!==goalCell){st.bestD=dv;st.bestT=S.t;st.goalI=goalCell}
+  if(st.want&&!boss&&dGoal>40&&S.t-st.bestT>1.5&&!(mode==='hold'&&dGoal<60)){st.stuckT=.6;st.jit=Math.random()*6.28;st.bestT=S.t;st.unstick=(st.unstick||0)+1}}
+ if(st.stuckT>0){st.stuckT-=dt*(1+Math.round((1-SK)*12));mv.x=mv.x*.5+Math.cos(st.jit);mv.y=mv.y*.5+Math.sin(st.jit)}
  for(const it2 of S.items)if(it2.muck&&!it2.done){const d=dist(it2,p);if(d<it2.muck+20){mv.x+=(p.x-it2.x)/d*1.2;mv.y+=(p.y-it2.y)/d*1.2}}
  if(S.well&&S.items.some(i=>!i.done)){const d=dist(S.well,p);if(d<160){mv.x+=(p.x-S.well.x)/d*2;mv.y+=(p.y-S.well.y)/d*2}}
  // boss windups: back off
@@ -82,12 +92,12 @@ function playFloor(fi,run){fi=S.floor;const rec={f:fi+1,name:FLOORS[fi].name,obj
    if(S.state==='upgrade'){res='clear';break}
    if(S.state==='victory'||S.state==='ending'){res='victory';break}}
   if(!res)res='TIMEOUT';
-  rec.t+=Math.round(S.stats.time-t0);
+  rec.t+=Math.round(S.stats.time-t0);rec.un=(rec.un||0)+(st.unstick||0);
   if(res==='clear'||res==='victory'){rec.hp=Math.round(S.p.hp);rec.low=Math.round(lowHp);if(res==='clear'){S.p.weapon=mainW(S.p);S.choices=rollChoices();pick(choosePick());for(let j=0;j<130;j++)update(dt)}return rec}
   if(res==='dead'){rec.deaths++;rec.dinfo=(rec.dinfo||'')+` [d@${Math.round(S.stats.time-t0)}s en=${S.enemies.length} ${st.mode} ${(S.obj.progress?S.obj.progress(S):'').slice(0,40)}]`;if(rec.deaths>=MAXD){rec.stuck='KILLEDx'+MAXD;S.god=true;continueRun();window.__pause=true;S.god=true}else{continueRun();window.__pause=true}continue}
   // stuck/timeout: describe & force
   const its=S.items.filter(i=>!i.done).map(i=>i.kind+'@'+Math.round(i.x)+','+Math.round(i.y)+(i.active===false?'(inactive)':'')).join(' ');
-  const pd=S.exit?pathDir(S.p,S.exit):{x:0,y:0};const hzn=S.hazards.map(h=>h.type+':'+Math.round(dist(h,S.p))+(h.r?'/r'+Math.round(h.r):'')).filter(x=>+x.split(':')[1].split('/')[0]<260).join(',');rec.stuck=res+' hz['+hzn+'] ex='+(S.exit?Math.round(S.exit.x)+','+Math.round(S.exit.y):'')+' winds='+(S.winds?S.winds.length:0)+' pd='+pd.x.toFixed(2)+','+pd.y.toFixed(2)+' st='+S.state+' mode='+st.mode+' p='+Math.round(S.p.x)+','+Math.round(S.p.y)+' en='+S.enemies.length+'{'+S.enemies.slice(0,8).map(e=>e.type+'@'+Math.round(e.x)+','+Math.round(e.y)+(inWall(e.x,e.y)?'W':'')+(e.cloaked?'C':'')+' hp'+Math.round(e.hp)).join(' ')+'}'+' items['+its+'] obj='+(S.obj.progress?S.obj.progress(S):'');
+  const pd=S.exit?pathDir(S.p,S.exit):{x:0,y:0};const hzn=S.hazards.map(h=>h.type+':'+Math.round(dist(h,S.p))+(h.r?'/r'+Math.round(h.r):'')).filter(x=>+x.split(':')[1].split('/')[0]<260).join(',');rec.stuck=res+' unstick='+(st.unstick||0)+' hz['+hzn+'] ex='+(S.exit?Math.round(S.exit.x)+','+Math.round(S.exit.y):'')+' winds='+(S.winds?S.winds.length:0)+' pd='+pd.x.toFixed(2)+','+pd.y.toFixed(2)+' st='+S.state+' mode='+st.mode+' p='+Math.round(S.p.x)+','+Math.round(S.p.y)+' en='+S.enemies.length+'{'+S.enemies.slice(0,8).map(e=>e.type+'@'+Math.round(e.x)+','+Math.round(e.y)+(inWall(e.x,e.y)?'W':'')+(e.cloaked?'C':'')+' hp'+Math.round(e.hp)).join(' ')+'}'+' items['+its+'] obj='+(S.obj.progress?S.obj.progress(S):'');
   // force complete
   S.items.forEach(i=>{i.done=true});S.enemies.forEach(e=>e.hp=0);S.surviveT=0;S.god=true;for(let j=0;j<600&&S.state==='play';j++){update(dt);if(S.exit){S.p.x=S.exit.x;S.p.y=S.exit.y}}
   S.god=false;if(S.state==='upgrade'){S.choices=rollChoices();pick(choosePick());for(let j=0;j<130;j++)update(dt)}return rec}}
@@ -95,5 +105,5 @@ for(let r=0;r<RUNS;r++){newRun();window.__pause=true;S.god=false;
  if(FROM>0){/* fair loadout for mid-run start: simulate picks */for(let f=0;f<FROM;f++){S.choices=rollChoices();pick(choosePick());for(let j=0;j<130;j++)update(dt)}}
  const recs=[];for(let f=FROM;f<=TO;f++){S.god=false;const rc=playFloor(f,r);recs.push(rc);if(S.state==='victory')break}
  const p=S.p;out.push('RUN '+r+' skill='+SK+' diff='+(H.diff||'normal')+' weapons='+p.weapons.join(',')+' drones='+p.drones.join(',')+' dmg='+p.dmgMul.toFixed(2)+' rate='+p.rateMul.toFixed(2)+' hp='+p.maxHp+' mods='+JSON.stringify(p.mods)+' state='+S.state);
- for(const rc of recs)out.push(`  F${rc.f} ${rc.obj.padEnd(10)} t=${rc.t}s deaths=${rc.deaths} endHp=${rc.hp} low=${rc.low} ${rc.stuck}${rc.dinfo||''} src=${JSON.stringify(rc.src)}`)}
+ for(const rc of recs)out.push(`  F${rc.f} ${rc.obj.padEnd(10)} t=${rc.t}s deaths=${rc.deaths} un=${rc.un||0} endHp=${rc.hp} low=${rc.low} ${rc.stuck}${rc.dinfo||''} src=${JSON.stringify(rc.src)}`)}
 out.push('ERRS '+JSON.stringify(ERRS.slice(0,5)));document.body.dataset.log=out.join('\n')}

@@ -51,7 +51,7 @@ function stats(){let n=0;for(const k in kinds)n+=kinds[k].parts.length;return{ty
 // Constant light budget: three.js recompiles every lit material when the number of visible point lights changes
 // (boss spawns with a glow light, exit beacon turning on, zone lights...).  Pad with zero-intensity dummies so the
 // count never changes mid-floor -> no shader-compile hitches.  Budget grows (once) if a floor ever needs more.
-let dummies=[],budget=12,lastVis=0;
+let dummies=[],budget=6,lastVis=0;
 function countLights(o){if(!o.visible)return 0;let n=o.isPointLight&&!o.userData.dummy?1:0;const c=o.children;for(let i=0;i<c.length;i++)n+=countLights(c[i]);return n}
 function lightBudget(scene){const n=countLights(scene);if(n>budget)budget=n;while(dummies.length<budget){const L=new T.PointLight(0,0,1,2);L.userData.dummy=true;L.position.set(-9999,-9999,-9999);scene.add(L);dummies.push(L)}
  const need=budget-n;for(let i=0;i<dummies.length;i++)dummies[i].visible=i<need;lastVis=n;return n}
