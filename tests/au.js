@@ -1,8 +1,8 @@
 // Offline audio mix capture: #scene=menu|combat|boss&duck=0|1
 (async()=>{const L=[];const w=ms=>new Promise(r=>setTimeout(r,ms));try{
 const H=Object.fromEntries(location.hash.slice(1).split('&').filter(Boolean).map(a=>a.split('=')));const DUR=+(H.dur||12),SR=44100;
-let OC=null;window.AudioContext=function(){OC=new OfflineAudioContext(8,SR*DUR,SR);Object.defineProperty(OC,'state',{get:()=>'running'});OC.resume=()=>Promise.resolve();return OC};
-while(!window.GAME_READY)await w(50);window.__pause=true;
+let OC=null;window.AudioContext=function(){OC=new OfflineAudioContext(8,SR*DUR,SR);Object.defineProperty(OC,'state',{get:()=>'running'});OC._res=OC.resume.bind(OC);OC.resume=()=>Promise.resolve();return OC};
+for(let i=0;!window.GAME_READY;i++){await w(50);if(i%20==0)document.body.dataset.log="wait "+i+" "+JSON.stringify(window.ERRS)}window.__pause=true;
 const sc=H.scene||'combat';
 if(sc==='menu'){goTitle()}else{newRun();S.god=true;S.floor=sc==='boss'?19:7;S.state='play';startFloor();const p=S.p;
  p.weapons=['kinetic','grenade_launcher','railgun'];
@@ -12,10 +12,10 @@ const c=OC,M=c.createChannelMerger(8);M.connect(c.destination);c.destination.cha
 AU.out.disconnect();const tap=(node,ch)=>{const sp=c.createChannelSplitter(2);node.connect(sp);sp.connect(M,0,ch);sp.connect(M,1,ch+1)};
 tap(AU.out,0);tap(AU.sfx,2);tap(AU.duck,4);tap(AU.master,6);
 const STEP=.05;let fr=0;
-for(let t=STEP;t<DUR-STEP;t+=STEP)c.suspend(t).then(()=>{if(S.state==='play'){const p=S.p;let best=null,bd=1e9;for(const e of S.enemies){const d=dist(e,p);if(d<bd){bd=d;best=e}}
+window.__aust=0;for(let t=STEP;t<DUR-STEP;t+=STEP)c.suspend(t).then(()=>{window.__aust++;document.body.dataset.log="prog "+window.__aust;try{if(S.state==='play'){const p=S.p;let best=null,bd=1e9;for(const e of S.enemies){const d=dist(e,p);if(d<bd){bd=d;best=e}}
    if(best){IN.aim=Math.atan2(best.y-p.y,best.x-p.x);IN.fire=true}else IN.fire=false;fr++;p.weapon=['kinetic','grenade_launcher','railgun'][Math.floor(fr/60)%3];IN.mx=Math.cos(fr*.02);IN.my=Math.sin(fr*.03)}
-  for(let i=0;i<3;i++)update(1/60);if(sc==='menu'){S.t+=STEP}window.musicTick();c.resume()});
-const buf=await c.startRendering();
+  for(let i=0;i<3;i++)update(1/60);if(sc==='menu'){S.t+=STEP}window.musicTick()}catch(e){if(!window.__ae){window.__ae=1;L.push("STEPERR "+e.message+" "+(e.stack||"").slice(0,300))}}c._res()});
+document.body.dataset.log="rendering";const buf=await c.startRendering();
 const db=x=>x>0?(20*Math.log10(x)).toFixed(1):'-inf';const names=['out','sfx','music','master(pre-lim)'];const st={};
 for(let b=0;b<4;b++){const a=buf.getChannelData(b*2),bb=buf.getChannelData(b*2+1);let pk=0,ss=0,clip=0;const win=Math.floor(SR*.4);let wmax=0,ws=0;
  for(let i=0;i<a.length;i++){const v=Math.max(Math.abs(a[i]),Math.abs(bb[i]));if(v>pk)pk=v;if(v>=1)clip++;const q=(a[i]*a[i]+bb[i]*bb[i])/2;ss+=q;ws+=q;if(i>=win){const o=buf.getChannelData(b*2)[i-win],o2=bb[i-win];ws-=(o*o+o2*o2)/2}if(i%512==0&&i>=win)wmax=Math.max(wmax,Math.sqrt(Math.max(0,ws)/win))}

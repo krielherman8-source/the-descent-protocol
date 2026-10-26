@@ -1,0 +1,13 @@
+SCENE menu duck=false enemies=0 state=title {"out":{"peak":"-14.2","rms":"-28.0","rms400max":"-25.8","clip":"0.000%"},"sfx":{"peak":"-inf","rms":"-inf","rms400max":"-inf","clip":"0.000%"},"music":{"peak":"-16.3","rms":"-33.1","rms400max":"-30.9","clip":"0.000%"},"master(pre-lim)":{"peak":"-18.2","rms":"-35.0","rms400max":"-32.8","clip":"0.000%"}} duckEvents=0 musicDeltaAfterBigSfx=n/a
+ERRS []
+SCENE combat duck=false enemies=24 state=play {"out":{"peak":"-3.8","rms":"-24.5","rms400max":"-19.3","clip":"0.000%"},"sfx":{"peak":"-6.0","rms":"-33.4","rms400max":"-25.6","clip":"0.000%"},"music":{"peak":"-12.5","rms":"-31.8","rms400max":"-29.6","clip":"0.000%"},"master(pre-lim)":{"peak":"-7.7","rms":"-31.5","rms400max":"-26.3","clip":"0.000%"}} duckEvents=0 musicDeltaAfterBigSfx=n/a
+ERRS []
+SCENE boss duck=false enemies=13 state=play {"out":{"peak":"-2.2","rms":"-23.0","rms400max":"-16.1","clip":"0.000%"},"sfx":{"peak":"-3.0","rms":"-30.3","rms400max":"-21.5","clip":"0.000%"},"music":{"peak":"-11.2","rms":"-31.7","rms400max":"-29.2","clip":"0.000%"},"master(pre-lim)":{"peak":"-5.2","rms":"-29.9","rms400max":"-23.1","clip":"0.000%"}} duckEvents=0 musicDeltaAfterBigSfx=n/a
+ERRS []
+SCENE menu duck=true enemies=0 state=title {"out":{"peak":"-14.2","rms":"-28.0","rms400max":"-25.8","clip":"0.000%"},"sfx":{"peak":"-inf","rms":"-inf","rms400max":"-inf","clip":"0.000%"},"music":{"peak":"-16.3","rms":"-33.1","rms400max":"-30.9","clip":"0.000%"},"master(pre-lim)":{"peak":"-18.2","rms":"-35.0","rms400max":"-32.8","clip":"0.000%"}} duckEvents=0 musicDeltaAfterBigSfx=n/a
+ERRS []
+SCENE combat duck=true enemies=26 state=play {"out":{"peak":"-3.5","rms":"-25.5","rms400max":"-20.2","clip":"0.000%"},"sfx":{"peak":"-6.0","rms":"-34.3","rms400max":"-26.0","clip":"0.000%"},"music":{"peak":"-12.0","rms":"-32.9","rms400max":"-30.5","clip":"0.000%"},"master(pre-lim)":{"peak":"-7.4","rms":"-32.5","rms400max":"-27.2","clip":"0.000%"}} duckEvents=6 musicDeltaAfterBigSfx=-3.1dB
+ERRS []
+SCENE boss duck=true enemies=11 state=play {"out":{"peak":"-2.3","rms":"-23.6","rms400max":"-16.4","clip":"0.000%"},"sfx":{"peak":"-3.5","rms":"-30.3","rms400max":"-21.6","clip":"0.000%"},"music":{"peak":"-12.0","rms":"-33.1","rms400max":"-29.1","clip":"0.000%"},"master(pre-lim)":{"peak":"-5.5","rms":"-30.5","rms400max":"-23.4","clip":"0.000%"}} duckEvents=12 musicDeltaAfterBigSfx=-2.3dB
+ERRS []
+DONE
