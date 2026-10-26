@@ -25,6 +25,9 @@ Three.js and its postprocessing addons are vendored in `vendor/`. When you open 
   - Master, SFX and music volume.
   - Graphics quality: low (no bloom or shadows), medium (bloom, 1024 shadows), high (bloom, 2048 shadows, HiDPI).
   - Screen shake toggle.
+  - Key rebinding for move / interact / cycle-drone (conflicts swap, Esc cancels, Reset keys).
+  - Colourblind markers: shape glyphs (not just colour) on objectives, minimap and edge arrows.
+- **Stats screen** on death and victory: run totals, kills by enemy type, time-per-floor chart (boss floors and deaths marked), probable cause of death.
 - **Save:** an automatic checkpoint each time you descend from an upgrade chamber stores the floor, loadout and stats. Continue resumes from it. Winning clears the save.
 - **Audio:** a compressor and a brick-wall limiter on the master bus. Everything is procedural Web Audio, with no sample files:
   - Per-weapon SFX, plus explosions, hits, deaths, pickups, objective ticks, boss roars and UI sounds.
@@ -37,7 +40,7 @@ Three.js and its postprocessing addons are vendored in `vendor/`. When you open 
   - Thick beams and lightning arcs.
   - Distinct models for Swarmer Prime (upright mantis with scythes and horn crown) and Brood Carrier (translucent amber sac with larvae).
   - A descent transition between floors.
-- **Performance:** mesh pooling for enemies and bullets, instanced gibs and decals, a 2000-point particle cap and an enemy cap. Above 60 enemies, regular enemies stop casting shadows (about 30% fewer draw calls at 150).
+- **Performance:** enemy bodies are instanced/merged per type (js/instancing.js): about 154 draw calls at 150 enemies, down from 1343. A fixed point-light budget (zero-intensity dummy lights) plus a per-floor pre-warm render stops shader recompiles mid-floor. Also mesh pooling for enemies and bullets, instanced gibs and decals, a 2000-point particle cap and an enemy cap. Above 60 enemies, regular enemies stop casting shadows (about 30% fewer draw calls at 150).
 
 ## Arsenal
 - **Weapons:** Kinetic Rifle, Pulse Shotgun, Flamethrower, Tesla Arc Cannon, Grenade Launcher, Needle Railgun, Bio-Harvester.
@@ -47,7 +50,16 @@ Three.js and its postprocessing addons are vendored in `vendor/`. When you open 
 
 ## Balance (final pass)
 Tuned with a killable scripted bot that also plays every objective (skill 1 and 0.6 = slower reactions, noisier aim, misses dodges).
-- **Boss HP (base):** Warden 1700, Prime 4400, Colossus 6800, Matriarch 7400, Overmind 16000. Each is multiplied by 1+0.03 per floor. Enemy damage grows 2% per floor.
+- **Boss HP (base):** Warden 1450, Prime 4400, Colossus 6800, Matriarch 7400, Overmind 16000. Each is multiplied by 1+0.03 per floor. Enemy damage grows 2% per floor.
 - **Explosive mod:** 0.12 s proc cooldown. Splash heals Vampiric at a third of the normal rate.
 - **Hack terminals:** 70 px use radius, decay 0.25/s.
 - The bot clears the full 30 floors at both skill levels. The Overmind takes 54-141 s at skill 0.8 and sometimes kills the bot.
+- **Difficulty:** Easy hp .75 / dmg .6 / count .8; Hard hp 1.3 / dmg 1.5 / count 1.2 / heal .55 / boss 1.25. Live-enemy cap 24 + 0.7 per floor (× difficulty count).
+- Bot audit (Oct 2026): 2 runs per difficulty, all reach floor 30. Easy has few deaths and Hard has several.
+
+## Tests (`tests/`)
+Headless Chrome harness pages. `mk.py X.js X.html` inlines a test into a copy of index.html, and `run.sh page#hash budget` runs it with virtual time and prints the log.
+- `sm.js` smoke-tests floors 16-30. `ui.js` covers menus, tutorial, touch, pad and ending. `st.js` covers rebinding and colourblind. `ex.js` checks exit reachability.
+- `perf.js` reports draw calls and hitches. `hc.js` probes shader compiles. `bot.js` is the full-run bot (`#runs=1&diff=hard`).
+- `au.js` + `aurun.sh` do the offline audio level render (real-time CDP via `cdp2.mjs`, because OfflineAudioContext cannot run under virtual time).
+- `suite.sh` runs the whole suite.
