@@ -8,6 +8,8 @@
 .logo{text-align:center;margin-bottom:12px}.l1{font:bold 54px monospace;color:#dff;letter-spacing:8px;text-shadow:0 0 18px #3ff,0 0 40px #0aa}.l2{font:20px monospace;color:#5ee;letter-spacing:6px;margin-top:4px}
 .bar{height:2px;margin-top:12px;background:linear-gradient(90deg,transparent,#3ff,transparent);box-shadow:0 0 10px #3ff}
 #menu button{font:16px monospace;letter-spacing:3px;width:300px;padding:10px;color:#cff;background:rgba(10,40,46,.8);border:1px solid #2aa;cursor:pointer}
+.binds{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;max-width:640px;margin:6px auto}.binds .small{width:100%;text-align:center;font-size:12px}
+#menu button.bind{width:auto;min-width:140px;font-size:13px;padding:6px 8px;letter-spacing:1px}#menu button.bind.on{background:#2aa;color:#011}
 #menu button:hover{background:rgba(30,90,96,.9);color:#fff;box-shadow:0 0 14px #3ff}#menu button:disabled{opacity:.3;cursor:default;box-shadow:none}
 #menu label{display:flex;justify-content:space-between;align-items:center;width:330px;font:14px monospace;letter-spacing:2px}#menu select{font:12px monospace;background:#032;color:#cff;border:1px solid #2aa}
 #menu input[type=range]{width:170px;accent-color:#3ff}#menu td{padding:3px 14px;font:14px monospace}#menu td:first-child{color:#6ff;text-align:right}
@@ -27,7 +29,7 @@ s.textContent=JSON.stringify({imports:{three:local?'./vendor/three.module.js':cd
 <div class="panel" id="m-controls"><h2>CONTROLS</h2><table>
 <tr><td>WASD</td><td>Move (screen-relative)</td></tr><tr><td>MOUSE</td><td>Aim · hold LMB to fire</td></tr><tr><td>1 – 7</td><td>Switch weapon</td></tr><tr><td>Q</td><td>Cycle drone</td></tr>
 <tr><td>E (hold)</td><td>Interact with objectives</td></tr><tr><td>1/2/3 · click</td><td>Choose upgrade in chamber</td></tr><tr><td>ESC</td><td>Pause</td></tr><tr><td>R</td><td>Restart after death</td></tr><tr><td>GAMEPAD</td><td>L-stick move · R-stick aim+fire · RT fire · A use · LB/RB weapon · Y drone · Start pause</td></tr><tr><td>TOUCH</td><td>Left thumb move · right thumb aim+fire · USE / WPN / DRN buttons</td></tr></table><button data-a="back">BACK</button></div></div>
-<link rel="stylesheet" href="css/ui.css"><script src="js/story.js"></script><script src="js/input.js"></script><script src="js/minimap.js"></script><script src="js/content.js"></script>
+<link rel="stylesheet" href="css/ui.css"><script src="js/story.js"></script><script src="js/input.js"></script><script src="js/minimap.js"></script><script src="js/content.js"></script><script src="js/instancing.js"></script><script src="js/settings.js"></script>
 <div id="load">LOADING THE DESCENT PROTOCOL…</div><script type="module">
 'use strict';
 let THREE;
@@ -123,7 +125,7 @@ const UPGRADES=[
 ];
 
 // ================= OBJECTIVES =================
-const mkItem=o=>Object.assign({prog:0,done:false,active:true,r:18,time:2},o);
+const mkItem=o=>{const it=Object.assign({prog:0,done:false,active:true,r:18,time:2},o);if(window.TDP_SETTINGS)it.color=TDP_SETTINGS.itemColor(it);return it};
 const holdItems=(f,label,color,time,extra)=>f.points.map(([cx,cy],i)=>mkItem(Object.assign({kind:'hold',...P(cx,cy),label,color,time,idx:i},extra||{})));
 const shootItems=(f,label,color,hp,extra)=>f.points.map(([cx,cy],i)=>mkItem(Object.assign({kind:'shoot',...P(cx,cy),label,color,hp,max:hp,r:20,idx:i},extra||{})));
 const nDone=S=>S.items.filter(i=>i.done).length,allDone=S=>S.items.every(i=>i.done);
@@ -252,7 +254,7 @@ function recordBest(win){if(!S||S.demo)return;const b=LS('tdp_best',{floor:0,kil
 const AU={ctx:null,last:{},intensity:0,step:0,next:0};
 function audioInit(){if(AU.ctx)return;try{const Ctor=window.AudioContext||window.webkitAudioContext;if(!Ctor)return;const c=AU.ctx=new Ctor();
  AU.master=c.createGain();const comp=c.createDynamicsCompressor();comp.threshold.value=-14;comp.ratio.value=4;AU.master.connect(comp);const lim=c.createDynamicsCompressor();lim.threshold.value=-6;lim.knee.value=0;lim.ratio.value=20;lim.attack.value=.002;lim.release.value=.12;comp.connect(lim);lim.connect(c.destination);AU.limiter=lim;AU.out=lim;
- AU.sfx=c.createGain();AU.sfx.connect(AU.master);AU.music=c.createGain();AU.music.connect(AU.master);
+ AU.sfx=c.createGain();AU.sfx.connect(AU.master);AU.music=c.createGain();AU.duck=c.createGain();AU.music.connect(AU.duck);AU.duck.connect(AU.master);
  const b=c.createBuffer(1,c.sampleRate*2,c.sampleRate),d=b.getChannelData(0);for(let i=0;i<d.length;i++)d[i]=Math.random()*2-1;AU.noise=b;applyVolumes();musicStart()}catch(e){console.warn('audio unavailable',e);AU.ctx=null}}
 function applyVolumes(){if(!AU.ctx)return;AU.master.gain.value=CFG.vol.master;AU.sfx.gain.value=CFG.vol.sfx;AU.music.gain.value=CFG.vol.music*.7}
 function tone(o){const c=AU.ctx,t0=o.at||c.currentTime+(o.delay||0),osc=c.createOscillator(),g=c.createGain();osc.type=o.type||'square';osc.frequency.setValueAtTime(o.f,t0);if(o.f2)osc.frequency.exponentialRampToValueAtTime(Math.max(1,o.f2),t0+o.t);
@@ -287,7 +289,9 @@ const SFX={
  gameover:()=>[392,330,262,196].forEach((f,i)=>tone({type:'sawtooth',f,t:.5,v:.1,lp:1200,delay:i*.22})),
 };
 const SFX_GAP={kinetic:.05,flamethrower:.1,hit:.035,death:.04,bio_harvester:.09,drone:.08,progress:.12,explosion:.07,hurt:.15,tesla:.05,heal:.1,slam:.3,roar:1};
-function sfx(k){if(!AU.ctx||!SFX[k]||AU.ctx.state!=='running')return;const now=AU.ctx.currentTime;if(now-(AU.last[k]||-9)<(SFX_GAP[k]||.02))return;AU.last[k]=now;try{SFX[k]()}catch(e){}}
+function sfx(k){if(!AU.ctx||!SFX[k]||AU.ctx.state!=='running')return;const now=AU.ctx.currentTime;if(now-(AU.last[k]||-9)<(SFX_GAP[k]||.02))return;AU.last[k]=now;try{SFX[k]()}catch(e){}const dk=DUCK[k];if(dk&&!AU.duckOff){const g=AU.duck.gain;g.cancelScheduledValues(now);g.setTargetAtTime(dk[0],now,.015);g.setTargetAtTime(1,now+dk[1],.3);AU.duckLog&&AU.duckLog.push(now)}}
+// sidechain-style ducking: [music gain, hold seconds] while big SFX play
+const DUCK={explosion:[.5,.25],roar:[.35,1.1],slam:[.45,.35],railgun:[.6,.2],pulse_shotgun:[.75,.12],descend:[.5,1.2],gameover:[.4,1.5],hurt:[.8,.15]};
 // generative dark-synth score: detuned drone pad always; bass, kick, hats, lead layer in with intensity (combat density / boss)
 function musicStart(){const c=AU.ctx,pad=c.createGain();pad.gain.value=.07;const lp=c.createBiquadFilter();lp.type='lowpass';lp.frequency.value=350;lp.Q.value=3;lp.connect(pad);pad.connect(AU.music);AU.padLP=lp;
  for(const[f,det]of[[55,-8],[55,8],[82.41,0],[110,4],[130.8,-3]]){const o=c.createOscillator();o.type='sawtooth';o.frequency.value=f;o.detune.value=det;o.connect(lp);o.start()}
@@ -307,7 +311,7 @@ function musicTick(){const c=AU.ctx;if(!c||c.state!=='running')return;
 
 const IN={mx:0,my:0,aim:null,fire:false,src:'kbm'};window.IN=IN;
 const keys={},mouse={x:W/2,y:H/2,down:false,sx:0,sy:0,cx:0,cy:0,moved:false};
-addEventListener('keydown',e=>{const k=e.key.toLowerCase();keys[k]=true;onKey(k)});addEventListener('keyup',e=>keys[e.key.toLowerCase()]=false);
+const mapK=k=>window.TDP_SETTINGS?TDP_SETTINGS.mapKey(k):k;addEventListener('keydown',e=>{const k=mapK(e.key.toLowerCase());if(k==='\u0000')return;keys[k]=true;onKey(k)});addEventListener('keyup',e=>keys[mapK(e.key.toLowerCase())]=false);
 const setM=e=>{IN.aim=null;IN.src='kbm';mouse.cx=e.clientX;mouse.cy=e.clientY;mouse.sx=e.clientX/hs;mouse.sy=e.clientY/hs;mouse.moved=true};
 addEventListener('mousemove',setM);addEventListener('mousedown',e=>{setM(e);mouse.down=true;onClick()});addEventListener('mouseup',()=>mouse.down=false);
 addEventListener('contextmenu',e=>e.preventDefault());
@@ -646,7 +650,14 @@ function buildLevel(){if(level){scene.remove(level);level.traverse(o=>{if(o.geom
  if(S.winds)for(const z of S.winds){const set=[];for(let k=0;k<16;k++){const s=box(60,1.5,2.5,add(0x99e8ff,.35),0,20+(k%4)*12,z.y0+20+((k*53)%(z.y1-z.y0-40)),false);s.userData.o=k*97;level.add(s);set.push(s)}winds.push({z,set})}
  for(const w of wallFade)for(const m of w.meshes){const c=m.material.clone();c.transparent=true;c.userData.base=m.material.opacity??1;m.material=c;w.mats.push(c)}
  TDP_CONTENT.setPiece(f,{T:THREE,add:(...o)=>level.add(...o),walls:S.walls,trim,P,W,H});
- builtFor=S.walls;camPos.set(S.p.x,0,S.p.y).add(CAM_OFF)}
+ builtFor=S.walls;camPos.set(S.p.x,0,S.p.y).add(CAM_OFF);needWarm=true}
+// shader pre-warm: once per level build, draw one (microscopic, light-stripped) copy of every enemy/boss model plus fx
+// meshes next to the camera target so every program (incl. shadow-depth variants) is compiled before play starts.
+let needWarm=false,warmG=null;
+function prewarm(){if(!warmG){warmG=new THREE.Group();for(const t of Object.keys(ENEMIES)){const g=bugClone(t);g.userData.hf.visible=g.userData.fr.visible=g.userData.st.visible=true;warmG.add(g)}
+  for(const m of[basic('#fff'),add(0xff7a30,.55),emis(0xffbb33,1.5,0x332200)])warmG.add(new THREE.Mesh(geoB,m));
+  const strip=[];warmG.traverse(o=>{if(o.isLight)strip.push(o)});strip.forEach(o=>o.parent.remove(o));warmG.scale.setScalar(.001)}
+ warmG.position.set(S.p.x,20,S.p.y);scene.add(warmG);const c0=performance.now();if(composer&&CFG.quality!=='low')composer.render();else renderer.render(scene,camera);scene.remove(warmG);window.__warmMs=performance.now()-c0}
 // ---- dynamic entity sync ----
 const itemMeshes=new Map(),enemyMeshes=new Map(),bulletMeshes=new Map(),pickMeshes=new Map(),ebMeshes=new Map(),ringMeshes=new Map();
 // object pooling: meshes of keyed lists (enemies, bullets) are hidden and reused instead of rebuilt
@@ -732,10 +743,11 @@ function render(dt){const snap=dt===undefined;dt=dt||1/60;const p=S.p,f=S.f;if(b
   else if(it.kind==='pickup'){g.visible=!it.done;c.rotation.y+=.05;c.position.y=22+Math.sin(S.t*4)*3}});
  exitG.visible=!!S.exit;if(S.exit){exitG.position.set(S.exit.x,0,S.exit.y);exitG.children[0].rotation.z=S.t}
  // enemies
- sync(S.enemies,enemyMeshes,e=>bugClone(e.type),(e,g)=>{const u=g.userData;u.hf.visible=e.flash>0;const lod=S.enemies.length>60&&!ENEMIES[e.type].boss;if(u.lod!==lod){u.lod=lod;g.traverse(o=>{if(o.isMesh){if(o.userData.cs===undefined)o.userData.cs=o.castShadow;o.castShadow=o.userData.cs&&!lod}})}const vx=e.x-(u.px??e.x),vy=e.y-(u.py??e.y);
+ const instOn=!window.__noInst;sync(instOn?S.enemies.filter(e=>!TDP_INST.handles(e.type)):S.enemies,enemyMeshes,e=>bugClone(e.type),(e,g)=>{const u=g.userData;u.hf.visible=e.flash>0;const lod=S.enemies.length>60&&!ENEMIES[e.type].boss;if(u.lod!==lod){u.lod=lod;g.traverse(o=>{if(o.isMesh){if(o.userData.cs===undefined)o.userData.cs=o.castShadow;o.castShadow=o.userData.cs&&!lod}})}const vx=e.x-(u.px??e.x),vy=e.y-(u.py??e.y);
   if(vx*vx+vy*vy>.01)u.h=Math.atan2(vy,vx);u.px=e.x;u.py=e.y;g.position.set(e.x,0,e.y);g.rotation.y=-(u.h||0);
   const t=S.t*18+(e.x+e.y)*.05;if(u.anim)u.anim(S.t,e);else u.legs.forEach((l,i)=>l.rotation.y=(i-1)*.45+Math.sin(t+i*2)*.3);g.scale.setScalar((ENEMIES[e.type].boss?1:1.4)*(e.flash>0?1.15:1));if(ENEMIES[e.type].cloak)g.visible=dist(e,p)<170||Math.random()<.25;if(e.type==='overmind'){g.rotation.y=0;u.legs.forEach((l,i)=>l.rotation.y=S.t*.3*(i%2?1:-1));u.abd.scale.setScalar(1+Math.sin(S.t*4)*.05+(e.inv>0?.15:0))}
   if(e.type==='exploder')u.abd.scale.set(1.35+Math.sin(S.t*12)*.15,.8,1.05);u.fr.visible=e.slowT>0;u.st.visible=e.stun>0;if(e.stun>0)u.st.rotation.z=S.t*10},e=>'e'+e.type);
+ if(instOn)TDP_INST.update(S.enemies,S.t,p);TDP_INST.root.visible=instOn;
  sync(S.pickups||[],pickMeshes,h=>{const g=new THREE.Group(),mt=emis(0x44ff77,1.6,0x0a3318);g.add(box(16,5,5,mt,0,0,0,false),box(5,5,16,mt,0,0,0,false));const r=new THREE.Mesh(new THREE.TorusGeometry(13,1.4,6,20),add(0x66ff99,.5));r.rotation.x=-Math.PI/2;r.position.y=-12;g.add(r);return g},(h,g)=>{g.position.set(h.x,22+Math.sin(S.t*4+h.x)*4,h.y);g.rotation.y=S.t*2;g.scale.setScalar((h.big?1.4:1)*(h.life<3?.6+.4*Math.abs(Math.sin(S.t*10)):1))},h=>'hp');
  sync(S.bullets,bulletMeshes,b=>{const m=new THREE.Mesh(geoB,b.flame?add(0xff7a30,.55):b.grenade?emis(0xffbb33,1.5,0x332200):basic(b.col));m.scale.setScalar(b.r*(b.flame?2:1.2));return m},(b,m)=>{
   if(b.grenade){const t=1-b.life/b.life0;m.position.set(b.x,28+Math.sin(t*Math.PI)*70,b.y);m.scale.setScalar(b.r);m.rotation.x+=.3;return}
@@ -754,7 +766,7 @@ function render(dt){const snap=dt===undefined;dt=dt||1/60;const p=S.p,f=S.f;if(b
  // particles
  const n=Math.min(PMAX,S.parts.length);for(let i=0;i<n;i++){const q=S.parts[i],c=C(q.col);pPos[i*3]=q.x;pPos[i*3+1]=8+(.6-q.life)*40;pPos[i*3+2]=q.y;pCol[i*3]=c.r;pCol[i*3+1]=c.g;pCol[i*3+2]=c.b}
  pGeo.setDrawRange(0,n);pGeo.attributes.position.needsUpdate=true;pGeo.attributes.color.needsUpdate=true;
- fxUpdate(dt);if(composer&&CFG.quality!=='low')composer.render();else renderer.render(scene,camera);drawHUD()}
+ fxUpdate(dt);TDP_INST.lightBudget(scene);if(needWarm){needWarm=false;prewarm()}if(composer&&CFG.quality!=='low')composer.render();else renderer.render(scene,camera);drawHUD()}
 // ---- aiming: raycast mouse onto the ground plane at gun height ----
 const ray=new THREE.Raycaster(),aimPlane=new THREE.Plane(new THREE.Vector3(0,1,0),-20),_hit=new THREE.Vector3();
 function aimRaycast(){ray.setFromCamera(new THREE.Vector2(mouse.cx/innerWidth*2-1,-(mouse.cy/innerHeight)*2+1),camera);if(ray.ray.intersectPlane(aimPlane,_hit)){mouse.x=_hit.x;mouse.y=_hit.z}}
@@ -809,8 +821,9 @@ let last=performance.now();function loop(now){const dt=Math.min(.05,(now-last)/1
 requestAnimationFrame(loop);
 Object.defineProperty(window,'S',{get:()=>S});
 TDP_CONTENT.init({get S(){return S},P,dist,rnd,clamp,W,H,CELL,spawnEnemy,spawnNear,hurtPlayer,floatText,burst,sfx,showBanner,ebullet,bossRing,bossSummon,bossCharge,tick,resolve,inWall,mkItem,nDone,allDone,DF,ENEMIES,pickType:()=>rollType(S.f.mix),THREE,M,emis,add,basic,box,sph,cyl,mat});
-Object.assign(OBJECTIVES,TDP_CONTENT.objectives());Object.assign(BOSS_AI,TDP_CONTENT.BOSS_AI);
-Object.assign(window,{setDifficulty:k=>setDifficulty(k),startIntro:()=>startIntro(),audioInit,hasBloom:()=>!!composer,CFG,saveGame,loadSave,recordBest,pauseGame,resumeGame,newRun,continueRun,goTitle,applyQuality,AU,sfx,menuDepth:()=>menuStack.length,update,render,startGame,startFloor,spawnWave,onKey,damage,pick,inWall,P,cp,dist,keys,mouse,WEAPONS,DRONES,FLOORS,ENEMIES,OBJECTIVES,rollChoices,MODS,explodeAt,spawnNear,rnd,THREE,renderer,camera,aimRaycast,GAME_READY:true});
+Object.assign(OBJECTIVES,TDP_CONTENT.objectives());
+TDP_INST.init({THREE,scene,makeBug,ENEMIES,dist,add,geoFx,geoTorus});TDP_INST.prewarm(Object.keys(ENEMIES));Object.assign(BOSS_AI,TDP_CONTENT.BOSS_AI);
+Object.assign(window,{setDifficulty:k=>setDifficulty(k),startIntro:()=>startIntro(),audioInit,hasBloom:()=>!!composer,CFG,saveGame,loadSave,recordBest,pauseGame,resumeGame,newRun,continueRun,goTitle,applyQuality,AU,sfx,menuDepth:()=>menuStack.length,musicTick,update,render,startGame,startFloor,spawnWave,onKey,damage,pick,inWall,P,cp,dist,keys,mouse,WEAPONS,DRONES,FLOORS,ENEMIES,OBJECTIVES,rollChoices,MODS,explodeAt,spawnNear,rnd,THREE,renderer,camera,aimRaycast,GAME_READY:true});
 
 // ================= MENUS (title / pause / settings / controls) =================
 const menuEl=document.getElementById('menu');let menuStack=[];
@@ -821,10 +834,11 @@ function hideMenu(){menuStack=[];menuEl.classList.add('hide')}
 function refreshTitle(){const s=loadSave(),b=LS('tdp_best',null),bc=document.getElementById('b-cont');bc.disabled=!s;bc.textContent=s?`CONTINUE — FLOOR ${s.floor+1}`:'CONTINUE';
  const mm=t=>`${Math.floor(t/60)}:${String(Math.floor(t%60)).padStart(2,'0')}`;
  document.getElementById('best').innerHTML=b?`BEST: floor ${b.floor}/30 · ${b.kills} kills · ${b.runs} runs · ${b.wins} clears${b.bestTime?' · fastest '+mm(b.bestTime):''}`:'No runs recorded yet'}
-function syncSettingsUI(){menuEl.querySelectorAll('input[data-v]').forEach(i=>i.value=Math.round(CFG.vol[i.dataset.v]*100));document.getElementById('s-q').value=CFG.quality;document.getElementById('s-shake').checked=CFG.shake}
+function syncSettingsUI(){menuEl.querySelectorAll('input[data-v]').forEach(i=>i.value=Math.round(CFG.vol[i.dataset.v]*100));document.getElementById('s-q').value=CFG.quality;document.getElementById('s-shake').checked=CFG.shake;TDP_SETTINGS.refresh()}
 menuEl.querySelectorAll('input[data-v]').forEach(i=>i.addEventListener('input',()=>{CFG.vol[i.dataset.v]=i.value/100;applyVolumes();saveCfg()}));
 document.getElementById('s-q').addEventListener('change',e=>{CFG.quality=e.target.value;applyQuality();saveCfg();sfx('ui')});
 document.getElementById('s-shake').addEventListener('change',e=>{CFG.shake=e.target.checked;saveCfg();sfx('ui')});
+TDP_SETTINGS.init({CFG,save:saveCfg,sfx});
 function goTitle(){startGame();S.state='title';S.demo=true;openMenuRoot('m-title')}
 function openMenuRoot(id){menuStack=[id];showPanel(id)}
 function newRun(){startGame();S.state='play';hideMenu();mouse.down=false}
