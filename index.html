@@ -136,7 +136,7 @@ const OBJECTIVES={
  maglocks:{label:'Disable magnetic locks',setup:(S,f)=>{S.items=holdItems(f,'MAG-LOCK','#a8f',2);S.well=P(20,11)},
   update(dt,S){const rem=S.items.filter(i=>!i.done).length;if(!rem)return;const p=S.p,str=230*rem/S.items.length,d=dist(p,S.well);
    if(d>4){const k=clamp(1-d/1000,.15,1);p.x+=(S.well.x-p.x)/d*str*k*dt;p.y+=(S.well.y-p.y)/d*str*k*dt}
-   if(d<45)p.hp-=22*dt;for(const e of S.enemies){const de=dist(e,S.well);if(de>4){e.x+=(S.well.x-e.x)/de*str*.3*dt;e.y+=(S.well.y-e.y)/de*str*.3*dt}}},
+   if(d<45&&!S.god){const a=22*dt*DF().dmg;p.hp-=a;S.stats.taken+=a}for(const e of S.enemies){const de=dist(e,S.well);if(de>4){e.x+=(S.well.x-e.x)/de*str*.3*dt;e.y+=(S.well.y-e.y)/de*str*.3*dt}}},
   progress:S=>`Mag-locks disabled ${nDone(S)}/${S.items.length}  — resist the gravity well`,done:allDone},
  beacons:{label:'Navigate in darkness',setup:(S,f)=>{S.items=f.points.map(([cx,cy],i)=>mkItem({kind:'touch',...P(cx,cy),label:'BEACON '+(i+1),color:'#3ff',idx:i}))},
   update(dt,S){const n=S.items.findIndex(i=>!i.done);S.items.forEach((it,i)=>it.active=i===n)},
@@ -152,7 +152,7 @@ const OBJECTIVES={
    for(const e of S.enemies)if(e.y>z.y0&&e.y<z.y1)e.x+=z.vx*.5*dt}},
   progress:S=>`Valves sealed ${nDone(S)}/${S.items.length}  — each stops one air current`,done:allDone},
  purge:{label:'Purge infestation',setup:(S,f)=>{S.items=shootItems(f,'SPORE NODE','#bf4',140*(1+S.floor*.05),{burnBonus:true,muck:95})},
-  update(dt,S){const p=S.p;for(const it of S.items)if(!it.done&&dist(it,p)<it.muck){p.hp-=7*dt;p.slow=.55}},
+  update(dt,S){const p=S.p;for(const it of S.items)if(!it.done&&dist(it,p)<it.muck){if(!S.god){const a=7*dt*DF().dmg;p.hp-=a;S.stats.taken+=a}p.slow=.55}},
   progress:S=>`Spore nodes purged ${nDone(S)}/${S.items.length}  (avoid the muck)`,done:allDone},
  reboot:{label:'Reboot core systems',setup:(S,f)=>{S.items=holdItems(f,'CORE NODE','#5ff',1.5);S.rebootT=0},
   update(dt,S){const n=nDone(S);if(n>0&&n<S.items.length){S.rebootT-=dt;if(S.rebootT<=0){S.items.forEach(i=>{i.done=false;i.prog=0});floatText(S.p.x,S.p.y-30,'REBOOT FAILED — NODES RESET','#f66')}}
@@ -343,7 +343,7 @@ function makeHazards(f){const hz=f.hz||{},avoid=[...S.items.map(i=>({x:i.x,y:i.y
  if(f.dark&&!f.lamps)S.lamps=spread(candidates([],0),6,[]);else S.lamps=f.lamps||null}
 function updateHazards(dt){const p=S.p;S.hazards=S.hazards.filter(h=>(!h.owner||h.owner.hp>0)&&!(h.life<=0));for(const h of S.hazards){if(h.life!==undefined&&h.type==='acid')h.life-=dt;if(TDP_CONTENT.hazard(h,dt))continue;
  if(h.type==='laser'){h.a+=h.sp*dt;if(h.owner){h.x=h.owner.x;h.y=h.owner.y}const cx=Math.cos(h.a),cy=Math.sin(h.a),dx=p.x-h.x,dy=p.y-h.y,pr=dx*cx+dy*cy;let el=h.len;for(let r=12;r<h.len;r+=8)if(inWall(h.x+cx*r,h.y+cy*r)){el=r;break}h.el=el;if(pr>(h.r0||0)&&pr<el&&Math.abs(dx*cy-dy*cx)<p.r+4)hurtPlayer(h.dmg)}
- else if(dist(h,p)<h.r){if(h.type==='acid'&&!S.god)p.hp-=10*dt;if(h.type==='frost')p.slow=Math.min(p.slow,.5)}}}
+ else if(dist(h,p)<h.r){if(h.type==='acid'&&!S.god){const a=10*dt*DF().dmg;p.hp-=a;S.stats.taken+=a}if(h.type==='frost')p.slow=Math.min(p.slow,.5)}}}
 const DF=()=>DIFFS[S.diff]||DIFFS.normal;
 const scaleF=()=>{const d=DF();return{hp:(1+S.floor*.11)*d.hp,spd:1+Math.min(S.floor,20)*.018,count:(1+S.floor*.025)*d.count,dmg:(1+S.floor*.02)*d.dmg}};
 function setDifficulty(k){if(!DIFFS[k])return;CFG.diff=k;saveCfg();if(S&&!S.demo&&S.state==='title')S.diff=k}
