@@ -203,7 +203,7 @@ const FLOORS=[
   mix:{swarmer:.45,runner:.2,spitter:.15,brute:.1,exploder:.1},wave:[8,2],interval:8},
  {name:'Ventilation',task:'Redirect airflow safely',objective:'vents',tint:'#25607a',spawn:[20,11],
   walls:[[0,7,16,1],[22,7,18,1],[0,14,18,1],[24,14,16,1]],points:[[3,3],[37,11],[3,18]],
-  winds:[{y0:0,y1:224,vx:170,valve:0},{y0:256,y1:448,vx:-170,valve:1},{y0:480,y1:720,vx:170,valve:2}],
+  winds:[{y0:0,y1:224,vx:130,valve:0},{y0:256,y1:448,vx:-130,valve:1},{y0:480,y1:720,vx:130,valve:2}],
   mix:{swarmer:.4,runner:.25,spitter:.15,brute:.1,exploder:.1},wave:[8,3],interval:8},
  {name:'Biomass Overgrowth',task:'Purge infestation',objective:'purge',tint:'#4a5a1d',spawn:[20,11],
   walls:[[7,7,3,2],[16,3,2,3],[24,8,3,2],[31,14,2,3],[14,15,3,2],[6,16,2,2]],points:[[4,3],[22,4],[36,4],[11,12],[28,18],[36,11]],
@@ -243,7 +243,7 @@ const FLOORS=[
 // ================= INPUT =================
 // ================= SETTINGS / SAVE =================
 const LS=(k,d)=>{try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}},LSset=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}};
-const DIFFS={easy:{name:'EASY',hp:.75,dmg:.6,count:.8,heal:1.6,boss:.8},normal:{name:'NORMAL',hp:1,dmg:1,count:1,heal:1,boss:1},hard:{name:'HARD',hp:1.25,dmg:1.35,count:1.2,heal:.65,boss:1.2}};
+const DIFFS={easy:{name:'EASY',hp:.75,dmg:.6,count:.8,heal:1.6,boss:.8},normal:{name:'NORMAL',hp:1,dmg:1,count:1,heal:1,boss:1},hard:{name:'HARD',hp:1.3,dmg:1.5,count:1.2,heal:.55,boss:1.25}};
 const CFG=Object.assign({vol:{master:.8,sfx:.8,music:.55},quality:'high',shake:true,diff:'normal',tut:true},LS('tdp_cfg',{}));
 const saveCfg=()=>LSset('tdp_cfg',CFG);
 function saveGame(){if(!S||S.demo)return;LSset('tdp_save',{v:3,diff:S.diff,floor:S.floor,p:{...S.p,dpos:undefined},stats:S.stats,at:Date.now()})}
@@ -391,7 +391,7 @@ function spawnEnemy(type,x,y){const T=ENEMIES[type],s=scaleF(),hp=T.hp*(T.boss?(
 function spawnNear(type,x,y,n,rad){for(let i=0;i<n;i++){const a=rnd(0,6.28),d=rnd(30,rad||60);spawnEnemy(type,x+Math.cos(a)*d,y+Math.sin(a)*d)}}
 function rollType(mix){let r=Math.random()*Object.values(mix).reduce((a,b)=>a+b,0);for(const[k,v]of Object.entries(mix)){r-=v;if(r<=0)return k}return 'swarmer'}
 function spawnWave(){const f=S.f,n=Math.round((f.wave[0]+Math.min(S.wave,f.objective==='survive'?3:6)*f.wave[1])*scaleF().count*(S.enemies.some(e=>ENEMIES[e.type].boss)?.5:1));// wave growth capped at 6 steps; halved while a boss is alive
- const cap=Math.round((26+S.floor*1.0)*DF().count*(S.enemies.some(e=>ENEMIES[e.type].boss)?.6:1));for(let i=0;i<n&&S.enemies.length<cap;i++){const pt=edgeSpawn();spawnEnemy(rollType(f.mix),pt.x+rnd(-8,8),pt.y+rnd(-8,8))}S.wave++}
+ const cap=Math.round((24+S.floor*.7)*DF().count*(S.enemies.some(e=>ENEMIES[e.type].boss)?.6:1));for(let i=0;i<n&&S.enemies.length<cap;i++){const pt=edgeSpawn();spawnEnemy(rollType(f.mix),pt.x+rnd(-8,8),pt.y+rnd(-8,8))}S.wave++}
 function lootLocker(it,weapon){const p=S.p;const un=Object.keys(WEAPONS).filter(k=>WEAPONS[k].implemented&&!p.weapons.includes(k));
  if(weapon&&un.length){const k=pickR(un);p.weapons.push(k);p.weapon=k;floatText(it.x,it.y-30,`NEW WEAPON: ${WEAPONS[k].name} [${p.weapons.length}]`,'#ff5')}
  else if(it.idx%2){p.hp=Math.min(p.maxHp,p.hp+30);floatText(it.x,it.y-30,'+30 HP','#5f9')}
