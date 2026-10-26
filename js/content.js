@@ -96,11 +96,11 @@ function objectives(){const P=A.P,dist=A.dist;
  escort:{label:'Escort the payload',
   setup(S,f){const path=f.path.map(q=>P(q[0],q[1]));const it=A.mkItem({kind:'escort',x:path[0].x,y:path[0].y,r:120,label:f.payload||'PAYLOAD',color:'#6cf',path,seg:0,amb:0,speed:f.payloadSpeed||36,trav:0});
    it.total=path.slice(1).reduce((a,q,i)=>a+dist(q,path[i]),0);S.items=[it]},
-  update(dt,S){const it=S.items[0];if(it.done)return;const near=dist(S.p,it)<it.r;it.contest=S.enemies.filter(e=>dist(e,it)<75).length;it.moving=near&&!it.contest;
-   if(it.moving){let mv=it.speed*dt;while(mv>0&&it.seg<it.path.length-1){const q=it.path[it.seg+1],d=dist(it,q);if(d<=mv){it.x=q.x;it.y=q.y;it.seg++;mv-=d;it.trav+=d}else{it.x+=(q.x-it.x)/d*mv;it.y+=(q.y-it.y)/d*mv;it.trav+=mv;mv=0}}
+  update(dt,S){const it=S.items[0];if(it.done)return;const near=dist(S.p,it)<it.r;it.contest=S.enemies.filter(e=>dist(e,it)<75).length;it.moving=near&&it.contest<2;
+   if(it.moving){let mv=it.speed*dt*(it.contest?.5:1);while(mv>0&&it.seg<it.path.length-1){const q=it.path[it.seg+1],d=dist(it,q);if(d<=mv){it.x=q.x;it.y=q.y;it.seg++;mv-=d;it.trav+=d}else{it.x+=(q.x-it.x)/d*mv;it.y+=(q.y-it.y)/d*mv;it.trav+=mv;mv=0}}
     it.prog=Math.min(1,it.trav/it.total);if(it.seg>=it.path.length-1){it.done=true;it.prog=1;A.burst(it.x,it.y,it.color,40);A.sfx('complete');A.floatText(it.x,it.y-40,it.label+' DELIVERED',it.color)}}
    const th=[.3,.62,.85];if(it.amb<th.length&&it.prog>=th[it.amb]){it.amb++;A.floatText(it.x,it.y-40,'AMBUSH!','#f66');A.sfx('roar');const n=Math.round((4+S.floor/4)*A.DF().count);for(let i=0;i<n;i++){const a=A.rnd(0,TAU),r=A.rnd(230,320);A.spawnEnemy(A.pickType(),A.clamp(it.x+Math.cos(a)*r,30,A.W-30),A.clamp(it.y+Math.sin(a)*r,30,A.H-30))}}},
-  progress:S=>{const it=S.items[0];return `Payload ${Math.floor(it.prog*100)}%`+(it.done?'':it.contest?'  — CONTESTED: clear the bugs around it':dist(S.p,it)>it.r?'  — stay close to push it':'  — moving')},done:A.allDone},
+  progress:S=>{const it=S.items[0];return `Payload ${Math.floor(it.prog*100)}%`+(it.done?'':it.contest>1?'  — CONTESTED: clear the bugs around it':it.contest?'  — slowed: a bug is on it':dist(S.p,it)>it.r?'  — stay close to push it':'  — moving')},done:A.allDone},
  cells:{label:'Deliver power cells',
   setup(S,f){S.carry=null;const so=A.mkItem({kind:'socket',...P(...(f.socket||[20,11])),label:'GRID SOCKET',color:'#ffd23a',r:30,active:false,need:f.points.length,got:0});
    S.items=f.points.map((q,i)=>A.mkItem({kind:'cell',...P(q[0],q[1]),label:'POWER CELL',color:'#ffd23a',idx:i,r:14}));S.items.push(so);S.socket=so},

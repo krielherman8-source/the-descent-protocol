@@ -43,7 +43,7 @@ function tick(st){st.n=(st.n||0)+1;const RT=Math.round(1+(1-SK)*12);if(st.n%RT!=
   if((mode==='escort'||mode==='defend')&&dGoal<goal.r*.5)want=false;
   if(mode==='shoot'&&dGoal<230&&los(p,goal))want=false;
   if(mode==='hunt'&&dGoal<(boss?300:180)&&los(p,goal))want=false;
-  st.want=want;if(want){const d=pathDir(p,goal);mv.x+=d.x;mv.y+=d.y}}else st.want=false;
+  st.want=want;if(want){const d=pathDir(p,goal),pw=(mode==='escort'||mode==='defend')&&dGoal>goal.r*.5?1.8:1;mv.x+=d.x*pw;mv.y+=d.y*pw}}else st.want=false;
  if(boss&&(mode==='hunt'||mode==='exit'||!goal)){const d=dist(boss,p),ux=(p.x-boss.x)/d,uy=(p.y-boss.y)/d;st.sd=st.sd||1;if(Math.random()<.004)st.sd*=-1;
   const rad=d<270?1.3:d>360?-1:0;mv.x=ux*rad-uy*st.sd*.9;mv.y=uy*rad+ux*st.sd*.9;}
  for(let k=0;k<8;k++){const a=k*Math.PI/4,cx=Math.cos(a),cy=Math.sin(a);if(inWall(p.x+cx*30,p.y+cy*30)){const wk=(mode==='exit'||st.stuckT>0)?.25:.55;mv.x-=cx*wk;mv.y-=cy*wk;if(boss)st.sd*=(Math.random()<.02?-1:1)}}
