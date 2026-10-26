@@ -106,7 +106,7 @@ const ENEMIES={
  leaper:{name:'Leaper',hp:40,speed:95,dmg:16,r:10,color:'#ff8c3a',ai:'leap'},
  carrier:{name:'Brood Carrier',hp:140,speed:55,dmg:20,r:18,color:'#c8b04a',ai:'chase',split:'mite'},
  mite:{name:'Mite',hp:6,speed:205,dmg:4,r:5,color:'#ffef7a',ai:'chase'},
- warden:{name:'Brood Warden',hp:1700,speed:55,dmg:24,r:38,color:'#ff3d7a',ai:'boss',boss:true},
+ warden:{name:'Brood Warden',hp:1450,speed:55,dmg:24,r:38,color:'#ff3d7a',ai:'boss',boss:true},
  prime:{name:'Swarmer Prime',hp:4400,speed:110,dmg:22,r:26,color:'#ff5533',ai:'boss',boss:true},
  colossus:{name:'Hive Colossus',hp:6800,speed:48,dmg:28,r:46,color:'#b04aff',ai:'boss',boss:true},
  matriarch:{name:'Hive Matriarch',hp:7400,speed:40,dmg:24,r:42,color:'#ff4fa0',ai:'boss',boss:true},
@@ -372,7 +372,7 @@ function bossCharge(e,dt,p,every,sp,col){e.ct=(e.ct??every)-dt;if(e.dashT>0){e.d
 const tick=(e,k,every)=>{e[k]=(e[k]??every*.6)-S._dt;if(e[k]<=0){e[k]=every;return true}return false};
 // Boss behaviours (data-driven by enemy key). Each may set e.oa/e.os to override movement this frame.
 const BOSS_AI={
- warden(e,dt,p){const rage=e.hp<e.max/2;if(rage){e.oa=undefined}if(tick(e,'t1',rage?2:3.2))bossRing(e,16,220,12,'#f5a');if(tick(e,'t2',5))bossSummon(e,['swarmer','swarmer','swarmer','runner'],4);if(rage){e.oa=Math.atan2(p.y-e.y,p.x-e.x);e.os=e.speed*1.6}},
+ warden(e,dt,p){const rage=e.hp<e.max/2;if(rage){e.oa=undefined}if(tick(e,'t1',rage?2.6:3.2))bossRing(e,16,220,12,'#f5a');if(tick(e,'t2',6))bossSummon(e,['swarmer','swarmer','swarmer','runner'],4);if(rage){e.oa=Math.atan2(p.y-e.y,p.x-e.x);e.os=e.speed*1.6}},
  prime(e,dt,p){const rage=e.hp<e.max/2;bossCharge(e,dt,p,rage?2.6:4,560,'#f53');if(tick(e,'t2',rage?4.5:6.5))bossSummon(e,['swarmer','runner'],rage?6:4);if(tick(e,'t3',5))bossRing(e,rage?16:10,240,12,'#f73')},
  colossus(e,dt,p,d){bossCharge(e,dt,p,8,380,'#b4f');if(tick(e,'t1',e.hp<e.max/2?3:4.5)){S.rings.push({x:e.x,y:e.y,r:10,life:.6,col:'#c6f'});burst(e.x,e.y,'#c6f',30);sfx('slam');S.shake=Math.min(18,S.shake+8);if(d<190){hurtPlayer(24);const k=60/Math.max(d,1);p.x+=(p.x-e.x)*k;p.y+=(p.y-e.y)*k;resolve(p)}}
   if(tick(e,'t2',9))bossSummon(e,['leaper','carrier','stalker'],3);if(e.hp<e.max/2&&tick(e,'t3',4))bossRing(e,14,200,14,'#c6f')},
