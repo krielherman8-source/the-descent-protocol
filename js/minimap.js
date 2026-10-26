@@ -12,11 +12,13 @@ function draw(ctx,S,o){const W=o.W,H=o.H,sc=o.size/W,mw=W*sc,mh=H*sc,x0=o.x,y0=o
  ctx.save();ctx.globalAlpha=.92;ctx.drawImage(cache,x0,y0);ctx.globalAlpha=1;ctx.strokeStyle='#2aa';ctx.lineWidth=1;ctx.strokeRect(x0-.5,y0-.5,mw+1,mh+1);
  ctx.beginPath();ctx.rect(x0,y0,mw,mh);ctx.clip();
  for(const h of S.hazards||[]){if(h.type==='laser'){const L=(h.el??h.len)*sc;ctx.strokeStyle='rgba(255,60,60,.9)';ctx.beginPath();ctx.moveTo(x0+h.x*sc,y0+h.y*sc);ctx.lineTo(x0+h.x*sc+Math.cos(h.a)*L,y0+h.y*sc+Math.sin(h.a)*L);ctx.stroke()}
-  else{ctx.fillStyle=h.type==='acid'?'rgba(120,255,60,.35)':'rgba(140,220,255,.35)';ctx.beginPath();ctx.arc(x0+h.x*sc,y0+h.y*sc,h.r*sc,0,7);ctx.fill()}}
+  else if(h.type==='fissure'){ctx.strokeStyle=h.t>0?'rgba(200,100,255,.95)':'rgba(200,100,255,.4)';ctx.beginPath();ctx.moveTo(x0+h.x*sc,y0+h.y*sc);ctx.lineTo(x0+(h.x+Math.cos(h.a)*h.len)*sc,y0+(h.y+Math.sin(h.a)*h.len)*sc);ctx.stroke()}
+  else if(h.r>0){ctx.fillStyle=h.type==='acid'?'rgba(120,255,60,.35)':h.type==='steam'?(h.on?'rgba(255,170,90,.6)':'rgba(255,170,90,.22)'):h.type==='mortar'?'rgba(255,120,200,.45)':'rgba(140,220,255,.35)';ctx.beginPath();ctx.arc(x0+h.x*sc,y0+h.y*sc,h.r*sc,0,7);ctx.fill()}}
  const pulse=.5+.5*Math.sin(S.t*6);
- for(const it of S.items){if(it.done&&it.kind!=='hold')continue;const on=it.active!==false&&!it.done;ctx.fillStyle=it.done?'rgba(120,255,255,.35)':it.color;ctx.globalAlpha=on?1:.35;
-  const r=it.kind==='zone'?it.r*sc:3;ctx.beginPath();ctx.arc(x0+it.x*sc,y0+it.y*sc,r,0,7);if(it.kind==='zone'){ctx.strokeStyle=it.color;ctx.stroke()}else ctx.fill();
-  if(on&&it.kind!=='zone'){ctx.strokeStyle=it.color;ctx.globalAlpha=.6*(1-pulse);ctx.beginPath();ctx.arc(x0+it.x*sc,y0+it.y*sc,3+pulse*6,0,7);ctx.stroke()}}
+ for(const it of S.items){if(it.kind==='escort'&&it.path){ctx.strokeStyle=it.color;ctx.globalAlpha=.35;ctx.setLineDash([3,3]);ctx.beginPath();ctx.moveTo(x0+it.x*sc,y0+it.y*sc);for(let i=it.seg+1;i<it.path.length;i++)ctx.lineTo(x0+it.path[i].x*sc,y0+it.path[i].y*sc);ctx.stroke();ctx.setLineDash([]);ctx.globalAlpha=1}
+  if(it.done&&it.kind!=='hold')continue;const on=it.active!==false&&!it.done;ctx.fillStyle=it.done?'rgba(120,255,255,.35)':it.color;ctx.globalAlpha=on?1:.35;
+  const ring=it.kind==='zone'||it.kind==='defend'||it.kind==='escort',r=ring?it.r*sc:3;ctx.beginPath();ctx.arc(x0+it.x*sc,y0+it.y*sc,r,0,7);if(ring){ctx.strokeStyle=it.color;ctx.stroke();ctx.beginPath();ctx.arc(x0+it.x*sc,y0+it.y*sc,3,0,7);ctx.fill()}else ctx.fill();
+  if(on&&!ring){ctx.strokeStyle=it.color;ctx.globalAlpha=.6*(1-pulse);ctx.beginPath();ctx.arc(x0+it.x*sc,y0+it.y*sc,3+pulse*6,0,7);ctx.stroke()}}
  ctx.globalAlpha=1;
  for(const h of S.pickups||[]){ctx.fillStyle='#5f8';ctx.fillRect(x0+h.x*sc-1.5,y0+h.y*sc-1.5,3,3)}
  for(const e of S.enemies){if(e.hp<=0||e.cloaked)continue;const b=o.isBoss(e);ctx.fillStyle=b?'#f3a':'#f44';const r=b?4.5:1.6;ctx.fillRect(x0+e.x*sc-r,y0+e.y*sc-r,r*2,r*2)}

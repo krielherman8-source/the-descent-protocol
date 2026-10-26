@@ -27,7 +27,7 @@ s.textContent=JSON.stringify({imports:{three:local?'./vendor/three.module.js':cd
 <div class="panel" id="m-controls"><h2>CONTROLS</h2><table>
 <tr><td>WASD</td><td>Move (screen-relative)</td></tr><tr><td>MOUSE</td><td>Aim · hold LMB to fire</td></tr><tr><td>1 – 7</td><td>Switch weapon</td></tr><tr><td>Q</td><td>Cycle drone</td></tr>
 <tr><td>E (hold)</td><td>Interact with objectives</td></tr><tr><td>1/2/3 · click</td><td>Choose upgrade in chamber</td></tr><tr><td>ESC</td><td>Pause</td></tr><tr><td>R</td><td>Restart after death</td></tr><tr><td>GAMEPAD</td><td>L-stick move · R-stick aim+fire · RT fire · A use · LB/RB weapon · Y drone · Start pause</td></tr><tr><td>TOUCH</td><td>Left thumb move · right thumb aim+fire · USE / WPN / DRN buttons</td></tr></table><button data-a="back">BACK</button></div></div>
-<link rel="stylesheet" href="css/ui.css"><script src="js/story.js"></script><script src="js/input.js"></script><script src="js/minimap.js"></script>
+<link rel="stylesheet" href="css/ui.css"><script src="js/story.js"></script><script src="js/input.js"></script><script src="js/minimap.js"></script><script src="js/content.js"></script>
 <div id="load">LOADING THE DESCENT PROTOCOL…</div><script type="module">
 'use strict';
 let THREE;
@@ -146,7 +146,7 @@ const OBJECTIVES={
   update(dt,S){for(const it of S.items)if(it.prog>0&&!it.alarm){it.alarm=true;floatText(it.x,it.y-30,'ALARM!','#f66');spawnNear('swarmer',it.x,it.y,5,180)}},
   progress:S=>`Terminals hacked ${nDone(S)}/${S.items.length}  (stay close, progress decays)`,done:allDone},
  vents:{label:'Redirect airflow safely',setup:(S,f)=>{S.items=holdItems(f,'VALVE','#7df',2);S.winds=f.winds},
-  update(dt,S){const p=S.p;for(const z of S.winds){if(S.items[z.valve].done)continue;if(p.y>z.y0&&p.y<z.y1)p.x+=z.vx*dt;
+  update(dt,S){const p=S.p;for(const z of S.winds){if(S.items[z.valve].done)continue;if(p.y>z.y0&&p.y<z.y1)p.x+=z.vx*dt*(S.holding&&keys.e?.45:1);
    for(const e of S.enemies)if(e.y>z.y0&&e.y<z.y1)e.x+=z.vx*.5*dt}},
   progress:S=>`Valves sealed ${nDone(S)}/${S.items.length}  — each stops one air current`,done:allDone},
  purge:{label:'Purge infestation',setup:(S,f)=>{S.items=shootItems(f,'SPORE NODE','#bf4',140*(1+S.floor*.05),{burnBonus:true,muck:95})},
@@ -181,7 +181,7 @@ const OBJECTIVES={
 
 const M2={swarmer:.3,runner:.25,spitter:.15,brute:.15,exploder:.15},M3={swarmer:.25,runner:.2,spitter:.15,brute:.13,exploder:.12,stalker:.15},
  M4={swarmer:.2,runner:.15,spitter:.15,brute:.12,exploder:.12,stalker:.13,leaper:.13},M5={swarmer:.15,runner:.12,spitter:.14,brute:.12,exploder:.1,stalker:.13,leaper:.12,carrier:.12},
- M6={swarmer:.1,runner:.1,spitter:.14,brute:.14,exploder:.1,stalker:.15,leaper:.14,carrier:.13};
+ M6={swarmer:.1,runner:.1,spitter:.14,brute:.14,exploder:.1,stalker:.15,leaper:.14,carrier:.13,mite:.07};
 // Compact floor constructor for floors 11+: points/hazards are auto-placed on reachable cells at floor start.
 function Fx(name,task,objective,tint,theme,walls,o){return Object.assign({name,task,objective,tint,theme,walls,spawn:[20,11],wave:[9,3],interval:7},o)}
 const FLOORS=[
@@ -219,23 +219,23 @@ const FLOORS=[
  Fx('Swarm Nest','Survive endless waves until objective clears','survive','#6a5a1d','facility',[[10,10,3,3],[27,10,3,3],[18,3,4,2],[18,18,4,2]],{survive:45,mix:M2,interval:6,wave:[6,2]}),
  Fx('Cryo Vault','Defrost frozen systems while under siege','defrost','#1d5a8a','facility',[[4,6,12,1],[24,6,12,1],[4,16,12,1],[24,16,12,1]],{n:4,hz:{frost:5},mix:M2}),
  // ---------- Floors 16-19: industrial depths ----------
- Fx('Pumpworks','Restart the flood pumps','generators','#2a6a5a','industrial',[[0,5,14,1],[26,5,14,1],[8,11,1,6],[31,11,1,6],[14,17,12,1]],{n:4,label:'PUMP',hz:{acid:4},mix:M3}),
- Fx('Relay Spire','Align the relay beacons','beacons','#4a4a9a','industrial',[[6,3,3,3],[12,8,3,3],[25,8,3,3],[31,3,3,3],[6,16,3,3],[31,16,3,3]],{n:5,hz:{lasers:[[20,11,260,.7]]},mix:M3}),
- Fx('Quarantine Labs','Hack the containment terminals','hack','#3a8a3a','industrial',[[6,3,1,7],[6,3,8,1],[33,3,1,7],[26,3,8,1],[6,13,1,7],[6,19,8,1],[33,13,1,7],[26,19,8,1],[17,8,6,1],[17,14,6,1]],{n:4,mix:M4}),
- Fx('Data Core','Reboot the data core nodes in the dark','reboot','#1d4a8a','industrial',[5,10,15,24,29,34].flatMap(x=>[[x,3,1,6],[x,14,1,6]]),{n:5,window:40,dark:true,mix:M4}),
+ Fx('Pumpworks','Restart the flood pumps','generators','#2a6a5a','industrial',[[0,5,14,1],[26,5,14,1],[8,11,1,6],[31,11,1,6],[14,17,12,1]],{n:4,label:'PUMP',hz:{acid:3,steam:3},set:'pumps',mix:M3}),
+ Fx('Relay Spire','Escort the relay payload to the spire','escort','#4a4a9a','industrial',[[6,3,3,3],[12,8,3,3],[25,8,3,3],[31,3,3,3],[6,16,3,3],[31,16,3,3]],{path:[[3,20],[3,12],[20,12],[20,6],[37,6]],payload:'RELAY CORE',spawn:[5,20],exit:[36,6],hz:{lasers:[[20,17,200,.6]]},set:'spire',mix:M3}),
+ Fx('Quarantine Labs','Carry power cells to the containment grid','cells','#3a8a3a','industrial',[[6,3,1,7],[6,3,8,1],[33,3,1,7],[26,3,8,1],[6,13,1,7],[6,19,8,1],[33,13,1,7],[26,19,8,1],[17,8,6,1],[17,14,6,1]],{n:4,socket:[20,11],hz:{frost:2},set:'tanks',elite:{type:'warden',at:35,line:'A warden guards the labs'},mix:M4}),
+ Fx('Data Core','Reboot the data core nodes in the dark','reboot','#1d4a8a','industrial',[5,10,15,24,29,34].flatMap(x=>[[x,3,1,6],[x,14,1,6]]),{n:5,window:40,dark:true,hz:{steam:2},set:'racks',mix:M4}),
  // ---------- Floors 20-25: the hive ----------
- Fx('Hive Threshold','Slay the Hive Colossus','boss','#9a2a6a','hive',[[8,6,3,2],[29,6,3,2],[8,15,3,2],[29,15,3,2]],{boss:'colossus',bossLine:'The hive wakes. Watch the ground slams.',spawn:[20,19],mix:M5,interval:12,hz:{acid:2}}),
- Fx('Brood Tunnels','Burn the brood sacs in the tunnels','eggs','#7a1d3a','hive',[[4,0,1,8],[4,12,1,11],[11,4,1,15],[18,0,1,9],[18,14,1,9],[25,4,1,15],[32,0,1,8],[32,12,1,11]],{n:10,hatch:[16,30],dark:true,mix:M5}),
- Fx('Spore Fields','Purge the spore nodes','purge','#6a7a1d','hive',[[9,4,2,3],[20,3,2,2],[30,5,2,3],[6,14,3,2],[16,16,3,2],[27,15,3,2]],{n:7,hz:{acid:3},mix:M5}),
- Fx('Neural Lattice','Relay through the neural lattice','beacons','#8a2a8a','hive',[8,14,26,32].flatMap(x=>[[x,5,2,2],[x,16,2,2]]),{n:6,hz:{lasers:[[11,11,200,.9],[29,11,200,-.9]]},mix:M5}),
- Fx('Acid Cisterns','Seal the acid vent valves','vents','#6a8a1d','hive',[[0,7,14,1],[20,7,20,1],[6,14,20,1],[32,14,8,1]],{n:3,winds:[{y0:0,y1:224,vx:180,valve:0},{y0:256,y1:448,vx:-180,valve:1},{y0:480,y1:720,vx:180,valve:2}],hz:{acid:4},mix:M5}),
- Fx('Brood Throne','Kill the Hive Matriarch','boss','#aa1d5a','hive',[[6,5,2,2],[32,5,2,2],[6,16,2,2],[32,16,2,2],[19,3,2,1]],{boss:'matriarch',bossLine:'Mother of the swarm.',spawn:[20,19],mix:M5,interval:12}),
+ Fx('Hive Threshold','Slay the Hive Colossus','boss','#9a2a6a','hive',[[8,6,3,2],[29,6,3,2],[8,15,3,2],[29,15,3,2]],{boss:'colossus',bossLine:'The hive wakes. Watch the ground slams.',spawn:[20,19],mix:M5,interval:12,hz:{acid:2},set:'ribs'}),
+ Fx('Brood Tunnels','Burn the brood sacs in the tunnels','eggs','#7a1d3a','hive',[[4,0,1,8],[4,12,1,11],[11,4,1,15],[18,0,1,9],[18,14,1,9],[25,4,1,15],[32,0,1,8],[32,12,1,11]],{n:10,hatch:[16,30],dark:true,set:'eggs',mix:M5}),
+ Fx('Spore Fields','Purge the spore nodes','purge','#6a7a1d','hive',[[9,4,2,3],[20,3,2,2],[30,5,2,3],[6,14,3,2],[16,16,3,2],[27,15,3,2]],{n:7,hz:{acid:3},set:'stalks',mix:M5}),
+ Fx('Neural Lattice','Relay through the neural lattice','beacons','#8a2a8a','hive',[8,14,26,32].flatMap(x=>[[x,5,2,2],[x,16,2,2]]),{n:6,hz:{lasers:[[11,11,200,.9],[29,11,200,-.9]]},set:'nerves',elite:{type:'prime',at:25,line:'The lattice births a Prime'},mix:M5}),
+ Fx('Acid Cisterns','Seal the acid vent valves','vents','#6a8a1d','hive',[[0,7,14,1],[20,7,20,1],[6,14,20,1],[32,14,8,1]],{n:3,winds:[{y0:0,y1:224,vx:180,valve:0},{y0:256,y1:448,vx:-180,valve:1},{y0:480,y1:720,vx:180,valve:2}],hz:{acid:4},set:'cisterns',mix:M5}),
+ Fx('Brood Throne','Kill the Hive Matriarch','boss','#aa1d5a','hive',[[6,5,2,2],[32,5,2,2],[6,16,2,2],[32,16,2,2],[19,3,2,1]],{boss:'matriarch',bossLine:'Mother of the swarm. Eggs rain, acid trails.',spawn:[20,19],mix:M5,interval:12,set:'throne'}),
  // ---------- Floors 26-30: the core ----------
- Fx('Core Breach','Stabilize the breached core','reactor','#1d8a8a','core',[[13,4,5,1],[22,4,5,1],[13,18,5,1],[22,18,5,1],[9,8,1,7],[30,8,1,7]],{zoneTime:30,hz:{lasers:[[20,11,300,.5]]},spawn:[20,20],exit:[20,20],mix:M6}),
- Fx('Gravity Collapse','Disable the collapse locks','maglocks','#5a2a9a','core',[[10,4,4,1],[26,4,4,1],[10,18,4,1],[26,18,4,1],[6,9,1,5],[33,9,1,5]],{n:5,spawn:[20,20],mix:M6}),
- Fx('Dead Sector','Hold out in total darkness','survive','#3a3a4a','core',[[6,3,1,10],[6,3,10,1],[24,3,10,1],[33,3,1,10],[12,9,16,1],[6,17,10,1],[24,17,10,1],[12,13,1,7],[27,13,1,7]],{survive:50,dark:true,mix:M6,interval:7,wave:[5,2]}),
- Fx('The Heart','Burn out the hive heart','biomass','#9a1d1d','core',[[10,3,2,6],[28,3,2,6],[10,14,2,6],[28,14,2,6],[17,5,6,1],[17,17,6,1]],{n:6,hz:{acid:3,lasers:[[20,11,240,.6]]},exit:[20,20],mix:M6}),
- Fx('The Overmind','Destroy the Overmind','boss','#ff2050','core',[[8,4,2,2],[30,4,2,2],[8,17,2,2],[30,17,2,2]],{boss:'overmind',bossAt:[20,9],bossLine:'Final boss — three phases.',spawn:[20,19],mix:M6,interval:14}),
+ Fx('Core Breach','Defend the breached core from sappers','defend','#1d8a8a','core',[[13,4,5,1],[22,4,5,1],[13,18,5,1],[22,18,5,1],[9,8,1,7],[30,8,1,7]],{defendT:50,hz:{lasers:[[20,11,330,.5,165]]},spawn:[20,20],exit:[20,20],set:'coolant',mix:M6}),
+ Fx('Gravity Collapse','Disable the collapse locks','maglocks','#5a2a9a','core',[[10,4,4,1],[26,4,4,1],[10,18,4,1],[26,18,4,1],[6,9,1,5],[33,9,1,5]],{n:5,spawn:[20,20],hz:{steam:3},set:'debris',mix:M6}),
+ Fx('Dead Sector','Hold out in total darkness','survive','#3a3a4a','core',[[6,3,1,10],[6,3,10,1],[24,3,10,1],[33,3,1,10],[12,9,16,1],[6,17,10,1],[24,17,10,1],[12,13,1,7],[27,13,1,7]],{survive:50,dark:true,mix:M6,interval:7,wave:[5,2],set:'wreck',elite:{type:'prime',at:18,hp:.45,line:'Something hunts in the dark'}}),
+ Fx('The Heart','Burn out the hive heart','biomass','#9a1d1d','core',[[10,3,2,6],[28,3,2,6],[10,14,2,6],[28,14,2,6],[17,5,6,1],[17,17,6,1]],{n:6,hz:{acid:3,lasers:[[20,11,240,.6]]},exit:[20,20],set:'heart',mix:M6}),
+ Fx('The Overmind','Destroy the Overmind','boss','#ff2050','core',[[8,4,2,2],[30,4,2,2],[8,17,2,2],[30,17,2,2]],{boss:'overmind',bossAt:[20,9],bossLine:'Final boss — three phases.',spawn:[20,19],mix:M6,interval:14,set:'tendrils'}),
 ];
 
 // ================= INPUT =================
@@ -320,7 +320,7 @@ function startFloor(){const f=FLOORS[S.floor];S.f=f;S.obj=OBJECTIVES[f.objective
  S.grid=new Uint8Array(GW*GH);for(let y=0;y<GH;y++)for(let x=0;x<GW;x++)S.grid[x+y*GW]=S.walls.some(w=>cp(x)>w.x&&cp(x)<w.x+w.w&&cp(y)>w.y&&cp(y)<w.y+w.h)?1:0;
  S.flow=new Int16Array(GW*GH);S.flowT=0;
  Object.assign(S.p,P(...f.spawn));S.enemies=[];S.bullets=[];S.ebullets=[];S.parts=[];S.arcs=[];S.rings=[];S.beams=[];S.orbs=[];S.booms=[];S.decoy=null;S.pickups=[];S.p.hpos={x:S.p.x,y:S.p.y};S.exit=null;S.choices=null;S.texts=[];
- S.winds=null;S.well=null;S.hazards=[];fixSpawn(f);const fx=f.points||!f.n?f:Object.assign({},f,{points:autoPoints(f.n)});S.fx=fx;S.obj.setup(S,fx);makeHazards(f);S.waveT=2;S.wave=0;S.cleared=false;showBanner(`FLOOR ${S.floor+1} — ${f.name.toUpperCase()}`,f.task,3.5)}
+ S.winds=null;S.well=null;S.hazards=[];S.carry=null;S.socket=null;S.floorT=0;S.eliteSpawned=false;fixSpawn(f);const fx=f.points||!f.n?f:Object.assign({},f,{points:autoPoints(f.n)});S.fx=fx;S.obj.setup(S,fx);makeHazards(f);S.waveT=2;S.wave=0;S.cleared=false;showBanner(`FLOOR ${S.floor+1} — ${f.name.toUpperCase()}`,f.task,3.5)}
 function showBanner(a,b,t){S.banner={a,b,life:t}}
 function floatText(x,y,t,col){S.texts.push({x,y,t,col:col||'#bff',life:1.6})}
 // Gentler per-floor scaling (30 floors); difficulty mostly comes from new enemy mixes, hazards and objectives.
@@ -331,14 +331,14 @@ function candidates(avoid,minD){const D=reachable(),out=[];for(let y=1;y<GH-2;y+
   if(!ok)continue;const pt=P(x,y);if(dist(pt,S.p)<minD||avoid.some(a=>dist(a,pt)<a.r))continue;out.push([x,y])}return out}
 function spread(c,n,taken){const out=[];const pts=taken.slice();for(let k=0;k<n&&c.length;k++){let best=null,bd=-1;const tries=shuffle(c).slice(0,60);
   for(const q of tries){const pt=P(...q);let d=pts.length?Math.min(...pts.map(t=>dist(t,pt))):rnd(0,1);if(d>bd){bd=d;best=q}}out.push(best);pts.push(P(...best))}return out}
-function autoPoints(n){return spread(candidates(S.f.objective==='maglocks'||S.f.objective==='reactor'?[{...P(20,11),r:170}]:[],170),n,[])}
-function makeHazards(f){const hz=f.hz||{},avoid=[...S.items.map(i=>({x:i.x,y:i.y,r:180+(i.muck||0)})),{...S.p,r:160},{...P(...(f.exit||[20,11])),r:150},{...P(20,11),r:S.f.objective==='reactor'?150:0}];
+function autoPoints(n){return spread(candidates(['maglocks','reactor','cells','defend'].includes(S.f.objective)?[{...P(20,11),r:170}]:[],170),n,[])}
+function makeHazards(f){const hz=f.hz||{},avoid=[...S.items.map(i=>({x:i.x,y:i.y,r:180+(i.muck||0)})),{...S.p,r:160},{...P(...(f.exit||[20,11])),r:150},{...P(20,11),r:['reactor','defend'].includes(S.f.objective)?170:0}];
  const open=([x,y])=>{for(let dy=-3;dy<=3;dy++)for(let dx=-3;dx<=3;dx++){const X=x+dx,Y=y+dy;if(X>=0&&Y>=0&&X<GW&&Y<GH&&S.grid[X+Y*GW])return false}return true};
- for(const t of['acid','frost'])if(hz[t]){const c0=candidates(avoid,200),cw=c0.filter(open),c=cw.length>=hz[t]*3?cw:c0;/* pools stay out of corridors and doorways */for(const q of spread(c,hz[t],S.items.map(i=>({x:i.x,y:i.y}))))S.hazards.push({type:t,...P(...q),r:rnd(55,85)})}
- for(const[cx,cy,len,sp]of hz.lasers||[]){const c=P(cx,cy);let L=len;for(const it of S.items)if(it.kind!=='zone'){const d=dist(it,c);if(d<L+45)L=Math.max(70,d-45)}S.hazards.push({type:'laser',...c,len:L,el:L,sp,a:rnd(0,6),dmg:18})}
+ for(const t of['acid','frost','steam'])if(hz[t]){const c0=candidates(avoid,200),cw=c0.filter(open),c=cw.length>=hz[t]*3?cw:c0;/* pools stay out of corridors and doorways */for(const q of spread(c,hz[t],S.items.map(i=>({x:i.x,y:i.y}))))S.hazards.push(t==='steam'?{type:t,...P(...q),r:46,period:rnd(4.6,6),ph:rnd(0,6),dmg:16}:{type:t,...P(...q),r:rnd(55,85)})}
+ for(const[cx,cy,len,sp,r0]of hz.lasers||[]){const c=P(cx,cy);let L=len;for(const it of S.items)if(it.kind!=='zone'){const d=dist(it,c);if(d<L+45)L=Math.max(70,d-45)}S.hazards.push({type:'laser',...c,len:L,el:L,sp,a:rnd(0,6),dmg:18,r0:r0||0})}
  if(f.dark&&!f.lamps)S.lamps=spread(candidates([],0),6,[]);else S.lamps=f.lamps||null}
-function updateHazards(dt){const p=S.p;S.hazards=S.hazards.filter(h=>!h.owner||h.owner.hp>0);for(const h of S.hazards){
- if(h.type==='laser'){h.a+=h.sp*dt;if(h.owner){h.x=h.owner.x;h.y=h.owner.y}const cx=Math.cos(h.a),cy=Math.sin(h.a),dx=p.x-h.x,dy=p.y-h.y,pr=dx*cx+dy*cy;let el=h.len;for(let r=12;r<h.len;r+=8)if(inWall(h.x+cx*r,h.y+cy*r)){el=r;break}h.el=el;if(pr>0&&pr<el&&Math.abs(dx*cy-dy*cx)<p.r+4)hurtPlayer(h.dmg)}
+function updateHazards(dt){const p=S.p;S.hazards=S.hazards.filter(h=>(!h.owner||h.owner.hp>0)&&!(h.life<=0));for(const h of S.hazards){if(h.life!==undefined&&h.type==='acid')h.life-=dt;if(TDP_CONTENT.hazard(h,dt))continue;
+ if(h.type==='laser'){h.a+=h.sp*dt;if(h.owner){h.x=h.owner.x;h.y=h.owner.y}const cx=Math.cos(h.a),cy=Math.sin(h.a),dx=p.x-h.x,dy=p.y-h.y,pr=dx*cx+dy*cy;let el=h.len;for(let r=12;r<h.len;r+=8)if(inWall(h.x+cx*r,h.y+cy*r)){el=r;break}h.el=el;if(pr>(h.r0||0)&&pr<el&&Math.abs(dx*cy-dy*cx)<p.r+4)hurtPlayer(h.dmg)}
  else if(dist(h,p)<h.r){if(h.type==='acid'&&!S.god)p.hp-=10*dt;if(h.type==='frost')p.slow=Math.min(p.slow,.5)}}}
 const DF=()=>DIFFS[S.diff]||DIFFS.normal;
 const scaleF=()=>{const d=DF();return{hp:(1+S.floor*.11)*d.hp,spd:1+Math.min(S.floor,20)*.018,count:(1+S.floor*.025)*d.count,dmg:(1+S.floor*.02)*d.dmg}};
@@ -461,12 +461,13 @@ function update(dt){S.t+=dt;S._dt=dt;if(S.banner&&S.banner.life>0)S.banner.life-
  for(const a of S.arcs)a.life-=dt;S.arcs=S.arcs.filter(a=>a.life>0);for(const r of S.rings){r.life-=dt;r.r+=400*dt}S.rings=S.rings.filter(r=>r.life>0);for(const b of S.beams)b.life-=dt;S.beams=S.beams.filter(b=>b.life>0);for(const b of S.booms)b.life-=dt;S.booms=S.booms.filter(b=>b.life>0);
  if(S.state==='descent'){S.descT+=dt;if(!S.descDone&&S.descT>=.9){S.descDone=true;S.floor++;startFloor();saveGame()}if(S.descT>=1.8)S.state='play';return}
  if(S.state!=='play')return;const p=S.p,f=S.f;S.stats.time+=dt;tutTick(dt);
- p.slow=1;S.obj.update&&S.obj.update(dt,S,f);updateHazards(dt);resolve(p);
+ S.floorT+=dt;p.slow=1;S.obj.update&&S.obj.update(dt,S,f);
+ if(f.elite&&!S.eliteSpawned&&S.floorT>=f.elite.at){S.eliteSpawned=true;const pt=edgeSpawn(),e=spawnEnemy(f.elite.type,pt.x,pt.y);e.hp=e.max=e.max*(f.elite.hp||.55);e.elite=true;sfx('roar');S.shake=12;showBanner('ELITE: '+ENEMIES[f.elite.type].name.toUpperCase(),f.elite.line||'A champion of the hive joins the fight',2.5)}updateHazards(dt);resolve(p);
  let mx=(keys.d?1:0)-(keys.a?1:0),my=(keys.s?1:0)-(keys.w?1:0);if(IN.mx||IN.my){mx=IN.mx;my=IN.my}const m=Math.max(1,Math.hypot(mx,my));
  p.x+=mx/m*p.speed*p.slow*dt;p.y+=my/m*p.speed*p.slow*dt;resolve(p);
  if(IN.aim!=null){mouse.x=p.x+Math.cos(IN.aim)*220;mouse.y=p.y+Math.sin(IN.aim)*220}
  const aim=Math.atan2(mouse.y-p.y,mouse.x-p.x),w=WEAPONS[p.weapon];p.cd-=dt;
- if((mouse.down||IN.fire)&&p.cd<=0){p.cd=1/(w.rate*p.rateMul);S.stats.shots++;for(let i=0;i<p.multishot;i++)w.fire(p,aim+(i-(p.multishot-1)/2)*.12);sfx(p.weapon)}
+ if((mouse.down||IN.fire)&&p.cd<=0){p.cd=(S.carry?2:1)/(w.rate*p.rateMul);S.stats.shots++;for(let i=0;i<p.multishot;i++)w.fire(p,aim+(i-(p.multishot-1)/2)*.12);sfx(p.weapon)}
  const D=DRONES[p.drone];p.da+=dt*D.spin;p.dpos={x:p.x+Math.cos(p.da)*D.orbit,y:p.y+Math.sin(p.da)*D.orbit};D.update(p,dt);
  // items
  S.holding=null;for(const it of S.items){if(it.done||!it.active)continue;const d=dist(it,p);
@@ -485,7 +486,7 @@ function update(dt){S.t+=dt;S._dt=dt;if(S.banner&&S.banner.life>0)S.banner.life-
  p.inv-=dt;
  const SH=new Map();for(const e of S.enemies){const k=((e.x/48)|0)+((e.y/48)|0)*64;let a=SH.get(k);if(!a)SH.set(k,a=[]);a.push(e)}
  for(const e of S.enemies){if(e.hp<=0)continue;const T=ENEMIES[e.type];if(e.burn>0){e.burn-=dt;e.hp-=8*dt;S.stats.dmg+=8*dt;if(Math.random()<.2)S.parts.push({x:e.x,y:e.y,vx:0,vy:-40,life:.3,col:'#f84'})}e.flash-=dt;
-  let ang=chaseAngle(e),spd=e.speed;const d=dist(e,p);if(e.slowT>0){e.slowT-=dt;spd*=T.boss?.75:.5}if(e.stun>0){e.stun-=dt;spd=0;e.cd=Math.max(e.cd,.2)}
+  let ang=chaseAngle(e),spd=e.speed;const d=dist(e,p);if(e.goal&&d>90){const dg=dist(e,e.goal);if(dg<60+e.r)spd=0;else if(dg<520||los(e,e.goal))ang=Math.atan2(e.goal.y-e.y,e.goal.x-e.x)}if(e.slowT>0){e.slowT-=dt;spd*=T.boss?.75:.5}if(e.stun>0){e.stun-=dt;spd=0;e.cd=Math.max(e.cd,.2)}
   if(T.ai==='ranged'){const see=d<520&&los(e,p);if(see&&d<250){ang=Math.atan2(e.y-p.y,e.x-p.x)+e.side*1.2;spd*=.6}
    e.cd-=dt;if(e.cd<=0&&see){e.cd=2.2;ebullet(e.x,e.y,Math.atan2(p.y-e.y,p.x-e.x),280,e.dmg)}}
   else if(T.ai==='explode'){if(d<e.r+p.r+14){if(d<80)hurtPlayer(e.dmg);burst(e.x,e.y,'#fc3',40);S.rings.push({x:e.x,y:e.y,r:10,life:.25});e.hp=0;continue}}
@@ -568,7 +569,7 @@ function makeGun(k){const g=new THREE.Group(),G=mat.gun,a=(...m)=>g.add(...m);
  g.traverse(o=>{if(o.isMesh)o.castShadow=true});return g}
 function makeBug(type){const T=ENEMIES[type],r=T.r,g=new THREE.Group(),col=new THREE.Color(T.color);
  const shell=M({color:col.clone().multiplyScalar(.35),emissive:col,emissiveIntensity:.06,metalness:.3,roughness:.5});
- if(type==='overmind')return makeOvermind();
+ if(type==='overmind')return makeOvermind();if(type==='colossus')return TDP_CONTENT.makeColossus(r);if(type==='matriarch')return TDP_CONTENT.makeMatriarch(r);
  const glowC={spitter:0xd070ff,exploder:0xffd040,warden:0xff3d7a,carrier:0xffd060,matriarch:0xff4fa0,colossus:0xb04aff,prime:0xff5533}[type];if(T.cloak){shell.transparent=true;shell.opacity=.55;shell.emissiveIntensity=.4}
  const abd=sph(r*.75,glowC?emis(glowC,type==='exploder'?1.1:.7,col.clone().multiplyScalar(.3)):shell,-r*.55,r*.75,0);abd.scale.set(1.35,.8,1.05);
  const tho=sph(r*.55,shell,r*.35,r*.7,0),head=sph(r*.38,shell,r*.95,r*.62,0),eyes=box(r*.2,r*.18,r*.55,emis(type==='warden'?0xffee55:0xff2a2a,3),r*1.25,r*.7,0,false);
@@ -589,16 +590,15 @@ function makeBug(type){const T=ENEMIES[type],r=T.r,g=new THREE.Group(),col=new T
    const blade=new THREE.Mesh(new THREE.ConeGeometry(r*.2,r*2.2,4),emis(0xff6a3a,2.2));blade.rotation.z=-1.9;blade.rotation.x=sd*.25;blade.position.set(r*1.8,r*1.65,sd*r*.8);g.add(arm,blade)}
   for(let i=0;i<5;i++){const c=new THREE.Mesh(new THREE.ConeGeometry(r*.09,r*.7,5),emis(0xffaa33,2));c.position.set(r*(.85+Math.cos(i*.8-1.6)*.15),r*1.75,Math.sin(i*.8-1.6)*r*.35);c.rotation.z=-.35;g.add(c)}
   const stripe=box(r*2.2,r*.05,r*.12,emis(0xff3311,2.5),-r*.4,r*1.22,0,false);g.add(stripe)}
- if(type==='colossus')g.add(box(r*1.6,r*.4,r*1.5,mat.armorDark,-r*.2,r*1.3,0),box(r*.8,r*.3,r*1.2,mat.armorDark,r*.4,r*1.1,0));
- if(['warden','colossus','matriarch'].includes(type)){for(let i=0;i<7;i++){const c=new THREE.Mesh(new THREE.ConeGeometry(r*.14,r*.7,6),emis(0xff3d7a,1.6,0x220008));c.position.set(-r*.9+i*r*.28,r*1.35,(i%2?1:-1)*r*.3);c.rotation.z=-.4;c.castShadow=true;g.add(c)}}
+ if(type==='warden'){for(let i=0;i<7;i++){const c=new THREE.Mesh(new THREE.ConeGeometry(r*.14,r*.7,6),emis(0xff3d7a,1.6,0x220008));c.position.set(-r*.9+i*r*.28,r*1.35,(i%2?1:-1)*r*.3);c.rotation.z=-.4;c.castShadow=true;g.add(c)}}
  g.userData={legs,abd};g.scale.setScalar(type==='prime'?1.25:T.boss?1.1:1.4);return g}
 function makeOvermind(){const g=new THREE.Group(),col=new THREE.Color('#ff2050'),tm=M({color:0x2a0812,emissive:col,emissiveIntensity:.25,roughness:.5});const legs=[];
  for(let i=0;i<3;i++){const t=new THREE.Group();for(let j=0;j<3;j++){const c=cyl(5,9,70,tm,0,0,0,8);c.rotation.z=Math.PI/2;c.position.x=70;const a=new THREE.Group();a.rotation.y=(i*3+j)*0.698;a.add(c);t.add(a)}legs.push(t);g.add(t)}
  const brain=new THREE.Mesh(new THREE.IcosahedronGeometry(50,2),M({color:0x501020,emissive:col,emissiveIntensity:.6,roughness:.35,flatShading:true}));brain.position.y=60;brain.castShadow=true;g.add(brain);
  g.add(sph(14,emis(0xffee88,2.5),38,62,0),cyl(40,55,30,mat.armorDark,0,15,0));g.userData={legs,abd:brain};return g}
-const bugTpl={};const bugClone=t=>{if(!bugTpl[t])bugTpl[t]=makeBug(t);const c=bugTpl[t].clone();const r=ENEMIES[t].r;const fr=new THREE.Mesh(geoFx,add(0x88ddff,.35));fr.scale.setScalar(r*1.15);fr.position.y=r*.7;
+const bugTpl={};const bugClone=t=>{if(!bugTpl[t])bugTpl[t]=makeBug(t);const custom=bugTpl[t].userData.custom,c=custom?makeBug(t):bugTpl[t].clone();const r=ENEMIES[t].r;const fr=new THREE.Mesh(geoFx,add(0x88ddff,.35));fr.scale.setScalar(r*1.15);fr.position.y=r*.7;
  const st=new THREE.Mesh(geoTorus,add(0xffff66,.9));st.rotation.x=Math.PI/2;st.scale.setScalar(r*.9);st.position.y=r*1.7;const hf=new THREE.Mesh(geoFx,add(0xffffff,.32));hf.scale.setScalar(r*1.05);hf.position.y=r*.7;hf.visible=false;c.add(fr,st,hf);
- c.userData={legs:c.children.slice(0,3),abd:c.children[3],fr,st,hf};return c};
+ c.userData=custom?Object.assign(c.userData,{fr,st,hf}):{legs:c.children.slice(0,3),abd:c.children[3],fr,st,hf};return c};
 const geoFx=new THREE.SphereGeometry(1,12,8),geoTorus=new THREE.TorusGeometry(1,.12,6,16);
 function makeDrone(k){const g=new THREE.Group(),c=DRONES[k].color;g.add(cyl(9,6,4,mat.armor,0,0,0),new THREE.Mesh(new THREE.TorusGeometry(10,1.4,6,20),emis(c,1.4)),sph(3.5,emis(c,1.6),0,-3,0));
  g.children[1].rotation.x=Math.PI/2;if(k==='torchlet'){const a=new THREE.Mesh(new THREE.SphereGeometry(42,16,10),add(0xff7a30,.12));a.name='aura';g.add(a)}
@@ -606,6 +606,7 @@ function makeDrone(k){const g=new THREE.Group(),c=DRONES[k].color;g.add(cyl(9,6,
  if(k==='harvestor'){for(const sd of[-1,1]){const cl=box(2,10,2,mat.armor,sd*5,-8,0,false);cl.rotation.z=sd*.4;g.add(cl)}g.add(new THREE.Mesh(new THREE.SphereGeometry(5,10,8),add(0x88ff55,.6)))}
  if(k==='specter'){g.children[0].material=add(0x99eeff,.35);const h=new THREE.Mesh(new THREE.ConeGeometry(14,30,16,1,true),add(0x99eeff,.08));h.position.y=-18;g.add(h)}return g}
 function makeItem(it){const g=new THREE.Group(),c=new THREE.Color(it.color),u={};
+ if(TDP_CONTENT.itemMesh(it,g,u)){g.position.set(it.x,0,it.y);g.userData=u;return g}
  if(it.kind==='hold'){g.add(cyl(22,26,8,mat.steel,0,4,0));const L=it.label;
   if(L==='LOCKER'){g.add(box(34,62,22,mat.steel,0,39,0),box(30,56,2,mat.dark,0,39,12));u.core=box(4,50,1,emis(c,1),0,39,13.5,false)}
   else if(L==='TERMINAL'){g.add(box(18,34,14,mat.steel,0,25,0));u.core=box(28,18,2,emis(c,1),0,46,4,false);u.core.rotation.x=-.6}
@@ -644,6 +645,7 @@ function buildLevel(){if(level){scene.remove(level);level.traverse(o=>{if(o.geom
   const L=new THREE.PointLight(0x9a70ff,14000,380,2);L.position.set(S.well.x,40,S.well.y);level.add(L);wellParts.light=L}
  if(S.winds)for(const z of S.winds){const set=[];for(let k=0;k<16;k++){const s=box(60,1.5,2.5,add(0x99e8ff,.35),0,20+(k%4)*12,z.y0+20+((k*53)%(z.y1-z.y0-40)),false);s.userData.o=k*97;level.add(s);set.push(s)}winds.push({z,set})}
  for(const w of wallFade)for(const m of w.meshes){const c=m.material.clone();c.transparent=true;c.userData.base=m.material.opacity??1;m.material=c;w.mats.push(c)}
+ TDP_CONTENT.setPiece(f,{T:THREE,add:(...o)=>level.add(...o),walls:S.walls,trim,P,W,H});
  builtFor=S.walls;camPos.set(S.p.x,0,S.p.y).add(CAM_OFF)}
 // ---- dynamic entity sync ----
 const itemMeshes=new Map(),enemyMeshes=new Map(),bulletMeshes=new Map(),pickMeshes=new Map(),ebMeshes=new Map(),ringMeshes=new Map();
@@ -656,7 +658,7 @@ const shield=new THREE.Mesh(new THREE.SphereGeometry(26,20,12),add(0x88aaff,.18)
 const flash=new THREE.Mesh(new THREE.SphereGeometry(6,8,6),add(0xddffff,.9));scene.add(flash);
 const exitG=new THREE.Group();{const r=new THREE.Mesh(new THREE.TorusGeometry(34,3,8,40),emis(0x33ffee,1.5));r.rotation.x=Math.PI/2;r.position.y=3;
  const b=new THREE.Mesh(new THREE.CylinderGeometry(30,34,220,24,1,true),add(0x33ffee,.15));b.position.y=110;exitG.add(r,b);const L=new THREE.PointLight(0x33ffee,12000,300,2);L.position.y=40;exitG.add(L)}scene.add(exitG);
-const geoB=new THREE.SphereGeometry(1,8,6),geoRing=new THREE.RingGeometry(.85,1,40),geoBeam=new THREE.BoxGeometry(1,1,1);const beamMeshes=new Map(),orbMeshes=new Map(),hazMeshes=new Map();
+const geoDisc=new THREE.CircleGeometry(1,28),geoB=new THREE.SphereGeometry(1,8,6),geoRing=new THREE.RingGeometry(.85,1,40),geoBeam=new THREE.BoxGeometry(1,1,1);const beamMeshes=new Map(),orbMeshes=new Map(),hazMeshes=new Map();
 const boomL=new THREE.PointLight(0xffaa44,0,340,2);scene.add(boomL);
 const decoyG=makeMarine();decoyG.traverse(o=>{if(o.isMesh){o.material=add(0x77eeff,.3);o.castShadow=false}});const decoyRing=new THREE.Mesh(new THREE.RingGeometry(26,30,32),add(0x99eeff,.5));decoyRing.rotation.x=-Math.PI/2;decoyRing.position.y=2;decoyG.add(decoyRing);scene.add(decoyG);
 const PMAX=2000,pGeo=new THREE.BufferGeometry(),pPos=new Float32Array(PMAX*3),pCol=new Float32Array(PMAX*3);
@@ -716,11 +718,12 @@ function render(dt){const snap=dt===undefined;dt=dt||1/60;const p=S.p,f=S.f;if(b
  if(S.booms.length){const b=S.booms[S.booms.length-1];boomL.position.set(b.x,40,b.y);boomL.color.set(b.col);boomL.intensity=60000*b.life/.18}else boomL.intensity=0;
  shield.visible=p.drone==='bastion'&&p.shield;shield.position.set(p.x,26,p.y);
  // level animation
+ TDP_CONTENT.animate(S.t);
  lamps.forEach((L,i)=>{L.intensity=Math.sin(S.t*(2+i*.7)+i*3)>-.2&&Math.random()>.08?14000:0});
  if(wellParts){const on=S.items.some(i=>!i.done);wellParts.forEach((t,i)=>{t.visible=on;t.scale.setScalar(1-((S.t*.5+i*.25)%1)*.3);t.rotation.z=S.t*(i%2?1:-1)});wellParts.light.intensity=on?14000:0}
  for(const w of winds){const on=!S.items[w.z.valve].done;for(const s of w.set){s.visible=on;s.position.x=((S.t*w.z.vx*1.6+s.userData.o*7)%W+W)%W}}
  // items
- sync(S.items,itemMeshes,makeItem,(it,g)=>{const u=g.userData,c=u.core;g.visible=true;
+ sync(S.items,itemMeshes,makeItem,(it,g)=>{const u=g.userData,c=u.core;g.visible=true;if(TDP_CONTENT.itemUpd(it,g))return;
   if(it.kind==='hold'){c.material=emis(it.color,it.done?1.4:it.active?.45+Math.sin(S.t*3)*.15:.08);u.bar.visible=!it.done&&it.prog>0;u.bar.scale.y=Math.max(.01,it.prog*60);u.bar.position.y=10+it.prog*30;if(u.spin)u.spin.rotation.z+=it.done?0:.02}
   else if(it.kind==='shoot'){c.visible=!it.done;g.children.forEach(ch=>{if(ch!==u.muck&&ch!==c)ch.visible=!it.done});if(u.muck)u.muck.visible=!it.done;
    c.scale.setScalar(1+Math.sin(S.t*(it.hatchT!==undefined?3+12/Math.max(1,it.hatchT):3)+it.idx)*(it.hatchT!==undefined&&it.hatchT<6?.18:.07));if(it.label==='COCOON')c.scale.y*=1.5;u.m.emissiveIntensity=it.flash>0?3:.6}
@@ -731,7 +734,7 @@ function render(dt){const snap=dt===undefined;dt=dt||1/60;const p=S.p,f=S.f;if(b
  // enemies
  sync(S.enemies,enemyMeshes,e=>bugClone(e.type),(e,g)=>{const u=g.userData;u.hf.visible=e.flash>0;const lod=S.enemies.length>60&&!ENEMIES[e.type].boss;if(u.lod!==lod){u.lod=lod;g.traverse(o=>{if(o.isMesh){if(o.userData.cs===undefined)o.userData.cs=o.castShadow;o.castShadow=o.userData.cs&&!lod}})}const vx=e.x-(u.px??e.x),vy=e.y-(u.py??e.y);
   if(vx*vx+vy*vy>.01)u.h=Math.atan2(vy,vx);u.px=e.x;u.py=e.y;g.position.set(e.x,0,e.y);g.rotation.y=-(u.h||0);
-  const t=S.t*18+(e.x+e.y)*.05;u.legs.forEach((l,i)=>l.rotation.y=(i-1)*.45+Math.sin(t+i*2)*.3);g.scale.setScalar((ENEMIES[e.type].boss?1:1.4)*(e.flash>0?1.15:1));if(ENEMIES[e.type].cloak)g.visible=dist(e,p)<170||Math.random()<.25;if(e.type==='overmind'){g.rotation.y=0;u.legs.forEach((l,i)=>l.rotation.y=S.t*.3*(i%2?1:-1));u.abd.scale.setScalar(1+Math.sin(S.t*4)*.05+(e.inv>0?.15:0))}
+  const t=S.t*18+(e.x+e.y)*.05;if(u.anim)u.anim(S.t,e);else u.legs.forEach((l,i)=>l.rotation.y=(i-1)*.45+Math.sin(t+i*2)*.3);g.scale.setScalar((ENEMIES[e.type].boss?1:1.4)*(e.flash>0?1.15:1));if(ENEMIES[e.type].cloak)g.visible=dist(e,p)<170||Math.random()<.25;if(e.type==='overmind'){g.rotation.y=0;u.legs.forEach((l,i)=>l.rotation.y=S.t*.3*(i%2?1:-1));u.abd.scale.setScalar(1+Math.sin(S.t*4)*.05+(e.inv>0?.15:0))}
   if(e.type==='exploder')u.abd.scale.set(1.35+Math.sin(S.t*12)*.15,.8,1.05);u.fr.visible=e.slowT>0;u.st.visible=e.stun>0;if(e.stun>0)u.st.rotation.z=S.t*10},e=>'e'+e.type);
  sync(S.pickups||[],pickMeshes,h=>{const g=new THREE.Group(),mt=emis(0x44ff77,1.6,0x0a3318);g.add(box(16,5,5,mt,0,0,0,false),box(5,5,16,mt,0,0,0,false));const r=new THREE.Mesh(new THREE.TorusGeometry(13,1.4,6,20),add(0x66ff99,.5));r.rotation.x=-Math.PI/2;r.position.y=-12;g.add(r);return g},(h,g)=>{g.position.set(h.x,22+Math.sin(S.t*4+h.x)*4,h.y);g.rotation.y=S.t*2;g.scale.setScalar((h.big?1.4:1)*(h.life<3?.6+.4*Math.abs(Math.sin(S.t*10)):1))},h=>'hp');
  sync(S.bullets,bulletMeshes,b=>{const m=new THREE.Mesh(geoB,b.flame?add(0xff7a30,.55):b.grenade?emis(0xffbb33,1.5,0x332200):basic(b.col));m.scale.setScalar(b.r*(b.flame?2:1.2));return m},(b,m)=>{
@@ -741,10 +744,10 @@ function render(dt){const snap=dt===undefined;dt=dt||1/60;const p=S.p,f=S.f;if(b
  sync(S.rings,ringMeshes,r=>{const m=new THREE.Mesh(geoRing,new THREE.MeshBasicMaterial({color:new THREE.Color(r.col||'#9bf'),transparent:true,opacity:.6,blending:THREE.AdditiveBlending,depthWrite:false}));m.rotation.x=-Math.PI/2;return m},(r,m)=>{m.position.set(r.x,4,r.y);m.scale.setScalar(r.r);m.material.opacity=r.life*1.5});
  sync(S.beams,beamMeshes,b=>new THREE.Mesh(geoBeam,add(b.col,.85)),(b,m)=>{const dx=b.x2-b.x1,dy=b.y2-b.y1,L=Math.hypot(dx,dy);m.position.set((b.x1+b.x2)/2,28,(b.y1+b.y2)/2);m.rotation.y=-Math.atan2(dy,dx);const w=b.w*1.9*Math.min(1,b.life*8);m.scale.set(L,w,w)});
  sync(S.orbs,orbMeshes,()=>{const m=new THREE.Mesh(geoB,add(0x88ff55,.9));m.scale.setScalar(5);return m},(o,m)=>m.position.set(o.x,10+Math.sin(S.t*5+o.x)*3,o.y));
- sync(S.hazards,hazMeshes,h=>{if(h.type==='laser'){const g=new THREE.Group();const b=new THREE.Mesh(geoBeam,add(0xff3040,.9));b.name='b';g.add(b);if(!h.owner)g.add(cyl(8,10,40,mat.steel,0,20,0),sph(6,emis(0xff3040,2),0,42,0));return g}
-  const m=new THREE.Mesh(new THREE.CircleGeometry(h.r,28),add(h.type==='acid'?0x9aff20:0xbfe8ff,h.type==='acid'?.32:.28));m.rotation.x=-Math.PI/2;return m},(h,m)=>{
-  if(h.type==='laser'){m.position.set(h.x,0,h.y);const b=m.getObjectByName('b');const L=h.el??h.len;b.position.set(Math.cos(h.a)*L/2,30,Math.sin(h.a)*L/2);b.rotation.y=-h.a;b.scale.set(L,3,3)}
-  else{m.position.set(h.x,1+(h.type==='acid'?Math.sin(S.t*3+h.x)*.3:0),h.y)}});
+ sync(S.hazards,hazMeshes,h=>{const cm=TDP_CONTENT.hazMesh(h);if(cm)return cm;if(h.type==='laser'){const g=new THREE.Group();const b=new THREE.Mesh(geoBeam,add(0xff3040,.9));b.name='b';g.add(b);if(!h.owner)g.add(cyl(8,10,40,mat.steel,0,20,0),sph(6,emis(0xff3040,2),0,42,0));return g}
+  const m=new THREE.Mesh(geoDisc,add(h.type==='acid'?0x9aff20:0xbfe8ff,h.type==='acid'?.32:.28));m.scale.setScalar(h.r);m.rotation.x=-Math.PI/2;return m},(h,m)=>{if(h.cx||h.type==='steam'){TDP_CONTENT.hazUpd(h,m);return}
+  if(h.type==='laser'){m.position.set(h.x,0,h.y);const b=m.getObjectByName('b');const L=h.el??h.len,r0=h.r0||0;b.position.set(Math.cos(h.a)*(L+r0)/2,30,Math.sin(h.a)*(L+r0)/2);b.rotation.y=-h.a;b.scale.set(Math.max(1,L-r0),3,3)}
+  else{m.position.set(h.x,1+(h.type==='acid'?Math.sin(S.t*3+h.x)*.3:0),h.y);if(h.life!==undefined)m.scale.setScalar(h.r*Math.min(1,h.life*.8,.3+(7-h.life)*3))}});
  // arcs
  drawArcs();
  if(S.arcs.length)muzzle.intensity=20000;
@@ -805,6 +808,8 @@ function drawHUD(){const p=S.p,f=S.f;ctx.setTransform(1,0,0,1,0,0);ctx.clearRect
 let last=performance.now();function loop(now){const dt=Math.min(.05,(now-last)/1000);last=now;if(mouse.moved)aimRaycast();window.TDP_INPUT&&TDP_INPUT.poll(dt);if(!window.__pause)update(dt);render(dt);requestAnimationFrame(loop)}
 requestAnimationFrame(loop);
 Object.defineProperty(window,'S',{get:()=>S});
+TDP_CONTENT.init({get S(){return S},P,dist,rnd,clamp,W,H,CELL,spawnEnemy,spawnNear,hurtPlayer,floatText,burst,sfx,showBanner,ebullet,bossRing,bossSummon,bossCharge,tick,resolve,inWall,mkItem,nDone,allDone,DF,ENEMIES,pickType:()=>rollType(S.f.mix),THREE,M,emis,add,basic,box,sph,cyl,mat});
+Object.assign(OBJECTIVES,TDP_CONTENT.objectives());Object.assign(BOSS_AI,TDP_CONTENT.BOSS_AI);
 Object.assign(window,{setDifficulty:k=>setDifficulty(k),startIntro:()=>startIntro(),audioInit,hasBloom:()=>!!composer,CFG,saveGame,loadSave,recordBest,pauseGame,resumeGame,newRun,continueRun,goTitle,applyQuality,AU,sfx,menuDepth:()=>menuStack.length,update,render,startGame,startFloor,spawnWave,onKey,damage,pick,inWall,P,cp,dist,keys,mouse,WEAPONS,DRONES,FLOORS,ENEMIES,OBJECTIVES,rollChoices,MODS,explodeAt,spawnNear,rnd,THREE,renderer,camera,aimRaycast,GAME_READY:true});
 
 // ================= MENUS (title / pause / settings / controls) =================
