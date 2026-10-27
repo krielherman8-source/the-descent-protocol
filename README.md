@@ -35,6 +35,7 @@ Three.js and its postprocessing addons are vendored in `vendor/`. When you open 
 - **Visuals:**
   - UnrealBloom on medium and high quality.
   - Screen shake, hit flashes and a red damage vignette.
+  - Low-health warning below 30% HP: pulsing red vignette, heartbeat SFX (faster below 15%) and a HUD hint.
   - Instanced gibs, plus blood and scorch decals.
   - Walls that block the camera's view of the player fade out.
   - Thick beams and lightning arcs.
@@ -52,7 +53,10 @@ Three.js and its postprocessing addons are vendored in `vendor/`. When you open 
 Tuned with a killable scripted bot that also plays every objective (skill 1 and 0.6 = slower reactions, noisier aim, misses dodges).
 - **Boss HP (base):** Warden 1450, Prime 4400, Colossus 6800, Matriarch 7400, Overmind 16000. Each is multiplied by 1+0.03 per floor. Enemy damage grows 2% per floor.
 - **Explosive mod:** 0.12 s proc cooldown. Splash heals Vampiric at a third of the normal rate.
-- **Hack terminals:** 70 px use radius, decay 0.25/s.
+- **Hack terminals:** 70 px use radius, decay 0.2/s; the alarm summons 3 swarmers.
+- **Weapons:** Railgun 70 dmg / 1.15 shots/s; Tesla range 390, chain falloff 0.78.
+- **F17 escort:** ambushes 3 + floor/6, the payload only stops when 3+ bugs contest it, waves of 7 (+3) every 8 s.
+- **F18 cells:** seat spawns 1 + floor/8 from the arena edge (never on the player), 1.25x fire delay while carrying, a warden elite at 45 s.
 - The bot clears the full 30 floors at both skill levels. The Overmind takes 54-141 s at skill 0.8 and sometimes kills the bot.
 - **Difficulty:** Easy hp .75 / dmg .6 / count .8; Hard hp 1.3 / dmg 1.5 / count 1.2 / heal .55 / boss 1.25. Live-enemy cap 24 + 0.7 per floor (× difficulty count).
 - Bot audit (Oct 2026): 2 runs per difficulty, all reach floor 30. Easy has few deaths and Hard has several.

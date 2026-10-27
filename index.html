@@ -278,7 +278,7 @@ const SFX={
  shield:()=>tone({type:'sine',f:1300,f2:500,t:.22,v:.1}),
  pickup:()=>[660,880,1320].forEach((f,i)=>tone({type:'triangle',f,t:.12,v:.09,delay:i*.06})),
  heartbeat:()=>{tone({type:'sine',f:62,f2:40,t:.12,v:.3,lp:300});tone({type:'sine',f:55,f2:36,t:.14,v:.22,lp:300,delay:.17})},
-heal:()=>tone({type:'sine',f:900,f2:1400,t:.08,v:.04}),
+ heal:()=>tone({type:'sine',f:900,f2:1400,t:.08,v:.04}),
  progress:()=>tone({type:'sine',f:620+((AU.ctx.currentTime*8)%4)*60,t:.05,v:.04}),
  complete:()=>[523,659,784,1046].forEach((f,i)=>tone({type:'triangle',f,t:.26,v:.11,delay:i*.08})),
  roar:()=>{tone({type:'sawtooth',f:72,f2:36,t:1.5,v:.35,lp:520,a:.15});tone({type:'sawtooth',f:76,f2:34,t:1.5,v:.3,lp:420,a:.2});noise({t:1.3,v:.28,ft:'bandpass',f:320,f2:110,q:2})},
