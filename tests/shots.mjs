@@ -1,4 +1,4 @@
-// usage: node --experimental-websocket tests/shots.mjs [outdir]   (Node 20; ONLY=lowhp for just 17_low_health_warning, ONLY=controls for just 18_controls_rebind)
+// usage: node --experimental-websocket tests/shots.mjs [outdir]   (Node 20; ONLY=lowhp for just 17_low_health_warning, ONLY=controls for just 18_controls_rebind, ONLY=endless for 19-22 Endless Descent shots)
 import {spawn} from 'child_process';import fs from 'fs';
 const OUT=process.argv[2]||'/workspace/descent/screens_final2/';fs.mkdirSync(OUT,{recursive:true});
 const c=spawn('google-chrome',['--headless=new','--no-sandbox','--use-angle=swiftshader','--enable-unsafe-swiftshader','--remote-debugging-port=9334','--user-data-dir=/tmp/pw/prof2','about:blank'],{stdio:'ignore'});
@@ -13,6 +13,13 @@ const U='http://localhost:8765/index.html';
 const lowhp=async()=>{await ev(`document.getElementById('menu')?.classList.add('hide');S.floor=13;S.state='play';startFloor();S.p.inv=1e9;1`);await sl(16000);await ev(`S.p.hp=Math.round(S.p.maxHp*.12);S.p.inv=1e9;1`);await sl(1200);await shot('17_low_health_warning')};
 const controls=async()=>{await ev(`goTitle();document.querySelector('#m-title [data-a=controls]').click();1`);await sl(1500);await shot('18_controls_rebind')};
 if(process.env.ONLY==='controls'){await go(U+'?fresh='+Date.now());await ev('localStorage.clear();1');await go(U);await sl(2000);await controls();c.kill();process.exit(0)}
+if(process.env.ONLY==='endless'){await go(U+'?fresh='+Date.now());await ev('localStorage.clear();1');await go(U);await sl(2500);await shot('20b_title_endless_locked');
+ await ev(`localStorage.setItem('tdp_best',JSON.stringify({floor:30,kills:3120,runs:4,wins:1,bestTime:2710,endless:{normal:{floor:37,time:1420},hard:{floor:33,time:610}}}));1`);await go(U);await sl(2500);await shot('20_title_endless');
+ await ev(`document.getElementById('b-endless').click();1`);await sl(2500);await shot('21_endless_draft');
+ await ev(`while(S.state==='upgrade')pick(0);S.floor=33;startFloor();S.state='play';S.p.inv=1e9;1`);await sl(14000);await shot('19_endless_f34');
+ await ev(`S.floor=34;startFloor();S.state='play';S.p.inv=1e9;1`);for(let i=0;i<80;i++){await sl(500);if(await ev('S.enemies.some(e=>ENEMIES[e.type].boss)'))break}await sl(3000);await shot('19b_endless_f35_boss');
+ await ev(`goTitle();document.getElementById('menu').classList.add('hide');newRun();S.floor=29;startFloor();window.__pause=true;TDP_STATS.ensure(S.stats);for(let f=0;f<30;f++)S.stats.ft[f]=50+((f*37)%80);S.state='victory';1`);await sl(2500);await shot('22_victory_continue_endless');
+ c.kill();process.exit(0)}
 if(process.env.ONLY==='lowhp'){await go(U+'?fresh='+Date.now());await ev('localStorage.clear();1');await go(U);await sl(3000);await ev(`document.querySelector('[data-a=start]').click();1`);await sl(3000);await ev(`dispatchEvent(new KeyboardEvent('keydown',{key:' '}));1`);await sl(2000);await lowhp();c.kill();process.exit(0)}
 await go(U+'?fresh='+Date.now());await ev('localStorage.clear();1');await go(U);
 await sl(3000);await shot('01_title');

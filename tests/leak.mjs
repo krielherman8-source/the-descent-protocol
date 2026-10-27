@@ -4,7 +4,7 @@
 // so Web Audio, timers and rAF behave as in a browser) and writes the per-sample log to out.txt.
 import {spawn,execSync} from 'child_process';import fs from 'fs';import path from 'path';
 const ROOT=path.resolve(path.dirname(new URL(import.meta.url).pathname),'..');const SRV='/tmp/srv';
-fs.mkdirSync(SRV,{recursive:true});execSync(`cp -r ${ROOT}/js ${ROOT}/css ${ROOT}/vendor ${SRV}/`);
+fs.mkdirSync(SRV,{recursive:true});try{execSync(`cp -r ${ROOT}/js ${ROOT}/css ${ROOT}/vendor ${SRV}/`,{stdio:"ignore"})}catch{/* /tmp/srv/js etc. may already be symlinks to the repo */}
 let s=fs.readFileSync(ROOT+'/index.html','utf8');
 const probe=fs.readFileSync(ROOT+'/tests/leakprobe.js','utf8');
 s=s.replace('<head>','<head><script>window.ERRS=[];window.onerror=(m,src,l)=>{ERRS.push(m+" @"+l)};addEventListener("unhandledrejection",e=>ERRS.push("rej "+e.reason));\n'+probe+'</script>');

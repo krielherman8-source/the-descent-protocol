@@ -1,9 +1,11 @@
 // Killable objective-doing audit bot. hash: #runs=1&diff=normal&from=0&to=29&deaths=3
+// Endless: &endless=10 -> after beating F30, take 'Continue into Endless' and play 10 more floors (F31-F40);
+//          &from=30&to=39 -> start Endless from the title (loadout draft) and play F31-F40
 // window.BOT_MANUAL=true (set by tests/leak.js) only exposes window.BOT_API={playFloor,...} and does not start runs.
 window.addEventListener('load',()=>setTimeout(()=>{try{main()}catch(e){document.body.dataset.log='CRASH '+e.stack}},300));
 function main(){
 const H=Object.fromEntries(location.hash.slice(1).split('&').filter(Boolean).map(a=>a.split('=')));
-const SK=+(H.skill||1);const RUNS=+(H.runs||1),FROM=+(H.from||0),TO=+(H.to||29),MAXD=+(H.deaths||3),CAP=+(H.cap||300);
+const SK=+(H.skill||1),EN=+(H.endless||0);const RUNS=+(H.runs||1),FROM=+(H.from||0),TO=+(H.to||29),MAXD=+(H.deaths||3),CAP=+(H.cap||300);
 const {P,dist,inWall,WEAPONS,FLOORS,ENEMIES}=window;const GW=40,GH=23,C=32,dt=1/60;const out=[];
 if(H.diff&&window.setDifficulty)setDifficulty(H.diff);
 window.__pause=true;
@@ -26,7 +28,7 @@ function norm(x,y){const m=Math.hypot(x,y)||1;return{x:x/m,y:y/m}}
 function los(a,b){const d=dist(a,b),n=Math.ceil(d/10);for(let i=1;i<n;i++){if(inWall(a.x+(b.x-a.x)*i/n,a.y+(b.y-a.y)*i/n,2))return false}return true}
 function choosePick(){const c=S.choices||[],p=S.p;let bi=0,bs=-1e9;c.forEach((u,i)=>{const n=u.name;let s=Math.random()*1.5;
  if(/Repair|Heal/i.test(n))s+=p.hp<p.maxHp*.5?7:1;else if(n.startsWith('Mod:'))s+=5;else if(n.startsWith('Weapon:'))s+=p.weapons.length<3?4.2:1.5;else if(/Damage/i.test(n))s+=4.5;
- else if(n.startsWith('Drone:'))s+=p.drones.length<2?3.5:2.2;else if(/Max HP|Armor|Hull/i.test(n))s+=3.4;else if(/Rate|Multi/i.test(n))s+=3.6;else s+=2;if(s>bs){bs=s;bi=i}});return bi}
+ else if(n.startsWith('Drone:'))s+=p.drones.length<2?3.5:2.2;else if(/Overclock/.test(n))s+=4.6;else if(/Plating|Weave/.test(n))s+=p.hp<p.maxHp*.6?4.4:3.4;else if(/Swarm Link/.test(n))s+=2.4;else if(/Max HP|Armor|Hull/i.test(n))s+=3.4;else if(/Rate|Multi/i.test(n))s+=3.6;else s+=2;if(s>bs){bs=s;bi=i}});return bi}
 function mainW(p){return p.weapons.includes('tesla')?'tesla':p.weapons.includes('railgun')?'railgun':'kinetic'}
 function tick(st){st.n=(st.n||0)+1;const RT=Math.round(1+(1-SK)*12);if(st.n%RT!==0&&S.state==='play')return;const p=S.p;IN.mx=IN.my=0;IN.fire=false;keys.e=false;
  const en=S.enemies.filter(e=>e.hp>0&&!e.cloaked);const boss=en.find(e=>ENEMIES[e.type].boss);
@@ -83,7 +85,7 @@ function tick(st){st.n=(st.n||0)+1;const RT=Math.round(1+(1-SK)*12);if(st.n%RT!=
  if(tgt){const lead=tgt.vx!=null?.08:0;IN.aim=Math.atan2(tgt.y+(tgt.vy||0)*lead-p.y,tgt.x+(tgt.vx||0)*lead-p.x)+(Math.random()-.5)*(1-SK)*.6;IN.fire=true}
  // stuck tracking
  st.mode=mode}
-function playFloor(fi,run){fi=S.floor;const rec={f:fi+1,name:FLOORS[fi].name,obj:FLOORS[fi].objective,deaths:0,t:0,hp:0,stuck:''};
+function playFloor(fi,run){fi=S.floor;const F0=floorAt(fi),rec={f:fi+1,name:F0.name,obj:F0.objective+(F0.boss&&F0.objective==='boss'?':'+F0.boss:''),deaths:0,t:0,hp:0,stuck:''};
  let tries=0;
  while(true){const save=JSON.stringify(loadSave()||{});
   let k=0,st={},lastP={x:S.p.x,y:S.p.y},still=0,res='';const t0=S.stats.time;let lowHp=999;
@@ -104,8 +106,10 @@ function playFloor(fi,run){fi=S.floor;const rec={f:fi+1,name:FLOORS[fi].name,obj
   S.god=false;if(S.state==='upgrade'){S.choices=rollChoices();pick(choosePick());for(let j=0;j<130;j++)update(dt)}return rec}}
 window.BOT_API={playFloor,choosePick,mainW};if(window.BOT_MANUAL)return;
 for(let r=0;r<RUNS;r++){newRun();window.__pause=true;S.god=false;
- if(FROM>0){/* fair loadout for mid-run start: simulate picks */for(let f=0;f<FROM;f++){S.choices=rollChoices();pick(choosePick());for(let j=0;j<130;j++)update(dt)}}
- const recs=[];for(let f=FROM;f<=TO;f++){S.god=false;const rc=playFloor(f,r);recs.push(rc);if(S.state==='victory')break}
- const p=S.p;out.push('RUN '+r+' skill='+SK+' diff='+(H.diff||'normal')+' weapons='+p.weapons.join(',')+' drones='+p.drones.join(',')+' dmg='+p.dmgMul.toFixed(2)+' rate='+p.rateMul.toFixed(2)+' hp='+p.maxHp+' mods='+JSON.stringify(p.mods)+' state='+S.state);
- for(const rc of recs)out.push(`  F${rc.f} ${rc.obj.padEnd(10)} t=${rc.t}s deaths=${rc.deaths} un=${rc.un||0} endHp=${rc.hp} low=${rc.low} ${rc.stuck}${rc.dinfo||''} src=${JSON.stringify(rc.src)}`)}
+ if(FROM>=30){/* Endless from the title: loadout draft, then F31 */CFG.endless=true;startEndless();window.__pause=true;while(S.state==='upgrade')pick(choosePick());for(let j=0;j<130;j++)update(dt)}
+ else if(FROM>0){/* fair loadout for mid-run start: simulate picks */for(let f=0;f<FROM;f++){S.choices=rollChoices();pick(choosePick());for(let j=0;j<130;j++)update(dt)}}
+ const recs=[],LAST=FROM>=30?TO:EN?29+EN:TO;for(let f=FROM;f<=LAST;f++){S.god=false;const rc=playFloor(f,r);recs.push(rc);
+  if(S.state==='victory'||S.state==='ending'){if(!EN)break;{const c=document.getElementById('crawl');if(c)c.className=''}S.state='victory';render(dt);if(!continueEndless()){out.push('ENDLESS CONTINUE FAILED cfg='+CFG.endless);break}pick(choosePick());for(let j=0;j<130;j++)update(dt)}}
+ const p=S.p;out.push('RUN '+r+' skill='+SK+' diff='+(H.diff||'normal')+' floor='+(S.floor+1)+' endless='+(S.endless?S.endless.seed:'-')+' eu='+JSON.stringify(S.p.eu||{})+' armor='+(S.p.armor||1).toFixed(2)+' weapons='+p.weapons.join(',')+' drones='+p.drones.join(',')+' dmg='+p.dmgMul.toFixed(2)+' rate='+p.rateMul.toFixed(2)+' hp='+p.maxHp+' mods='+JSON.stringify(p.mods)+' state='+S.state);
+ for(const rc of recs)out.push(`  F${rc.f} ${rc.obj.padEnd(10)} ${rc.f>30?'['+rc.name+'] ':''}t=${rc.t}s deaths=${rc.deaths} un=${rc.un||0} endHp=${rc.hp} low=${rc.low} ${rc.stuck}${rc.dinfo||''} src=${JSON.stringify(rc.src)}`)}
 out.push('ERRS '+JSON.stringify(ERRS.slice(0,5)));document.body.dataset.log=out.join('\n')}

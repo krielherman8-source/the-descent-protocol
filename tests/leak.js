@@ -1,6 +1,8 @@
 // Long-session leak harness (run via tests/leak.mjs, which also injects tests/leakprobe.js and tests/bot.js).
 // hash: #sc=full|cycle&diff=normal&cap=300&deaths=3&cycles=6
 //  full : one 30-floor run driven by the audit bot; samples after every floor.
+//  endless: Endless Descent from the title (loadout draft), bot plays &floors=15 endless floors (F31+) sampling after each,
+//          then death -> title -> Continue (endless checkpoint) -> 2 floors -> Save&Quit -> title.
 //  cycle: repeated short sessions exercising death -> Restart (R), death -> title (Esc) -> Continue,
 //         pause -> Save & Quit -> Start (intro crawl skipped) ; samples after each step.
 // Output: body[data-log] = one line per sample (JSON) + ERRS line.
@@ -38,6 +40,10 @@ await sample('boot-title');
 if(SC==='full'){newRun();window.__pause=true;S.god=false;await sample('F1-start');
  for(let f=0;f<30;f++){playFloor(f,0);await sample('after-floor');if(S.state==='victory'||S.state==='ending')break}
  await sleep(1000);goTitle();await sample('title-after-run')}
+else if(SC==='endless'){const {choosePick}=window.BOT_API;CFG.endless=true;startEndless();window.__pause=true;S.god=false;while(S.state==='upgrade')pick(choosePick());for(let j=0;j<130;j++)update(dt);await sample('E-start');
+ const N=+(H.floors||15);for(let f=0;f<N;f++){playFloor(S.floor,0);await sample('endless-floor')}
+ die();key('Escape');await sample('E-deadToTitle');click('#b-cont');window.__pause=true;await sample('E-continue');
+ await play(2,'E-afterCont');S.state='play';key('Escape');click('#m-pause [data-a="quit"]');await sleep(1000);await sample('E-quitTitle')}
 else{const C=+(H.cycles||6);
  for(let c=0;c<C;c++){
   newRun();window.__pause=true;await play(2,'c'+c+'-run');
