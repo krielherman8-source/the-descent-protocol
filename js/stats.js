@@ -12,29 +12,32 @@ function hit(S,amt){const p=S.p;let best=null,bd=110;for(const e of S.enemies){c
 function died(S,LS,LSset){const st=ensure(S.stats);st.deaths++;st.df[S.floor]=(st.df[S.floor]||0)+1;
  try{const sv=LS&&LS('tdp_save',null);if(sv&&sv.stats){ensure(sv.stats);sv.stats.deaths=(sv.stats.deaths||0)+1;sv.stats.df[S.floor]=(sv.stats.df[S.floor]||0)+1;LSset('tdp_save',sv)}}catch(e){}}
 const mmss=t=>`${Math.floor(t/60)}:${String(Math.floor(t%60)).padStart(2,'0')}`;
-function draw(ctx,S,mode,o){const st=ensure(S.stats),p=S.p,VW=o.VW,VH=o.VH,T=o.text,dead=mode==='dead';
+function draw(ctx,S,mode,o){const st=ensure(S.stats),p=S.p,VW=o.VW,VH=o.VH,T=o.text,dead=mode==='dead',EN=window.TDP_ENDLESS?TDP_ENDLESS.START:30,end=S.floor>=EN;
  ctx.fillStyle=dead?'rgba(20,0,0,.86)':'rgba(0,12,14,.92)';ctx.fillRect(0,0,VW,VH);
- T(dead?'PROTOCOL TERMINATED':'DESCENT COMPLETE — THE OVERMIND IS DEAD',VW/2,70,dead?'#f66':'#7ff',dead?36:30,'center');
- const sub=dead?`Floor ${S.floor+1}/30 — ${S.f.name}   ·   probable cause: ${o.name(st.lastHit)}`:`Difficulty ${String(S.diff||'normal').toUpperCase()}   ·   ${st.deaths} death${st.deaths===1?'':'s'} (checkpoint continues)`;
+ T(dead?(end?'ENDLESS DESCENT — TERMINATED':'PROTOCOL TERMINATED'):'DESCENT COMPLETE — THE OVERMIND IS DEAD',VW/2,70,dead?'#f66':'#7ff',dead?36:30,'center');
+ const sub=dead?`${end?'Endless F'+(S.floor+1):'Floor '+(S.floor+1)+'/30'} — ${S.f.name}   ·   probable cause: ${o.name(st.lastHit)}`:`Difficulty ${String(S.diff||'normal').toUpperCase()}   ·   ${st.deaths} death${st.deaths===1?'':'s'} (checkpoint continues)`;
  T(sub,VW/2,100,dead?'#fbb':'#9cc',14,'center');
  const hd=dead?'#f99':'#7ff',tx=dead?'#fcc':'#bff';
  // column 1: run totals
  let x=90,y=150;T('RUN',x,y,hd,15);
- [[`Time`,mmss(st.time)],[`Floors cleared`,dead?S.floor:30],[`Kills`,st.kills],[`Shots fired`,st.shots],[`Damage dealt`,Math.round(st.dmg)],[`Damage taken`,Math.round(st.taken)],[`Healed`,Math.round(st.healed||0)],
+ [[`Time`,mmss(st.time)],[`Floors cleared`,dead?S.floor:30],...(end?[[`Endless time`,mmss(st.etime||0)]]:[]),[`Kills`,st.kills],[`Shots fired`,st.shots],[`Damage dealt`,Math.round(st.dmg)],[`Damage taken`,Math.round(st.taken)],[`Healed`,Math.round(st.healed||0)],
   [`Deaths`,st.deaths],[`Final HP`,`${Math.max(0,Math.ceil(p.hp))}/${p.maxHp}`],[`Upgrades`,p.ups.length]].forEach(([a,b],i)=>{T(a,x,y+28+i*22,tx,13);T(String(b),x+240,y+28+i*22,'#fff',13,'right')});
  // column 2: kills by type (bar list)
  x=400;T('KILLS BY TYPE',x,y,hd,15);const kt=Object.entries(st.kt).sort((a,b)=>b[1]-a[1]).slice(0,11),mx=kt.length?kt[0][1]:1;
  kt.forEach(([k,n],i)=>{const yy=y+28+i*22;T(o.name(k),x,yy,tx,12);ctx.fillStyle=dead?'#a44':'#2aa';ctx.fillRect(x+130,yy-10,Math.max(2,150*n/mx),11);T(String(n),x+290,yy,'#fff',12)});
  if(!kt.length)T('—',x,y+28,tx,12);
  // column 3: floor times chart (with deaths marked)
- x=760;T('TIME PER FLOOR',x,y,hd,15);const ft=st.ft,mt=Math.max(30,...ft.filter(Boolean)),bw=13,h=180,by=y+30+h;
- ctx.strokeStyle='#355';ctx.lineWidth=1;ctx.strokeRect(x-2,y+28,30*bw+4,h+4);
- for(let i=0;i<30;i++){const v=ft[i]||0,bh=v/mt*h,boss=(i+1)%5===0;ctx.fillStyle=i===S.floor&&dead?'#f55':boss?'#d70':dead?'#a66':'#3bb';if(v)ctx.fillRect(x+i*bw,by-bh,bw-2,bh);
-  if(st.df[i]){ctx.fillStyle='#f44';for(let j=0;j<Math.min(4,st.df[i]);j++)ctx.fillRect(x+i*bw+3,by+6+j*6,bw-8,4)}}
- [1,5,10,15,20,25,30].forEach(n=>T(String(n),x+(n-1)*bw+bw/2-1,by+40,'#699',10,'center'));T(`max ${mmss(mt)}`,x+30*bw,y+22,'#699',10,'right');
- T('orange = boss floor · red ticks = deaths',x,by+58,'#699',10);
+ x=760;T('TIME PER FLOOR',x,y,hd,15);const ft=st.ft,NB=Math.max(30,ft.length,S.floor+1),mt=Math.max(30,...ft.filter(Boolean)),bw=390/NB,h=180,by=y+30+h;
+ ctx.strokeStyle='#355';ctx.lineWidth=1;ctx.strokeRect(x-2,y+28,NB*bw+4,h+4);if(NB>30){ctx.fillStyle='rgba(255,200,100,.08)';ctx.fillRect(x+30*bw,y+30,(NB-30)*bw,h)}
+ for(let i=0;i<NB;i++){const v=ft[i]||0,bh=v/mt*h,boss=(i+1)%5===0;ctx.fillStyle=i===S.floor&&dead?'#f55':boss?'#d70':dead?'#a66':'#3bb';if(v)ctx.fillRect(x+i*bw,by-bh,Math.max(1,bw-(bw>6?2:1)),bh);
+  if(st.df[i]){ctx.fillStyle='#f44';for(let j=0;j<Math.min(4,st.df[i]);j++)ctx.fillRect(x+i*bw+bw*.2,by+6+j*6,Math.max(1,bw*.6),4)}}
+ (NB>30?[1,10,20,30,...[40,50,60,70,80,90,100,120,150,200].filter(n=>n<=NB)]:[1,5,10,15,20,25,30]).forEach(n=>T(String(n),x+(n-1)*bw+bw/2-1,by+40,n>30?'#c96':'#699',10,'center'));T(`max ${mmss(mt)}`,x+NB*bw,y+22,'#699',10,'right');
+ T('orange = boss floor · red ticks = deaths'+(NB>30?' · shaded = endless':''),x,by+58,'#699',10);
  const slow=ft.map((v,i)=>[v||0,i]).sort((a,b)=>b[0]-a[0]).slice(0,3).filter(a=>a[0]>0).map(a=>`F${a[1]+1} ${mmss(a[0])}`).join('  ');if(slow)T('Longest: '+slow,x,by+78,tx,12);
+ const eb=o.best&&o.best.endless&&o.best.endless[S.diff||'normal'];if(eb||end)T(`ENDLESS BEST (${String(S.diff||'normal').toUpperCase()}): `+(eb?`F${eb.floor} · ${mmss(eb.time)}`:'none yet'),x,by+98,'#fc6',12);
  if(!dead){T(`Weapons: ${p.weapons.map(k=>o.WEAPONS[k].name).join(', ')}`,VW/2,500,tx,13,'center');T(`Drones: ${p.drones.map(k=>o.DRONES[k].name).join(', ')}`,VW/2,524,tx,13,'center')}
- const rk=window.TDP_SETTINGS?TDP_SETTINGS.keyLabel('r'):'R';T(dead?`Click or press ${rk} to restart from floor 1  ·  Esc: title (Continue resumes your last checkpoint)`:`Click or press ${rk} to play again  ·  Esc for title`,VW/2,dead?560:580,dead?'#fbb':'#5aa',15,'center')}
+ const rk=window.TDP_SETTINGS?TDP_SETTINGS.keyLabel('r'):'R';T(dead?`Click or press ${rk} to restart from floor 1  ·  Esc: title (Continue resumes your last checkpoint)`:`Click or press ${rk} to play again  ·  Esc for title`,VW/2,dead?560:580,dead?'#fbb':'#5aa',15,'center');
+ const B=o.endlessBtn;if(B){const pulse=.6+.4*Math.sin(Date.now()/300);ctx.fillStyle='rgba(40,20,6,.9)';ctx.fillRect(B.x,B.y,B.w,B.h);ctx.save();ctx.shadowColor='#fa4';ctx.shadowBlur=10+8*pulse;ctx.strokeStyle='#fc6';ctx.lineWidth=2;ctx.strokeRect(B.x,B.y,B.w,B.h);ctx.restore();
+  T(`CONTINUE INTO ENDLESS  [${o.ekey||'E'}]`,B.x+B.w/2,B.y+28,'#ffd890',17,'center');T('carry this build into floor 31+',B.x+B.w/2,B.y+B.h+16,'#c96',11,'center')}}
 window.TDP_STATS={kill,tick,hit,died,draw,ensure};
 })();

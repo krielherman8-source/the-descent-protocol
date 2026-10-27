@@ -21,3 +21,4 @@ body.touch #touchui{display:block}
 #touchui.hidden{display:none!important}body.touch #hud{touch-action:none}body.touch{touch-action:none}
 
 #crawl .cr-mask{position:absolute;inset:0;-webkit-mask-image:linear-gradient(transparent 0%,#000 18%,#000 80%,transparent 100%);mask-image:linear-gradient(transparent 0%,#000 18%,#000 80%,transparent 100%)}
+#menu button.locked{opacity:.45;border-style:dashed;color:#8aa}#endless-hint{margin:-4px 0 4px;font-size:11px}

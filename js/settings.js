@@ -7,7 +7,7 @@
    Colourblind mode swaps objective/exit/boss/hazard marker colours for the Okabe–Ito palette and adds a distinct
    shape per marker role. */
 (function(){
-const VERSION=2;
+const VERSION=3;  // v3: + endless (post-game unlock flag)
 // [logical action, label, default raw key]
 const KB=[['w','MOVE UP','w'],['a','MOVE LEFT','a'],['s','MOVE DOWN','s'],['d','MOVE RIGHT','d'],
  ['fire','FIRE','f'],['e','INTERACT','e'],['q','CYCLE DRONE','q'],['wprev','PREV WEAPON','z'],['wnext','NEXT WEAPON','x'],
@@ -44,8 +44,8 @@ function migrate(raw,def){const o=JSON.parse(JSON.stringify(def||{}));const r=is
  if(isObj(r.vol))for(const c of['master','sfx','music']){const v=r.vol[c];if(typeof v==='number'&&isFinite(v))o.vol[c]=Math.min(1,Math.max(0,v))}
  if(['low','med','high'].includes(r.quality))o.quality=r.quality;
  if(['easy','normal','hard'].includes(r.diff))o.diff=r.diff;
- for(const b of['shake','tut','cb','autofire'])if(typeof r[b]==='boolean')o[b]=r[b];
- if(typeof o.cb!=='boolean')o.cb=false;if(typeof o.autofire!=='boolean')o.autofire=false;
+ for(const b of['shake','tut','cb','autofire','endless'])if(typeof r[b]==='boolean')o[b]=r[b];
+ if(typeof o.cb!=='boolean')o.cb=false;if(typeof o.autofire!=='boolean')o.autofire=false;if(typeof o.endless!=='boolean')o.endless=false;
  o.interact=r.interact==='toggle'?'toggle':'hold';
  o.binds=cleanMap(r.binds,KB,KDEF,validKey,[...'fzxcvgtyuhjklbnmoip8902345671']);o.pad=cleanMap(r.pad,PAD,PDEF,validBtn,[2,6,8,10,11,16,0,1,3,4,5,7,9]);
  o.v=VERSION;return o}

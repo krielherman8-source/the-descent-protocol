@@ -19,7 +19,7 @@
 {const local=location.protocol!=='file:',cdn='https://unpkg.com/three@0.160.0/',s=document.createElement('script');s.type='importmap';
 s.textContent=JSON.stringify({imports:{three:local?'./vendor/three.module.js':cdn+'build/three.module.js','three/addons/':local?'./vendor/addons/':cdn+'examples/jsm/'}});document.currentScript.after(s)}</script></head>
 <body><div id="menu" class="hide"><div class="panel" id="m-title"><div class="logo"><div class="l1">THE DESCENT</div><div class="l2">P R O T O C O L</div><div class="bar"></div></div>
-<button data-a="start">START NEW DESCENT</button><button data-a="continue" id="b-cont">CONTINUE</button><button data-a="diff" id="b-diff">DIFFICULTY: NORMAL</button><button data-a="settings">SETTINGS</button><button data-a="controls">CONTROLS</button><button data-a="credits">CREDITS</button><div id="best" class="small"></div><div class="small dim">Click anywhere to enable audio</div></div>
+<button data-a="start">START NEW DESCENT</button><button data-a="continue" id="b-cont">CONTINUE</button><button data-a="endless" id="b-endless">ENDLESS DESCENT</button><div id="endless-hint" class="small dim"></div><button data-a="diff" id="b-diff">DIFFICULTY: NORMAL</button><button data-a="settings">SETTINGS</button><button data-a="controls">CONTROLS</button><button data-a="credits">CREDITS</button><div id="best" class="small"></div><div class="small dim">Click anywhere to enable audio</div></div>
 <div class="panel" id="m-credits"><h2>CREDITS</h2><div id="credits-body"></div><button data-a="back">BACK</button></div>
 <div class="panel" id="m-pause"><h2>PAUSED</h2><button data-a="resume">RESUME</button><button data-a="settings">SETTINGS</button><button data-a="controls">CONTROLS</button><button data-a="quit">SAVE &amp; QUIT TO TITLE</button></div>
 <div class="panel" id="m-settings"><h2>SETTINGS</h2>
@@ -27,7 +27,7 @@ s.textContent=JSON.stringify({imports:{three:local?'./vendor/three.module.js':cd
 <label>GRAPHICS <select id="s-q"><option value="low">LOW (no bloom/shadows)</option><option value="med">MEDIUM (bloom)</option><option value="high">HIGH (bloom, hi-res shadows)</option></select></label>
 <label>SCREEN SHAKE <input type="checkbox" id="s-shake"></label><button data-a="controls">CONTROLS &amp; REBINDING</button><button data-a="back">BACK</button></div>
 <div class="panel" id="m-controls"><h2>CONTROLS</h2><button data-a="back">BACK</button></div></div>
-<link rel="stylesheet" href="css/ui.css"><script src="js/story.js"></script><script src="js/input.js"></script><script src="js/minimap.js"></script><script src="js/content.js"></script><script src="js/instancing.js"></script><script src="js/settings.js"></script><script src="js/stats.js"></script>
+<link rel="stylesheet" href="css/ui.css"><script src="js/story.js"></script><script src="js/input.js"></script><script src="js/minimap.js"></script><script src="js/content.js"></script><script src="js/instancing.js"></script><script src="js/settings.js"></script><script src="js/stats.js"></script><script src="js/endless.js"></script>
 <div id="load">LOADING THE DESCENT PROTOCOL…</div><script type="module">
 'use strict';
 let THREE;
@@ -243,13 +243,17 @@ const FLOORS=[
 const LS=(k,d)=>{try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}},LSset=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}};
 const DIFFS={easy:{name:'EASY',hp:.75,dmg:.6,count:.8,heal:1.6,boss:.8},normal:{name:'NORMAL',hp:1,dmg:1,count:1,heal:1,boss:1},hard:{name:'HARD',hp:1.3,dmg:1.5,count:1.2,heal:.55,boss:1.25}};
 // settings schema v2 (js/settings.js migrate): old/bad blobs are validated key-by-key and missing keys get defaults
-const CFG_DEF={vol:{master:.8,sfx:.8,music:.55},quality:'high',shake:true,diff:'normal',tut:true,cb:false,interact:'hold',autofire:false,binds:{},pad:{}};
+const CFG_DEF={vol:{master:.8,sfx:.8,music:.55},quality:'high',shake:true,diff:'normal',tut:true,cb:false,interact:'hold',autofire:false,endless:false,binds:{},pad:{}};
 const CFG=(()=>{let raw;try{raw=LS('tdp_cfg',{})}catch(e){raw={}}try{return TDP_SETTINGS.migrate(raw,CFG_DEF)}catch(e){console.warn('settings reset',e);return TDP_SETTINGS.migrate({},CFG_DEF)}})();
 const saveCfg=()=>LSset('tdp_cfg',CFG);
-function saveGame(){if(!S||S.demo)return;LSset('tdp_save',{v:3,diff:S.diff,floor:S.floor,p:{...S.p,dpos:undefined},stats:S.stats,at:Date.now()})}
-const loadSave=()=>{const s=LS('tdp_save',null);return s&&s.v===3&&FLOORS[s.floor]?s:null};
-function recordBest(win){if(!S||S.demo)return;const b=LS('tdp_best',{floor:0,kills:0,runs:0,wins:0,bestTime:0});b.runs++;b.floor=Math.max(b.floor,S.floor+1);b.kills=Math.max(b.kills,S.stats.kills);
+// Endless Descent unlock (settings v3 flag); retroactive for players who already beat floor 30 before v3
+if(!CFG.endless&&(LS('tdp_best',{}).wins||0)>0)CFG.endless=true;
+function saveGame(){if(!S||S.demo)return;LSset('tdp_save',{v:3,diff:S.diff,floor:S.floor,p:{...S.p,dpos:undefined},stats:S.stats,endless:S.endless?{seed:S.endless.seed}:undefined,at:Date.now()})}
+const loadSave=()=>{const s=LS('tdp_save',null);if(!s||s.v!==3)return null;if(s.endless)return Number.isInteger(s.endless.seed)&&s.endless.seed>0&&Number.isInteger(s.floor)&&s.floor>=TDP_ENDLESS.START&&s.floor<100000?s:null;return FLOORS[s.floor]?s:null};
+function recordBest(win){if(!S||S.demo)return;const b=LS('tdp_best',{floor:0,kills:0,runs:0,wins:0,bestTime:0});b.runs++;b.floor=Math.max(b.floor,Math.min(FLOORS.length,S.floor+1));b.kills=Math.max(b.kills,S.stats.kills);
  if(win){b.wins++;b.bestTime=b.bestTime?Math.min(b.bestTime,S.stats.time):S.stats.time}LSset('tdp_best',b)}
+// endless record per difficulty: deepest floor reached (and endless time when reached; ties -> faster)
+function recordEndless(){if(!S||S.demo||!S.endless||S.floor<TDP_ENDLESS.START)return false;const b=LS('tdp_best',{floor:0,kills:0,runs:0,wins:0,bestTime:0});const ch=TDP_ENDLESS.record(b,S.diff||'normal',S.floor+1,S.stats.etime||0);if(ch)LSset('tdp_best',b);return ch}
 // ================= AUDIO (procedural Web Audio — no sample files) =================
 const AU={ctx:null,last:{},intensity:0,step:0,next:0};
 function audioInit(){if(AU.ctx)return;try{const Ctor=window.AudioContext||window.webkitAudioContext;if(!Ctor)return;const c=AU.ctx=new Ctor();
@@ -323,14 +327,14 @@ addEventListener('mousemove',setM);addEventListener('mousedown',e=>{setM(e);mous
 addEventListener('contextmenu',e=>e.preventDefault());
 let S;
 function newPlayer(){return{x:0,y:0,r:12,hp:100,maxHp:100,speed:230,weapons:['kinetic'],weapon:'kinetic',drones:['aegis'],drone:'aegis',mods:{},hpos:{x:0,y:0},
- dmgMul:1,rateMul:1,droneRateMul:1,multishot:1,cd:0,dcd:0,da:0,inv:0,ups:[],shield:false,shieldT:0,pulseT:5,slow:1,dpos:{x:0,y:0}}}
+ dmgMul:1,rateMul:1,droneRateMul:1,multishot:1,cd:0,dcd:0,da:0,inv:0,ups:[],shield:false,shieldT:0,pulseT:5,slow:1,dpos:{x:0,y:0},armor:1,eu:{}}}
 function startGame(){S={state:'play',diff:CFG.diff||'normal',floor:0,pickups:[],p:newPlayer(),t:0,texts:[],events:[],shake:0,hurtT:0,stats:{kills:0,shots:0,dmg:0,taken:0,time:0,healed:0,orbs:0,decoys:0,booms:0,rails:0,leech:0,procs:0}};startFloor()}
-function startFloor(){const f=FLOORS[S.floor];S.f=f;S.obj=OBJECTIVES[f.objective];
+function startFloor(){const f=floorAt(S.floor);S.f=f;S.dmgK=S.endless&&S.floor>=TDP_ENDLESS.START?TDP_ENDLESS.scale(S.floor).dmg:1;S.obj=OBJECTIVES[f.objective];
  S.walls=f.walls.map(([cx,cy,cw,ch])=>({x:cx*CELL,y:cy*CELL,w:cw*CELL,h:ch*CELL}));
  S.grid=new Uint8Array(GW*GH);for(let y=0;y<GH;y++)for(let x=0;x<GW;x++)S.grid[x+y*GW]=S.walls.some(w=>cp(x)>w.x&&cp(x)<w.x+w.w&&cp(y)>w.y&&cp(y)<w.y+w.h)?1:0;
  S.flow=new Int16Array(GW*GH);S.flowT=0;
  Object.assign(S.p,P(...f.spawn));S.enemies=[];S.bullets=[];S.ebullets=[];S.parts=[];S.arcs=[];S.rings=[];S.beams=[];S.orbs=[];S.booms=[];S.decoy=null;S.pickups=[];S.p.hpos={x:S.p.x,y:S.p.y};S.exit=null;S.choices=null;S.texts=[];
- S.winds=null;S.well=null;S.useLatch=false;S.hazards=[];S.carry=null;S.socket=null;S.floorT=0;S.eliteSpawned=false;fixSpawn(f);const fx=f.points||!f.n?f:Object.assign({},f,{points:autoPoints(f.n)});S.fx=fx;S.obj.setup(S,fx);makeHazards(f);S.waveT=2;S.wave=0;S.cleared=false;showBanner(`FLOOR ${S.floor+1} — ${f.name.toUpperCase()}`,f.task,3.5)}
+ S.winds=null;S.well=null;S.useLatch=false;S.hazards=[];S.carry=null;S.socket=null;S.floorT=0;S.eliteSpawned=false;fixSpawn(f);const fx=f.points||!f.n?f:Object.assign({},f,{points:autoPoints(f.n)});S.fx=fx;S.obj.setup(S,fx);makeHazards(f);S.waveT=2;S.wave=0;S.cleared=false;showBanner(`${floorLbl(S.floor)} — ${f.name.toUpperCase()}`,f.task,3.5);if(S.endless)recordEndless()}
 function showBanner(a,b,t){S.banner={a,b,life:t}}
 function floatText(x,y,t,col){S.texts.push({x,y,t,col:col||'#bff',life:1.6})}
 // Gentler per-floor scaling (30 floors); difficulty mostly comes from new enemy mixes, hazards and objectives.
@@ -351,7 +355,12 @@ function updateHazards(dt){const p=S.p;S.hazards=S.hazards.filter(h=>(!h.owner||
  if(h.type==='laser'){h.a+=h.sp*dt;if(h.owner){h.x=h.owner.x;h.y=h.owner.y}const cx=Math.cos(h.a),cy=Math.sin(h.a),dx=p.x-h.x,dy=p.y-h.y,pr=dx*cx+dy*cy;let el=h.len;for(let r=12;r<h.len;r+=8)if(inWall(h.x+cx*r,h.y+cy*r)){el=r;break}h.el=el;if(pr>(h.r0||0)&&pr<el&&Math.abs(dx*cy-dy*cx)<p.r+4)hurtPlayer(h.dmg)}
  else if(dist(h,p)<h.r){if(h.type==='acid'&&!S.god){const a=10*dt*DF().dmg;p.hp-=a;S.stats.taken+=a}if(h.type==='frost')p.slow=Math.min(p.slow,.5)}}}
 const DF=()=>DIFFS[S.diff]||DIFFS.normal;
-const scaleF=()=>{const d=DF();return{hp:(1+S.floor*.11)*d.hp,spd:1+Math.min(S.floor,20)*.018,count:(1+S.floor*.025)*d.count,dmg:(1+S.floor*.02)*d.dmg}};
+const ES=()=>S.endless&&S.floor>=TDP_ENDLESS.START?TDP_ENDLESS.scale(S.floor):null;// endless multipliers (null on floors 1-30)
+const scaleF=()=>{const d=DF(),e=ES();return{hp:(1+S.floor*.11)*d.hp*(e?e.hp:1),spd:1+Math.min(S.floor,20)*.018,count:(1+S.floor*.025)*d.count*(e?e.count:1),dmg:(1+S.floor*.02)*d.dmg}};
+// floor lookup: hand-made FLOORS for 1-30, generated (seeded per run) for Endless 31+
+const floorAt=i=>S&&S.endless&&i>=TDP_ENDLESS.START?TDP_ENDLESS.floorAt(i,S.endless.seed):FLOORS[i];
+const isFinal=()=>!(S&&S.endless)&&S.floor===FLOORS.length-1;
+const floorLbl=i=>i>=TDP_ENDLESS.START?`ENDLESS F${i+1}`:`FLOOR ${i+1}`;
 function setDifficulty(k){if(!DIFFS[k])return;CFG.diff=k;saveCfg();if(S&&!S.demo&&S.state==='title')S.diff=k}
 
 // ================= WORLD =================
@@ -391,13 +400,13 @@ const BOSS_AI={
   if(ph>=2){if(tick(e,'t2',5))e.spiral=2.5;if(e.spiral>0){e.spiral-=dt;e.sa=(e.sa||0)+dt*(ph===3?5:3.5);if(tick(e,'sp',.11))for(let k=0;k<(ph===3?4:2);k++)ebullet(e.x,e.y,e.sa+k*6.283/(ph===3?4:2),240,11,'#ff7a9a')}}
   if(tick(e,'t3',ph===1?6:7))bossSummon(e,ph===1?['swarmer','runner','spitter']:ph===2?['stalker','leaper','spitter']:['carrier','leaper','exploder'],ph===3?6:4)},
 };
-function spawnEnemy(type,x,y){const T=ENEMIES[type],s=scaleF(),hp=T.hp*(T.boss?(1+S.floor*.03)*DF().boss:s.hp);
+function spawnEnemy(type,x,y){const T=ENEMIES[type],s=scaleF(),es=T.boss&&ES(),hp=T.hp*(T.boss?(1+S.floor*.03)*DF().boss*(es?es.boss*(S.f&&S.f.boss===type?TDP_ENDLESS.bossW(type):1):1):s.hp);
  const e={type,x,y,r:T.r,hp,max:hp,speed:T.speed*s.spd*(T.boss?1:rnd(.85,1.15)),dmg:T.dmg*s.dmg,color:T.color,burn:0,flash:0,cd:rnd(1,2.5),side:Math.random()<.5?1:-1,t1:3,t2:4};
  resolve(e);S.enemies.push(e);return e}
 function spawnNear(type,x,y,n,rad){for(let i=0;i<n;i++){const a=rnd(0,6.28),d=rnd(30,rad||60);spawnEnemy(type,x+Math.cos(a)*d,y+Math.sin(a)*d)}}
 function rollType(mix){let r=Math.random()*Object.values(mix).reduce((a,b)=>a+b,0);for(const[k,v]of Object.entries(mix)){r-=v;if(r<=0)return k}return 'swarmer'}
 function spawnWave(){const f=S.f,n=Math.round((f.wave[0]+Math.min(S.wave,f.objective==='survive'?3:6)*f.wave[1])*scaleF().count*(S.enemies.some(e=>ENEMIES[e.type].boss)?.5:1));// wave growth capped at 6 steps; halved while a boss is alive
- const cap=Math.round((24+S.floor*.7)*DF().count*(S.enemies.some(e=>ENEMIES[e.type].boss)?.6:1));for(let i=0;i<n&&S.enemies.length<cap;i++){const pt=edgeSpawn();spawnEnemy(rollType(f.mix),pt.x+rnd(-8,8),pt.y+rnd(-8,8))}S.wave++}
+ const cap=Math.round(TDP_ENDLESS.cap(S.floor,24+S.floor*.7)*DF().count*(S.enemies.some(e=>ENEMIES[e.type].boss)?.6:1));for(let i=0;i<n&&S.enemies.length<cap;i++){const pt=edgeSpawn();spawnEnemy(rollType(f.mix),pt.x+rnd(-8,8),pt.y+rnd(-8,8))}S.wave++}
 function lootLocker(it,weapon){const p=S.p;const un=Object.keys(WEAPONS).filter(k=>WEAPONS[k].implemented&&!p.weapons.includes(k));
  if(weapon&&un.length){const k=pickR(un);p.weapons.push(k);p.weapon=k;floatText(it.x,it.y-30,`NEW WEAPON: ${WEAPONS[k].name} [${p.weapons.length}]`,'#ff5')}
  else if(it.idx%2){p.hp=Math.min(p.maxHp,p.hp+30);floatText(it.x,it.y-30,'+30 HP','#5f9')}
@@ -434,16 +443,16 @@ function teslaArc(p,a,dmg){const T=hittables();let best=null,bs=1e9;
   let nx=null,nd=170;for(const t of T){if(hit.has(t))continue;const d=dist(t,cur);if(d<nd&&los(cur,t)){nd=d;nx=t}}cur=nx}
  S.arcs.push({pts,life:.15})}
 function hurtPlayer(amt){const p=S.p;if(p.inv>0||S.god)return;if(p.drone==='bastion'&&p.shield){p.shield=false;p.shieldT=4;p.inv=.3;floatText(p.x,p.y-25,'BLOCKED','#8af');sfx('shield');return}
- p.hp-=amt;S.stats.taken+=amt;TDP_STATS.hit(S,amt);p.inv=.6;sfx('hurt');S.shake=Math.min(18,S.shake+5);S.hurtT=.35;burst(p.x,p.y,'#f55',10)}
+ amt*=(S.dmgK||1)*(p.armor||1);p.hp-=amt;S.stats.taken+=amt;TDP_STATS.hit(S,amt);p.inv=.6;sfx('hurt');S.shake=Math.min(18,S.shake+5);S.hurtT=.35;burst(p.x,p.y,'#f55',10)}
 function burst(x,y,col,n){for(let i=0;i<n;i++){const a=rnd(0,6.28),s=rnd(40,220);S.parts.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s,life:rnd(.2,.6),col})}}
 function ebullet(x,y,a,speed,dmg,col){S.ebullets.push({x,y,vx:Math.cos(a)*speed,vy:Math.sin(a)*speed,dmg,life:4,col:col||'#c6f',r:5})}
 
 // ================= FLOW / STATE =================
-function onKey(k,raw){if(!S)return;if(k==='escape'){if(S.state==='play')pauseGame();else if(S.state==='paused'){if(menuStack.length>1)backMenu();else resumeGame()}else if(S.state==='title'&&menuStack.length>1)backMenu();else if(S.state==='dead'||S.state==='victory'){goTitle()}return}if(S.state==='title'||S.state==='paused'||S.state==='descent')return;if((S.state==='dead'||S.state==='victory')&&k==='r'){startGame();return}
+function onKey(k,raw){if(!S)return;if(k==='escape'){if(S.state==='play')pauseGame();else if(S.state==='paused'){if(menuStack.length>1)backMenu();else resumeGame()}else if(S.state==='title'&&menuStack.length>1)backMenu();else if(S.state==='dead'||S.state==='victory'){goTitle()}return}if(S.state==='title'||S.state==='paused'||S.state==='descent')return;if(S.state==='victory'&&k==='e'&&CFG.endless){continueEndless();return}if((S.state==='dead'||S.state==='victory')&&k==='r'){startGame();return}
  if(S.state==='upgrade'){const n=/^[123]$/.test(raw||'')?raw:/^[123]$/.test(k)?k:null;if(n)pick(+n-1);return}
  if(S.state==='play'){if(/^[1-7]$/.test(k)&&S.p.weapons[+k-1])S.p.weapon=S.p.weapons[+k-1];if(k==='wnext')cycleWeapon(1);if(k==='wprev')cycleWeapon(-1);
   if(k==='q'){const d=S.p.drones;S.p.drone=d[(d.indexOf(S.p.drone)+1)%d.length]}}}
-function onClick(){if(!S)return;if(S.state==='dead'||S.state==='victory')startGame();
+function onClick(){if(!S)return;if(S.state==='victory'&&CFG.endless){const b=endlessBtnRect();if(mouse.sx>b.x&&mouse.sx<b.x+b.w&&mouse.sy>b.y&&mouse.sy<b.y+b.h){continueEndless();return}}if(S.state==='dead'||S.state==='victory')startGame();
  else if(S.state==='upgrade'&&S.choices)S.choices.forEach((c,i)=>{const b=cardRect(i);if(mouse.sx>b.x&&mouse.sx<b.x+b.w&&mouse.sy>b.y&&mouse.sy<b.y+b.h)pick(i)})}
 function rollChoices(){const p=S.p,Wc=[],Dc=[],Mc=[];S.offerN=(S.offerN||0)+1;
  for(const[k,w]of Object.entries(WEAPONS))if(w.implemented&&!p.weapons.includes(k))Wc.push({name:'Weapon: '+w.name,desc:w.desc,gear:true,apply:p=>{p.weapons.push(k);p.weapon=k}});
@@ -453,8 +462,19 @@ function rollChoices(){const p=S.p,Wc=[],Dc=[],Mc=[];S.offerN=(S.offerN||0)+1;
  // the third card is a mod for the equipped weapon (45%) or a stat upgrade; when gear runs out, mods and stats fill in.
  const out=[];if(Wc.length)out.push(pickR(Wc));if(Dc.length)out.push(pickR(Dc));
  if(Mc.length&&(out.length<2||Math.random()<.45))out.push(pickR(Mc));
+ if(S.endless){const eu=pickR(endlessUps(p));if(out.length<3&&Math.random()<.75)out.push(eu);else if(out.length>=3&&Math.random()<.5)out[2]=eu}
  for(const u of shuffle(UPGRADES)){if(out.length>=3)break;out.push(u)}return shuffle(out.slice(0,3))}
-function pick(i){const u=S.choices&&S.choices[i];if(!u)return;u.apply(S.p);if(!u.noUp)S.p.ups.push(u.name);sfx('choose');sfx('descend');S.state='descent';S.descT=0;S.descDone=false}
+// Endless-only stacking upgrades (offered in chambers once a run is in Endless Descent); stacks live in p.eu and ride along in saves
+const ROMAN=n=>['','','II','III','IV','V','VI','VII','VIII','IX','X'][n]||('x'+n);
+const ENDLESS_UPS=[
+ {k:'oc',name:'Overclock Core',desc:'+10% damage and +6% fire rate (stacks)',apply:p=>{p.dmgMul*=1.1;p.rateMul*=1.06}},
+ {k:'nw',name:'Nanite Weave',desc:'+20 max HP and repair 40 HP (stacks)',apply:p=>{p.maxHp+=20;p.hp=Math.min(p.maxHp,p.hp+40)}},
+ {k:'ap',name:'Ablative Plating',desc:'-8% damage taken (stacks, down to -50%)',ok:p=>(p.armor||1)>.5+1e-6,apply:p=>{p.armor=Math.max(.5,(p.armor||1)*.92)}},
+ {k:'sl',name:'Swarm Link',desc:'+20% drone power and +6% move speed (stacks)',apply:p=>{p.droneRateMul*=1.2;p.speed*=1.06}}];
+function endlessUps(p){return ENDLESS_UPS.filter(u=>!u.ok||u.ok(p)).map(u=>{const n=((p.eu||{})[u.k]||0)+1;return{name:'Endless: '+u.name+(n>1?' '+ROMAN(n):''),desc:u.desc,endless:true,noUp:true,
+  apply:p=>{p.eu=p.eu||{};p.eu[u.k]=n;u.apply(p);p.ups.push(u.name+(n>1?' '+ROMAN(n):''))}}})}
+function pick(i){const u=S.choices&&S.choices[i];if(!u)return;u.apply(S.p);if(!u.noUp)S.p.ups.push(u.name);sfx('choose');
+ if(S.draft&&++S.draft.n<S.draft.of){S.choices=rollChoices();return}S.draft=null;sfx('descend');S.state='descent';S.descT=0;S.descDone=false}
 function cardRect(i){const w=260,h=150,g=30,x0=VW/2-(w*3+g*2)/2;return{x:x0+i*(w+g),y:VH/2-h/2,w,h}}
 
 // ================= UPDATE =================
@@ -470,7 +490,7 @@ function update(dt){S.t+=dt;S._dt=dt;if(S.banner&&S.banner.life>0)S.banner.life-
  for(const t of S.texts){t.life-=dt;t.y-=20*dt}S.texts=S.texts.filter(t=>t.life>0);
  for(const a of S.arcs)a.life-=dt;S.arcs=S.arcs.filter(a=>a.life>0);for(const r of S.rings){r.life-=dt;r.r+=400*dt}S.rings=S.rings.filter(r=>r.life>0);for(const b of S.beams)b.life-=dt;S.beams=S.beams.filter(b=>b.life>0);for(const b of S.booms)b.life-=dt;S.booms=S.booms.filter(b=>b.life>0);
  if(S.state==='descent'){S.descT+=dt;if(!S.descDone&&S.descT>=.9){S.descDone=true;S.floor++;startFloor();saveGame()}if(S.descT>=1.8)S.state='play';return}
- if(S.state!=='play')return;const p=S.p,f=S.f;S.stats.time+=dt;TDP_STATS.tick(S,dt);tutTick(dt);
+ if(S.state!=='play')return;const p=S.p,f=S.f;S.stats.time+=dt;if(S.endless&&S.floor>=TDP_ENDLESS.START)S.stats.etime=(S.stats.etime||0)+dt;TDP_STATS.tick(S,dt);tutTick(dt);
  S.floorT+=dt;p.slow=1;S.obj.update&&S.obj.update(dt,S,f);
  if(p.hp>0&&p.hp<p.maxHp*.3){S.lowT=(S.lowT||0)+dt;if(S.lowT>=(p.hp<p.maxHp*.15?.75:1.05)){S.lowT=0;sfx('heartbeat')}}else S.lowT=.9;
  if(f.elite&&!S.eliteSpawned&&S.floorT>=f.elite.at){S.eliteSpawned=true;const pt=edgeSpawn(),e=spawnEnemy(f.elite.type,pt.x,pt.y);e.hp=e.max=e.max*(f.elite.hp||.55);e.elite=true;sfx('roar');S.shake=12;showBanner('ELITE: '+ENEMIES[f.elite.type].name.toUpperCase(),f.elite.line||'A champion of the hive joins the fight',2.5)}updateHazards(dt);resolve(p);
@@ -490,8 +510,8 @@ function update(dt){S.t+=dt;S._dt=dt;if(S.banner&&S.banner.life>0)S.banner.life-
  // waves / exit
  const objDone=S.obj.done(S);
  if(!objDone){S.waveT-=dt;if(S.waveT<=0){spawnWave();S.waveT=Math.max(f.interval*.75,f.interval-S.floor*.1)}}
- else if(!S.exit&&S.enemies.length===0){S.exit=P(...(f.exit||[20,11]));showBanner('FLOOR CLEAR',S.floor===FLOORS.length-1?'Reach the extraction chamber':'Enter the upgrade chamber',2.5)}
- if(S.exit&&dist(S.exit,p)<40){if(S.floor===FLOORS.length-1){S.state='ending';recordBest(true);try{localStorage.removeItem('tdp_save')}catch(e){}sfx('complete');playEnding();return}S.state='upgrade';S.choices=rollChoices();sfx('complete');return}
+ else if(!S.exit&&S.enemies.length===0){S.exit=P(...(f.exit||[20,11]));showBanner('FLOOR CLEAR',isFinal()?'Reach the extraction chamber':'Enter the upgrade chamber',2.5)}
+ if(S.exit&&dist(S.exit,p)<40){if(isFinal()){S.state='ending';recordBest(true);if(!CFG.endless){CFG.endless=true;saveCfg()}try{localStorage.removeItem('tdp_save')}catch(e){}sfx('complete');playEnding();return}S.state='upgrade';S.choices=rollChoices();sfx('complete');return}
  // enemies
  S.flowT-=dt;if(S.flowT<=0){buildFlow();S.flowT=.2}
  p.inv-=dt;
@@ -522,7 +542,7 @@ function update(dt){S.t+=dt;S._dt=dt;if(S.banner&&S.banner.life>0)S.banner.life-
  for(const b of S.ebullets){b.x+=b.vx*dt;b.y+=b.vy*dt;b.life-=dt;if(inWall(b.x,b.y))b.life=0;else if(Math.hypot(b.x-p.x,b.y-p.y)<b.r+p.r){hurtPlayer(b.dmg);b.life=0}}
  S.ebullets=S.ebullets.filter(b=>b.life>0);
  for(const q of S.parts){q.x+=q.vx*dt;q.y+=q.vy*dt;q.life-=dt}S.parts=S.parts.filter(q=>q.life>0);if(S.parts.length>1500)S.parts.splice(0,S.parts.length-1500);
- if(p.hp<=0){p.hp=0;S.state='dead';TDP_STATS.died(S,LS,LSset);recordBest(false);sfx('gameover')}}
+ if(p.hp<=0){p.hp=0;S.state='dead';TDP_STATS.died(S,LS,LSset);if(S.endless)recordEndless();else recordBest(false);sfx('gameover')}}
 
 // ================= RENDER (Three.js, angled top-down) =================
 // Simulation stays on the 2D ground plane: sim (x,y) -> world (x, height, y).
@@ -804,15 +824,15 @@ function drawHUD(){const p=S.p,f=S.f;ctx.setTransform(1,0,0,1,0,0);ctx.clearRect
   ctx.globalAlpha=it.active||it.done?1:.4;text(it.label,s.x,s.y,it.color,fs,'center');
   if(it.kind==='hold'&&!it.done&&it.active){if(dist(it,p)<55)text(CFG.interact==='toggle'&&S.useLatch?`INTERACTING · PRESS ${TDP_SETTINGS.useCtl(IN.src)} TO STOP`:useHint(),s.x,s.y-fs*1.3,'#fff',fs+2,'center');if(it.prog>0){ctx.fillStyle='#022';ctx.fillRect(s.x-25,s.y+5,50,5);ctx.fillStyle='#fff';ctx.fillRect(s.x-25,s.y+5,50*it.prog,5)}}
   if(it.kind==='shoot'){ctx.fillStyle='#300';ctx.fillRect(s.x-22,s.y+5,44,4);ctx.fillStyle=it.color;ctx.fillRect(s.x-22,s.y+5,44*it.hp/it.max,4)}}
- ctx.globalAlpha=1;if(S.exit){const s=toScreen(S.exit.x,120,S.exit.y);text(S.floor===FLOORS.length-1?'EXTRACTION':'UPGRADE CHAMBER',s.x,s.y,'#7ff',fs+2,'center')}
+ ctx.globalAlpha=1;if(S.exit){const s=toScreen(S.exit.x,120,S.exit.y);text(isFinal()?'EXTRACTION':'UPGRADE CHAMBER',s.x,s.y,'#7ff',fs+2,'center')}
  for(const t of S.texts){const s=toScreen(t.x,70,t.y);ctx.globalAlpha=Math.min(1,t.life);text(t.t,s.x,s.y,t.col,fs+2,'center')}ctx.globalAlpha=1;ctx.shadowBlur=0;
  if(S.state==='play')TDP_MINIMAP.arrows(ctx,S,toScreen,innerWidth,innerHeight,hs);
  ctx.setTransform(hs,0,0,hs,0,0);
  hudPanel(10,10,500,150);
  hudBar(18,18,240,16,p.hp/p.maxHp,p.hp/p.maxHp<.3?['#f33','#f88']:['#0bb','#6ff'],10);
  text(`HP ${Math.ceil(p.hp)}/${p.maxHp}`+(p.drone==='bastion'?(p.shield?'  [SHIELD]':'  [shield charging]'):''),24,31,'#012',12);
- text(`FLOOR ${S.floor+1}/${FLOORS.length}: ${f.name.toUpperCase()}`,18,54,'#7ff',16);
- text('OBJECTIVE: '+(S.exit?(S.floor===FLOORS.length-1?'Reach extraction':'Enter the upgrade chamber'):S.obj.done(S)?`Clear remaining swarm (${S.enemies.length})`:S.obj.progress(S)),18,74,'#bff',12);
+ text(S.floor>=TDP_ENDLESS.START?`ENDLESS F${S.floor+1}: ${f.name.toUpperCase()}`:`FLOOR ${S.floor+1}/${FLOORS.length}: ${f.name.toUpperCase()}`,18,54,S.floor>=TDP_ENDLESS.START?'#fc6':'#7ff',16);
+ text('OBJECTIVE: '+(S.exit?(isFinal()?'Reach extraction':'Enter the upgrade chamber'):S.obj.done(S)?`Clear remaining swarm (${S.enemies.length})`:S.obj.progress(S)),18,74,'#bff',12);
  ctx.font='11px monospace';let x=18,y=94;p.weapons.forEach((k,i)=>{const s=`[${IN.src==='pad'?i+1:kL(String(i+1))}] ${WEAPONS[k].name}`,w=ctx.measureText(s).width;if(x+w>500){x=18;y+=15}text(s,x,y,k===p.weapon?'#fff':'#477',11);x+=w+12});
  const cm=p.mods[p.weapon]||[];text('Mods: '+(cm.length?cm.map(m=>MODS[m].name).join(', '):'none'),18,y+18,cm.length?'#fc8':'#466',11);
  text(`Drone [${IN.src==='pad'?pL('drone'):IN.src==='touch'?'DRN':kL('q')}]: ${p.drones.map(k=>k===p.drone?'>'+DRONES[k].name+'<':DRONES[k].name).join('  ')}`,18,y+36,'#4fc',11);
@@ -823,23 +843,23 @@ function drawHUD(){const p=S.p,f=S.f;ctx.setTransform(1,0,0,1,0,0);ctx.clearRect
   text(`TUTORIAL ${S.tut.i+1}/${TUT.length}`,VW/2,VH-136,'#6ff',11,'center');text(msg,VW/2,VH-102,'#eff',16,'center')}
  const boss=S.enemies.find(e=>ENEMIES[e.type].boss);if(boss){hudPanel(VW/2-260,VH-58,520,46);hudBar(VW/2-250,VH-34,500,14,boss.hp/boss.max,['#a02','#f5a'],20);text(ENEMIES[boss.type].name.toUpperCase()+(boss.type==='overmind'?`  — PHASE ${boss.phase||1}`:''),VW/2,VH-40,'#f9c',13,'center')}
  if(S.banner&&S.banner.life>0&&S.state==='play'){ctx.globalAlpha=Math.min(1,S.banner.life);ctx.shadowColor='#000';ctx.shadowBlur=8;text(S.banner.a,VW/2,VH/3,'#7ff',34,'center');text(S.banner.b,VW/2,VH/3+30,'#9cc',15,'center');ctx.globalAlpha=1;ctx.shadowBlur=0}
- if(S.state==='upgrade'){ctx.fillStyle='rgba(0,8,12,.85)';ctx.fillRect(0,0,VW,VH);text('UPGRADE CHAMBER — CHOOSE ONE  '+({pad:'[X / A / B]',touch:'[tap a card]'}[IN.src]||'[1/2/3 or click]'),VW/2,VH/2-110,'#7ff',22,'center');
-  S.choices.forEach((c,i)=>{const b=cardRect(i),col=c.gear?'#ff5':'#3ff';ctx.fillStyle='rgba(10,30,36,.8)';ctx.fillRect(b.x,b.y,b.w,b.h);ctx.shadowColor=col;ctx.shadowBlur=15;ctx.strokeStyle=col;ctx.lineWidth=2;ctx.strokeRect(b.x,b.y,b.w,b.h);ctx.shadowBlur=0;
+ if(S.state==='upgrade'){ctx.fillStyle='rgba(0,8,12,.85)';ctx.fillRect(0,0,VW,VH);text((S.draft?`ENDLESS LOADOUT DRAFT ${S.draft.n+1}/${S.draft.of} — CHOOSE ONE  `:'UPGRADE CHAMBER — CHOOSE ONE  ')+({pad:'[X / A / B]',touch:'[tap a card]'}[IN.src]||'[1/2/3 or click]'),VW/2,VH/2-110,'#7ff',22,'center');
+  S.choices.forEach((c,i)=>{const b=cardRect(i),col=c.endless?'#f8a':c.gear?'#ff5':'#3ff';ctx.fillStyle='rgba(10,30,36,.8)';ctx.fillRect(b.x,b.y,b.w,b.h);ctx.shadowColor=col;ctx.shadowBlur=15;ctx.strokeStyle=col;ctx.lineWidth=2;ctx.strokeRect(b.x,b.y,b.w,b.h);ctx.shadowBlur=0;
    text(IN.src==='pad'?['X','A','B'][i]:IN.src==='touch'?'TAP':`[${i+1}]`,b.x+b.w/2,b.y+36,'#5aa',16,'center');text(c.name,b.x+b.w/2,b.y+75,'#eff',15,'center');text(c.desc||'',b.x+b.w/2,b.y+105,'#7aa',10,'center')})}
  const st=S.stats,mmss=t=>`${Math.floor(t/60)}:${String(Math.floor(t%60)).padStart(2,'0')}`;
- if(S.state==='dead'||S.state==='victory')TDP_STATS.draw(ctx,S,S.state,{VW,VH,text,WEAPONS,DRONES,name:t=>ENEMIES[t]?ENEMIES[t].name:(t||'unknown')});
+ if(S.state==='dead'||S.state==='victory')TDP_STATS.draw(ctx,S,S.state,{VW,VH,text,WEAPONS,DRONES,name:t=>ENEMIES[t]?ENEMIES[t].name:(t||'unknown'),best:LS('tdp_best',{}),endlessBtn:S.state==='victory'&&CFG.endless?endlessBtnRect():null,ekey:IN.src==='pad'?'X':IN.src==='touch'?'TAP':kL('e')});
  if(S.state==='descent'){const k=S.descT<.9?S.descT/.9:Math.max(0,1-(S.descT-.9)/.9);ctx.fillStyle=`rgba(0,5,7,${Math.min(1,k*1.15)})`;ctx.fillRect(0,0,VW,VH);ctx.strokeStyle=`rgba(80,255,240,${k*.55})`;ctx.lineWidth=2;
   for(let i=0;i<46;i++){const x=(i*97.3)%VW,y=((i*53+S.t*1500)%(VH+200))-100;ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x,y+50+(i%5)*24);ctx.stroke()}
-  ctx.globalAlpha=Math.min(1,k*1.4);const nf=S.descDone?S.floor:S.floor+1;text(`DESCENDING — FLOOR ${nf+1}`,VW/2,VH/2-10,'#7ff',30,'center');text(FLOORS[nf].name.toUpperCase(),VW/2,VH/2+26,'#5aa',16,'center');ctx.globalAlpha=1}}
+  ctx.globalAlpha=Math.min(1,k*1.4);const nf=S.descDone?S.floor:S.floor+1;text(`DESCENDING — ${floorLbl(nf)}`,VW/2,VH/2-10,'#7ff',30,'center');text(floorAt(nf).name.toUpperCase(),VW/2,VH/2+26,'#5aa',16,'center');ctx.globalAlpha=1}}
 let last=performance.now();function loop(now){const dt=Math.min(.05,(now-last)/1000);last=now;if(mouse.moved)aimRaycast();window.TDP_INPUT&&TDP_INPUT.poll(dt);if(!window.__pause)update(dt);render(dt);requestAnimationFrame(loop)}
 requestAnimationFrame(loop);
 Object.defineProperty(window,'S',{get:()=>S});
 // read-only debug handles for tests/leak.js (scene/pool/entity-mesh counts); not used by the game itself
 window.__TDP_DBG={scene,POOL,maps:{itemMeshes,enemyMeshes,bulletMeshes,pickMeshes,ebMeshes,ringMeshes,beamMeshes,orbMeshes,hazMeshes},gibs,arcMeshes,caches:()=>({guns:Object.keys(gunCache).length,drones:Object.keys(droneCache).length,mats:Object.keys(matCache).length,bugTpl:Object.keys(bugTpl).length,weapons:Object.keys(WEAPONS).length,droneTypes:Object.keys(DRONES).length}),decals:()=>{let n=0;const a=decMesh.instanceMatrix.array;for(let i=0;i<DECMAX;i++)if(a[i*16]!==0||a[i*16+2]!==0)n++;return n},level:()=>level};
 TDP_CONTENT.init({get S(){return S},P,dist,rnd,clamp,W,H,CELL,spawnEnemy,spawnNear,hurtPlayer,floatText,burst,sfx,showBanner,ebullet,bossRing,bossSummon,bossCharge,tick,resolve,inWall,edgeSpawn,mkItem,nDone,allDone,DF,ENEMIES,pickType:()=>rollType(S.f.mix),THREE,M,emis,add,basic,box,sph,cyl,mat,keep});
-Object.assign(OBJECTIVES,TDP_CONTENT.objectives());
+Object.assign(OBJECTIVES,TDP_CONTENT.objectives());TDP_ENDLESS.init({FLOORS,mix:M6});
 TDP_INST.init({THREE,scene,makeBug,ENEMIES,dist,add,geoFx,geoTorus});TDP_INST.prewarm(Object.keys(ENEMIES));Object.assign(BOSS_AI,TDP_CONTENT.BOSS_AI);
-Object.assign(window,{useOn,useEdge,cycleWeapon,TUT,setDifficulty:k=>setDifficulty(k),startIntro:()=>startIntro(),audioInit,hasBloom:()=>!!composer,CFG,saveGame,loadSave,recordBest,pauseGame,resumeGame,newRun,continueRun,goTitle,applyQuality,AU,sfx,menuDepth:()=>menuStack.length,musicTick,update,render,startGame,startFloor,spawnWave,onKey,damage,pick,inWall,P,cp,dist,keys,mouse,WEAPONS,DRONES,FLOORS,ENEMIES,OBJECTIVES,rollChoices,MODS,explodeAt,spawnNear,rnd,THREE,renderer,camera,aimRaycast,GAME_READY:true});
+Object.assign(window,{floorAt,isFinal,floorLbl,continueEndless,startEndless,recordEndless,endlessUps,ENDLESS_UPS,endlessBtnRect,scaleF,hurtPlayer,useOn,useEdge,cycleWeapon,TUT,setDifficulty:k=>setDifficulty(k),startIntro:()=>startIntro(),audioInit,hasBloom:()=>!!composer,CFG,saveGame,loadSave,recordBest,pauseGame,resumeGame,newRun,continueRun,goTitle,applyQuality,AU,sfx,menuDepth:()=>menuStack.length,musicTick,update,render,startGame,startFloor,spawnWave,onKey,damage,pick,inWall,P,cp,dist,keys,mouse,WEAPONS,DRONES,FLOORS,ENEMIES,OBJECTIVES,rollChoices,MODS,explodeAt,spawnNear,rnd,THREE,renderer,camera,aimRaycast,GAME_READY:true});
 
 // ================= MENUS (title / pause / settings / controls) =================
 const menuEl=document.getElementById('menu');let menuStack=[];
@@ -847,9 +867,12 @@ function showPanel(id){document.querySelectorAll('.panel').forEach(p=>p.classLis
 function openMenu(id){menuStack.push(id);showPanel(id)}
 function backMenu(){menuStack.pop();sfx('uiBack');if(menuStack.length)showPanel(menuStack[menuStack.length-1]);else hideMenu()}
 function hideMenu(){menuStack=[];menuEl.classList.add('hide')}
-function refreshTitle(){const s=loadSave(),b=LS('tdp_best',null),bc=document.getElementById('b-cont');bc.disabled=!s;bc.textContent=s?`CONTINUE — FLOOR ${s.floor+1}`:'CONTINUE';
+function refreshTitle(){const s=loadSave(),b=LS('tdp_best',null),bc=document.getElementById('b-cont');bc.disabled=!s;bc.textContent=s?`CONTINUE — ${floorLbl(s.floor)}`:'CONTINUE';
+ const be=document.getElementById('b-endless'),eh=document.getElementById('endless-hint');be.disabled=!CFG.endless;be.textContent=CFG.endless?'ENDLESS DESCENT':'ENDLESS DESCENT — LOCKED';be.classList.toggle('locked',!CFG.endless);
+ eh.textContent=CFG.endless?'Floors 31+ · draft a loadout · boss every 5 floors':'Beat the Overmind (floor 30) on any difficulty to unlock';
  const mm=t=>`${Math.floor(t/60)}:${String(Math.floor(t%60)).padStart(2,'0')}`;
- document.getElementById('best').innerHTML=b?`BEST: floor ${b.floor}/30 · ${b.kills} kills · ${b.runs} runs · ${b.wins} clears${b.bestTime?' · fastest '+mm(b.bestTime):''}`:'No runs recorded yet'}
+ document.getElementById('best').innerHTML=b?`BEST: floor ${b.floor}/30 · ${b.kills} kills · ${b.runs} runs · ${b.wins} clears${b.bestTime?' · fastest '+mm(b.bestTime):''}`+endlessBestHTML(b,mm):'No runs recorded yet'}
+function endlessBestHTML(b,mm){const e=b&&b.endless;if(!e)return '';const l=['easy','normal','hard'].filter(k=>e[k]).map(k=>`${DIFF_LBL[k]} F${e[k].floor} (${mm(e[k].time)})`);return l.length?'<br>ENDLESS BEST: '+l.join(' · '):''}
 function syncSettingsUI(){menuEl.querySelectorAll('input[data-v]').forEach(i=>i.value=Math.round(CFG.vol[i.dataset.v]*100));document.getElementById('s-q').value=CFG.quality;document.getElementById('s-shake').checked=CFG.shake;TDP_SETTINGS.refresh()}
 menuEl.querySelectorAll('input[data-v]').forEach(i=>i.addEventListener('input',()=>{CFG.vol[i.dataset.v]=i.value/100;applyVolumes();saveCfg()}));
 document.getElementById('s-q').addEventListener('change',e=>{CFG.quality=e.target.value;applyQuality();saveCfg();sfx('ui')});
@@ -858,7 +881,13 @@ TDP_SETTINGS.init({CFG,save:saveCfg,sfx});saveCfg();
 function goTitle(){startGame();S.state='title';S.demo=true;openMenuRoot('m-title')}
 function openMenuRoot(id){menuStack=[id];showPanel(id)}
 function newRun(){startGame();S.state='play';hideMenu();mouse.down=false}
-function continueRun(){const s=loadSave();if(!s)return newRun();startGame();S.diff=s.diff||'normal';Object.assign(S.p,s.p);S.stats=Object.assign(S.stats,s.stats);S.floor=s.floor;startFloor();S.state='play';hideMenu();mouse.down=false;showBanner(`CHECKPOINT — FLOOR ${S.floor+1}`,S.f.name,2.5)}
+function continueRun(){const s=loadSave();if(!s)return newRun();startGame();S.diff=s.diff||'normal';Object.assign(S.p,s.p);S.stats=Object.assign(S.stats,s.stats);S.floor=s.floor;S.endless=s.endless?{seed:s.endless.seed}:null;startFloor();S.state='play';hideMenu();mouse.down=false;showBanner(`CHECKPOINT — ${floorLbl(S.floor)}`,S.f.name,2.5)}
+// Endless Descent: from the victory screen the current run carries on into F31 (upgrade chamber first);
+// from the title a fresh run drafts a loadout (ENDLESS_DRAFT picks) and starts at F31
+const ENDLESS_DRAFT=15;
+function continueEndless(){if(!S||S.demo||S.state!=='victory'||!CFG.endless)return false;S.endless={seed:TDP_ENDLESS.newSeed()};S.p.hp=S.p.maxHp;S.state='upgrade';S.choices=rollChoices();sfx('choose');mouse.down=false;return true}
+function startEndless(){if(!CFG.endless)return false;startGame();S.endless={seed:TDP_ENDLESS.newSeed()};S.floor=TDP_ENDLESS.START-1;S.draft={n:0,of:ENDLESS_DRAFT};S.state='upgrade';S.choices=rollChoices();hideMenu();mouse.down=false;return true}
+function endlessBtnRect(){return{x:VW/2-200,y:612,w:400,h:44}}
 function pauseGame(){if(S.state!=='play')return;S.state='paused';openMenuRoot('m-pause')}
 function resumeGame(){if(S.state!=='paused')return;S.state='play';hideMenu();mouse.down=false;for(const k in keys)keys[k]=false}
 const DIFF_LBL={easy:'EASY',normal:'NORMAL',hard:'HARD'};
@@ -866,7 +895,7 @@ function refreshDiff(){const b=document.getElementById('b-diff');if(b)b.textCont
 function cycleDiff(){const o=['easy','normal','hard'];setDifficulty(o[(o.indexOf(CFG.diff||'normal')+1)%3]);refreshDiff()}
 function startIntro(){hideMenu();S.state='intro';TDP_STORY.crawl(TDP_STORY.INTRO,{onDone:newRun})}
 function playEnding(){TDP_STORY.crawl(TDP_STORY.ENDING,{onDone:()=>{if(S.state==='ending')S.state='victory'}})}
-const MENU_ACT={start:startIntro,diff:cycleDiff,credits:()=>{document.getElementById('credits-body').innerHTML=TDP_STORY.creditsHTML();openMenu('m-credits')},continue:continueRun,settings:()=>openMenu('m-settings'),controls:()=>openMenu('m-controls'),back:backMenu,resume:resumeGame,quit:()=>{saveGame();goTitle()}};
+const MENU_ACT={start:startIntro,endless:startEndless,diff:cycleDiff,credits:()=>{document.getElementById('credits-body').innerHTML=TDP_STORY.creditsHTML();openMenu('m-credits')},continue:continueRun,settings:()=>openMenu('m-settings'),controls:()=>openMenu('m-controls'),back:backMenu,resume:resumeGame,quit:()=>{saveGame();goTitle()}};
 menuEl.addEventListener('mousedown',e=>{e.stopPropagation();audioInit();if(AU.ctx&&AU.ctx.state==='suspended')AU.ctx.resume()});
 menuEl.addEventListener('click',e=>{const b=e.target.closest('button');if(!b||b.disabled)return;const a=b.dataset.a;if(a!=='back')sfx(a==='start'||a==='continue'?'choose':'ui');MENU_ACT[a]&&MENU_ACT[a]()});
 addEventListener('pointerdown',()=>{audioInit();if(AU.ctx&&AU.ctx.state==='suspended')AU.ctx.resume()},{capture:true});

@@ -36,7 +36,7 @@ function pollPad(){const gps=navigator.getGamepads?[...navigator.getGamepads()].
   if(edge(gp,PB('wprev')))A.cycleWeapon(-1);if(edge(gp,PB('wnext')))A.cycleWeapon(1);if(edge(gp,PB('drone')))A.onKey('q');if(edge(gp,PB('pause')))A.onKey('escape')}
  else{IN.mx=IN.my=0;IN.fire=false;A.keys.e=false;
   if(st==='upgrade'){if(edge(gp,2))A.onKey('1');if(edge(gp,0))A.onKey('2');if(edge(gp,1))A.onKey('3')}
-  else if(st==='dead'||st==='victory'){if(edge(gp,0))A.onKey('r');if(edge(gp,PB('back')))A.onKey('escape')}
+  else if(st==='dead'||st==='victory'){if(edge(gp,0))A.onKey('r');if(st==='victory'&&edge(gp,2))A.onKey('e');if(edge(gp,PB('back')))A.onKey('escape')}
   else if(edge(gp,PB('pause')))A.onKey('escape')}
  for(let i=0;i<gp.buttons.length;i++)prev[gp.index+':'+i]=btn(gp,i)}
 // ---------------- TOUCH ----------------
