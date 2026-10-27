@@ -9,15 +9,16 @@ const kd=(k,o)=>dispatchEvent(new KeyboardEvent('keydown',Object.assign({key:k},
 const B=a=>document.querySelector(`button.bind[data-bind="${a}"]`),PB=a=>document.querySelector(`button.bind[data-pad="${a}"]`);
 const rebind=(a,k)=>{B(a).click();kd(k)};
 // --- migration from the old (v1, unversioned) blob loaded at boot
-ok(CFG.v===2&&T.VERSION===2,'migrated cfg has version 2');
+ok(CFG.v===3&&T.VERSION===3,'migrated cfg has version 3');
+ok(CFG.endless===false,'old blob migrates with Endless locked');
 ok(CFG.quality==='med'&&CFG.diff==='hard'&&CFG.shake===false&&CFG.vol.master===.5,'old values kept');
 ok(T.key('w')==='i'&&T.key('e')==='f','old key overrides kept');
 ok(T.key('fire')!=='f'&&T.mapKey(T.key('fire'))==='fire'&&T.mapKey('f')==='e','new default clashing with old override relocated ('+T.keyLabel('fire')+')');
 ok(CFG.interact==='hold'&&CFG.autofire===false&&CFG.pad&&typeof CFG.pad==='object','new fields filled with defaults');
-ok(cfgLS().v===2,'migrated cfg written back');
+ok(cfgLS().v===3&&cfgLS().endless===false,'migrated cfg written back');
 // bad data never crashes
 let bad=0,badAt=[];for(const r of [null,undefined,5,'x',[],{vol:null,binds:[1,2],pad:'q'},{vol:{master:'loud',sfx:NaN,music:9},quality:7,interact:'sideways',autofire:'yes',binds:{w:'Escape',fire:42,zz:'k',e:'w'},pad:{fire:99,use:-1,drone:'3',back:13}}]){try{const m=T.migrate(r,{vol:{master:.8,sfx:.8,music:.55},quality:'high',diff:'normal',shake:true,tut:true,cb:false,interact:'hold',autofire:false,binds:{},pad:{}});
- if(m.v!==2||typeof m.binds!=='object'||Array.isArray(m.binds)||!(m.vol.master>=0&&m.vol.master<=1)||!(m.vol.music<=1)||m.interact!=='hold'||m.autofire!==false||m.binds.w==='Escape'||m.binds.zz||m.binds.fire||m.pad.fire!==undefined||m.pad.back!==undefined){bad++;badAt.push(JSON.stringify(m))}}catch(e){bad++;badAt.push(e.message)}}
+ if(m.v!==3||m.endless!==false||typeof m.binds!=='object'||Array.isArray(m.binds)||!(m.vol.master>=0&&m.vol.master<=1)||!(m.vol.music<=1)||m.interact!=='hold'||m.autofire!==false||m.binds.w==='Escape'||m.binds.zz||m.binds.fire||m.pad.fire!==undefined||m.pad.back!==undefined){bad++;badAt.push(JSON.stringify(m))}}catch(e){bad++;badAt.push(e.message)}}
 ok(bad===0,'migrate survives bad/corrupt data'+(bad?' BAD '+badAt.join(';'):''));
 document.querySelector('[data-a=controls]')||0;
 // --- keyboard screen
@@ -90,10 +91,87 @@ press(9,1);step(1);press(9,0);step(1);ok(S.state==='paused','START pauses');resu
 document.getElementById('rs-pad').click();ok(T.pad('fire')===7&&T.pad('use')===0&&T.pad('drone')===3&&T.pad('back')===1,'reset pad -> defaults');
 navigator.getGamepads=()=>[];step(2);
 // persistence
-rebind('fire','c');document.getElementById('s-autofire').click();const ls=cfgLS();ok(ls.v===2&&ls.binds.fire==='c'&&ls.autofire===true&&ls.pad&&!ls.pad.fire,'persisted to localStorage');
+rebind('fire','c');document.getElementById('s-autofire').click();const ls=cfgLS();ok(ls.v===3&&ls.binds.fire==='c'&&ls.autofire===true&&ls.pad&&!ls.pad.fire,'persisted to localStorage');
 document.getElementById('s-autofire').click();T.resetKeys();
 // colourblind
 const cb=document.getElementById('s-cb');ok(!!cb,'cb checkbox');cb.checked=true;cb.dispatchEvent(new Event('change'));ok(T.on(),'cb on');
 ok(T.itemColor({kind:'hold',color:'#0f0'})==='#F0E442','cb item colour');ok(cfgLS().cb===true,'cb persisted');
 render&&render();ok(true,'render with cb');cb.checked=false;cb.dispatchEvent(new Event('change'));
+
+// ===================== ENDLESS DESCENT =====================
+{const E=TDP_ENDLESS,best=()=>JSON.parse(localStorage.getItem('tdp_best')||'null'),near=(a,b)=>Math.abs(a-b)<1e-6,btn=document.getElementById('b-endless');
+ T.resetKeys();setDifficulty('normal');localStorage.removeItem('tdp_best');localStorage.removeItem('tdp_save');CFG.endless=false;saveCfg();CFG.tut=false;
+ ok(T.migrate({endless:true},{}).endless===true&&T.migrate({endless:'yes'},{}).endless===false&&T.migrate({},{}).endless===false,'migrate: endless flag validated (bool only, default locked)');
+ // --- unlock gating
+ goTitle();window.__pause=true;ok(btn&&btn.disabled&&/LOCKED/.test(btn.textContent)&&/floor 30/i.test(document.getElementById('endless-hint').textContent),'title: Endless button shown locked with hint');
+ btn.click();ok(S.state==='title','locked Endless button does nothing');ok(startEndless()===false,'startEndless refused while locked');
+ newRun();window.__pause=true;S.state='victory';ok(continueEndless()===false&&S.state==='victory','victory: continue-into-endless refused while locked');
+ // beat floor 30 -> unlock (persisted)
+ newRun();window.__pause=true;S.god=true;S.floor=29;startFloor();S.state='play';S.enemies=[];S.items.forEach(i=>i.done=true);S.bossSpawned=true;update(1/60);S.enemies=[];update(1/60);
+ ok(!!S.exit,'F30 extraction opened');S.p.x=S.exit.x;S.p.y=S.exit.y;update(1/60);
+ ok(S.state==='ending'&&CFG.endless===true&&cfgLS().endless===true,'beating floor 30 unlocks Endless and persists it ('+S.state+')');
+ ok(best()&&best().wins===1&&best().floor===30,'win recorded');
+ {const c=document.getElementById('crawl');if(c)c.className=''}S.state='victory';
+ const lb=S.p.ups.length;render(1/60);const eb=endlessBtnRect();mouse.sx=eb.x+eb.w/2;mouse.sy=eb.y+eb.h/2;onClick();
+ ok(S.state==='upgrade'&&S.endless&&S.endless.seed>0&&S.choices.length===3&&S.floor===29,'victory: clicking CONTINUE INTO ENDLESS opens an upgrade chamber with the same run');
+ ok(S.p.ups.length===lb,'build carried over');
+ pick(0);for(let i=0;i<200&&S.state!=='play';i++)update(1/60);
+ ok(S.floor===30&&S.f.endless&&S.state==='play','descends into F31 ('+S.f.name+')');
+ ok(floorLbl(S.floor)==='ENDLESS F31','HUD label ENDLESS F31');render(1/60);
+ ok(best().endless&&best().endless.normal&&best().endless.normal.floor===31,'endless best floor recorded on reaching F31');
+ goTitle();window.__pause=true;ok(!btn.disabled&&!/LOCKED/.test(btn.textContent),'title: Endless button unlocked');
+ ok(/ENDLESS BEST: NORMAL F31/.test(document.getElementById('best').textContent),'title best-run stats show endless best: '+document.getElementById('best').textContent);
+ // keyboard path on victory screen
+ newRun();window.__pause=true;S.state='victory';kd('e');ok(S.state==='upgrade'&&!!S.endless,'victory: interact key continues into endless');
+ // --- scaling values
+ ok(near(E.scale(30).hp,1.06)&&near(E.scale(39).hp,Math.pow(1.06,10))&&near(E.scale(39).dmg,Math.pow(1.03,10))&&near(E.scale(39).count,Math.pow(1.03,10))&&near(E.scale(39).boss,Math.pow(1.05,10)),'endless multipliers F31 x1.06 hp, F40 x'+E.scale(39).hp.toFixed(3)+' hp');
+ ok(E.scale(29).hp===1&&E.scale(10).dmg===1,'no endless scaling on floors 1-30');
+ newRun();window.__pause=true;S.floor=29;const s30=scaleF();S.endless={seed:12345};S.floor=39;startFloor();const s40=scaleF();
+ ok(near(s40.hp,(1+39*.11)*Math.pow(1.06,10))&&near(s40.count,(1+39*.025)*Math.pow(1.03,10))&&near(S.dmgK,Math.pow(1.03,10)),'scaleF on F40 = base curve x endless multiplier');
+ ok(s40.hp>s30.hp*2&&s40.hp<s30.hp*2.6,'smooth growth F30->F40 hp x'+(s40.hp/s30.hp).toFixed(2));
+ ok(E.cap(30,24+30*.7)===45&&E.cap(80,24+80*.7)===56&&E.cap(80,(24+80*.7)*1.2)===56&&E.cap(10,31)===31,'live-enemy cap clamps at 56 in endless (all difficulties)');
+ {S.floor=79;startFloor();S.state='play';S.enemies=[];for(let i=0;i<40;i++)spawnWave();ok(S.enemies.length<=56,'F80 waves stay under the live cap ('+S.enemies.length+')');S.diff='hard';S.enemies=[];for(let i=0;i<40;i++)spawnWave();ok(S.enemies.length<=56,'F80 hard also capped ('+S.enemies.length+')');S.diff='normal';S.enemies=[]}
+ {S.floor=39;startFloor();S.enemies=[];const ex=TDP_ENDLESS.scale(39).boss*(1+39*.03),b=spawnEnemy(S.f.boss,100,100);ok(near(b.max,ENEMIES[S.f.boss].hp*ex*E.bossW(S.f.boss)),'F40 boss HP scaled ('+S.f.boss+' '+Math.round(b.max)+')');S.enemies=[]}
+ {const dk=S.dmgK;S.p.hp=1000;S.p.maxHp=1000;S.p.inv=0;S.god=false;S.p.armor=1;hurtPlayer(10);ok(near(1000-S.p.hp,10*dk),'endless damage multiplier applied to hits ('+(1000-S.p.hp).toFixed(2)+')')}
+ // --- rotation
+ const seq=(seed,n)=>{const o=[];for(let i=30;i<30+n;i++)o.push(E.floorAt(i,seed));return o};
+ const A=seq(777,50),A2=seq(777,50),Bq=seq(778,50);
+ ok(A.every((f,i)=>f===A2[i]),'rotation deterministic per seed');ok(A.some((f,i)=>f.name!==Bq[i].name),'different seed, different rotation');
+ ok(A.every((f,i)=>((i+31)%5===0)===(f.objective==='boss')),'boss every 5 floors (F35, F40, ...) and only then');
+ const bs=A.filter(f=>f.objective==='boss').map(f=>f.boss);let rot=true;for(let c=0;c+5<=bs.length;c+=5)if(new Set(bs.slice(c,c+5)).size!==5)rot=false;
+ ok(rot&&bs.every((b,i)=>!i||b!==bs[i-1])&&bs.every(b=>E.BOSSES.includes(b)),'boss rotation: each cycle of 5 uses all 5 bosses, no back-to-back ('+bs.join(',')+')');
+ const reg=A.filter(f=>f.objective!=='boss'),pool=E.regularPool();
+ ok(new Set(reg.slice(0,pool.length).map(f=>f.src)).size===pool.length,'regular floors: first pass covers all '+pool.length+' templates once');
+ ok(reg.every((f,i)=>!i||f.src!==reg[i-1].src),'no template repeats back-to-back');
+ ok(A.every(f=>f.endless&&OBJECTIVES[f.objective]),'every endless floor maps to an existing objective');
+ ok(FLOORS.every(f=>!f.endless),'templates not mutated');
+ // --- endless upgrades
+ {newRun();window.__pause=true;S.endless={seed:5};S.floor=31;let seen=new Set();for(let i=0;i<80;i++)rollChoices().forEach(c=>c.endless&&seen.add(c.name.replace(/ [IVX]+$/,'')));
+  ok(seen.size>=3,'endless-only upgrades offered in endless chambers ('+[...seen].join(', ')+')');
+  S.endless=null;let none=true;for(let i=0;i<60;i++)if(rollChoices().some(c=>c.endless))none=false;ok(none,'endless upgrades never offered in a normal run');S.endless={seed:5};
+  const ap=()=>endlessUps(S.p).find(u=>/Plating/.test(u.name));for(let i=0;i<12;i++){const u=ap();if(u)u.apply(S.p)}ok(near(S.p.armor,.5)&&!ap(),'Ablative Plating stacks down to 50% and then stops being offered');
+  const d0=S.p.dmgMul,oc=()=>endlessUps(S.p).find(u=>/Overclock/.test(u.name));oc().apply(S.p);const u2=oc();u2.apply(S.p);ok(near(S.p.dmgMul,d0*1.21)&&S.p.eu.oc===2&&/Overclock Core II/.test(S.p.ups[S.p.ups.length-1]),'Overclock Core stacks (II)')}
+ // --- save / continue round trip in endless
+ {newRun();window.__pause=true;S.endless={seed:4242};S.floor=33;startFloor();S.p.eu={oc:2};S.p.armor=.92;S.p.ups.push('X');S.stats.etime=123;const nm=S.f.name,obj=S.f.objective;saveGame();
+  ok(loadSave()&&loadSave().endless.seed===4242&&loadSave().floor===33,'endless checkpoint saved');
+  goTitle();window.__pause=true;ok(/CONTINUE — ENDLESS F34/.test(document.getElementById('b-cont').textContent),'title Continue shows ENDLESS F34');
+  document.getElementById('b-cont').click();window.__pause=true;
+  ok(S.state==='play'&&S.floor===33&&S.endless&&S.endless.seed===4242&&S.f.name===nm&&S.f.objective===obj&&S.f.endless,'continue restores endless floor + seed ('+S.f.name+')');
+  ok(S.p.eu.oc===2&&near(S.p.armor,.92)&&S.stats.etime===123,'continue restores endless upgrades and time');
+  S.state='play';S.enemies=[];S.items.forEach(i=>i.done=true);S.bossSpawned=true;S.cards=99;for(let i=0;i<3;i++)update(1/60);S.enemies=[];update(1/60);
+  if(S.exit){S.p.x=S.exit.x;S.p.y=S.exit.y;update(1/60)}ok(S.state==='upgrade','F34 clear -> upgrade chamber, not extraction ('+S.state+')');
+  pick(0);for(let i=0;i<200&&S.state!=='play';i++)update(1/60);ok(S.floor===34&&S.f.objective==='boss'&&loadSave().floor===34&&loadSave().endless.seed===4242,'descent -> F35 boss floor, checkpoint updated');
+  const sv=JSON.parse(localStorage.getItem('tdp_save'));localStorage.setItem('tdp_save',JSON.stringify(Object.assign({},sv,{endless:{seed:'x'}})));ok(loadSave()===null,'corrupt endless save rejected');
+  localStorage.setItem('tdp_save',JSON.stringify(Object.assign({},sv,{floor:40,endless:undefined})));ok(loadSave()===null,'non-endless save past F30 rejected');localStorage.setItem('tdp_save',JSON.stringify(sv))}
+ // --- records
+ {const b={};ok(E.record(b,'normal',34,500)&&b.endless.normal.floor===34,'record: first');ok(!E.record(b,'normal',33,100),'record: shallower ignored');ok(E.record(b,'normal',34,400)&&b.endless.normal.time===400,'record: same floor faster wins');
+  ok(!E.record(b,'normal',34,450),'record: same floor slower ignored');ok(E.record(b,'normal',36,900)&&b.endless.normal.floor===36,'record: deeper wins');ok(E.record(b,'hard',31,50)&&b.endless.normal.floor===36,'record: per difficulty');}
+ {localStorage.removeItem('tdp_best');newRun();window.__pause=true;S.diff='hard';S.endless={seed:9};S.floor=36;S.stats.etime=600;startFloor();ok(best().endless.hard.floor===37&&best().endless.hard.time===600,'reaching F37 on hard records it');
+  const r0=best().runs;S.state='play';S.god=false;S.p.inv=0;S.p.hp=0;update(1/60);ok(S.state==='dead'&&best().runs===r0&&best().floor<=30&&best().endless.hard.floor===37,'endless death keeps the 1-30 record clean and endless best intact');
+  render(1/60);ok(true,'endless death stats screen renders');
+  goTitle();window.__pause=true;ok(/HARD F37 \(10:00\)/.test(document.getElementById('best').textContent),'title shows endless best per difficulty')}
+ // --- title draft start
+ {CFG.endless=true;btn.click();ok(S.state==='upgrade'&&S.draft&&S.draft.of===15&&S.floor===29&&!!S.endless,'title Endless starts a loadout draft');window.__pause=true;
+  let n=0;while(S.state==='upgrade'&&n<40){pick(0);n++}for(let i=0;i<200&&S.state!=='play';i++)update(1/60);ok(n===15&&S.floor===30&&S.f.endless&&S.p.ups.length>=1,'15 draft picks then F31 ('+S.p.weapons.length+' weapons, '+S.p.drones.length+' drones)')}
+ localStorage.removeItem('tdp_save');goTitle();window.__pause=true}
 }catch(e){L.push('EXC '+e.message+' '+e.stack)}L.push('ERRS '+JSON.stringify(window.ERRS||[]));document.body.dataset.log=L.join('\n')})();
