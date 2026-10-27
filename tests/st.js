@@ -171,7 +171,7 @@ render&&render();ok(true,'render with cb');cb.checked=false;cb.dispatchEvent(new
   render(1/60);ok(true,'endless death stats screen renders');
   goTitle();window.__pause=true;ok(/HARD F37 \(10:00\)/.test(document.getElementById('best').textContent),'title shows endless best per difficulty')}
  // --- title draft start
- {CFG.endless=true;btn.click();ok(S.state==='upgrade'&&S.draft&&S.draft.of===22&&S.floor===29&&!!S.endless,'title Endless starts a loadout draft');window.__pause=true;
-  let n=0;while(S.state==='upgrade'&&n<40){pick(0);n++}for(let i=0;i<200&&S.state!=='play';i++)update(1/60);ok(n===22&&S.floor===30&&S.f.endless&&S.p.ups.length>=1,'22 draft picks then F31 ('+S.p.weapons.length+' weapons, '+S.p.drones.length+' drones)')}
+ {CFG.endless=true;btn.click();ok(S.state==='upgrade'&&S.draft&&S.draft.of===29&&S.floor===29&&!!S.endless,'title Endless starts a loadout draft');window.__pause=true;
+  let n=0;while(S.state==='upgrade'&&n<40){pick(0);n++}for(let i=0;i<200&&S.state!=='play';i++)update(1/60);ok(n===29&&S.floor===30&&S.f.endless&&S.p.ups.length>=1,'29 draft picks then F31 ('+S.p.weapons.length+' weapons, '+S.p.drones.length+' drones)')}
  localStorage.removeItem('tdp_save');goTitle();window.__pause=true}
 }catch(e){L.push('EXC '+e.message+' '+e.stack)}L.push('ERRS '+JSON.stringify(window.ERRS||[]));document.body.dataset.log=L.join('\n')})();

@@ -884,7 +884,7 @@ function newRun(){startGame();S.state='play';hideMenu();mouse.down=false}
 function continueRun(){const s=loadSave();if(!s)return newRun();startGame();S.diff=s.diff||'normal';Object.assign(S.p,s.p);S.stats=Object.assign(S.stats,s.stats);S.floor=s.floor;S.endless=s.endless?{seed:s.endless.seed}:null;startFloor();S.state='play';hideMenu();mouse.down=false;showBanner(`CHECKPOINT — ${floorLbl(S.floor)}`,S.f.name,2.5)}
 // Endless Descent: from the victory screen the current run carries on into F31 (upgrade chamber first);
 // from the title a fresh run drafts a loadout (ENDLESS_DRAFT picks) and starts at F31
-const ENDLESS_DRAFT=22;
+const ENDLESS_DRAFT=29;
 function continueEndless(){if(!S||S.demo||S.state!=='victory'||!CFG.endless)return false;S.endless={seed:TDP_ENDLESS.newSeed()};S.p.hp=S.p.maxHp;S.state='upgrade';S.choices=rollChoices();sfx('choose');mouse.down=false;return true}
 function startEndless(){if(!CFG.endless)return false;startGame();S.endless={seed:TDP_ENDLESS.newSeed()};S.floor=TDP_ENDLESS.START-1;S.draft={n:0,of:ENDLESS_DRAFT};S.state='upgrade';S.choices=rollChoices();hideMenu();mouse.down=false;return true}
 function endlessBtnRect(){return{x:VW/2-200,y:612,w:400,h:44}}
