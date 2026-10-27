@@ -79,7 +79,7 @@ Measured with `tests/leak.js` in real-time headless Chrome (`--enable-precise-me
 | F20 | 830 → 457 | 15 → 15 | 18.9 → 29.9* | 449 → 370 | 12 → 22 | 35 → 35 |
 | F30 | 1153 → 468 | 15 → 15 | 21.7 → 21.7 | 740 → 443 | 12 → 23 | 35 → 35 |
 
-\* Transient spike on the Colossus floor; F21 reads 22.9 MB. Geometry counts spike on content-heavy floors (F19 is about 630), then fall back. Audio nodes are one-shot SFX still playing when the sample is taken, so they vary and do not accumulate.
+\* Transient spike on the Colossus floor; F21 reads 22.9 MB. Geometry counts spike on content-heavy floors (F19 is about 630), then fall back. Heap F5→F30 is +4 MB. A heap-snapshot diff puts about 1.1 MB of that in JIT code; the rest is the larger late-floor levels and their capped pools (+430 Mesh objects). After returning to the title it is 20.2 MB, and the cycle run stays flat. Audio nodes are one-shot SFX still playing when the sample is taken, so they vary and do not accumulate.
 
 Cycle run (6 cycles): before, geometries went 364 → 1548, listeners 35 → 47 and heap 15 → 20.5 MB. After, geometries settle at about 404 and the heap at about 17 MB from cycle 2 onward. Listeners step 35 → 37 once and then stay flat. There is 1 interval, 1 rAF per frame and 0 stray timeouts. The small early rise comes from bounded caches warming up (gun models ≤7, drone models ≤6, emissive material cache keyed by content colour).
 
