@@ -10,7 +10,7 @@
 const START=30;                       // 0-based index of F31, the first endless floor
 const BOSSES=['warden','prime','colossus','matriarch','overmind'];
 // per endless floor e (F31 -> e=1): enemy HP x hp^e, damage taken x dmg^e, wave size x count^e, boss HP x boss^e
-const K={hp:1.06,dmg:1.03,count:1.03,boss:1.05,capMax:56};
+const K={hp:1.08,dmg:1.04,count:1.03,boss:1.06,capMax:56};
 // boss HP weights in endless so the rotation is roughly even (the Warden is an F10 boss, the Overmind an F30 one)
 const BOSS_W={warden:3,prime:1.1,colossus:1,matriarch:1,overmind:.7};
 function rng(seed){let a=seed>>>0;return()=>{a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}

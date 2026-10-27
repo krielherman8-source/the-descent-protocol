@@ -124,11 +124,11 @@ render&&render();ok(true,'render with cb');cb.checked=false;cb.dispatchEvent(new
  // keyboard path on victory screen
  newRun();window.__pause=true;S.state='victory';kd('e');ok(S.state==='upgrade'&&!!S.endless,'victory: interact key continues into endless');
  // --- scaling values
- ok(near(E.scale(30).hp,1.06)&&near(E.scale(39).hp,Math.pow(1.06,10))&&near(E.scale(39).dmg,Math.pow(1.03,10))&&near(E.scale(39).count,Math.pow(1.03,10))&&near(E.scale(39).boss,Math.pow(1.05,10)),'endless multipliers F31 x1.06 hp, F40 x'+E.scale(39).hp.toFixed(3)+' hp');
+ ok(E.K.hp>1&&E.K.dmg>1&&E.K.count>1&&near(E.scale(30).hp,E.K.hp)&&near(E.scale(39).hp,Math.pow(E.K.hp,10))&&near(E.scale(39).dmg,Math.pow(E.K.dmg,10))&&near(E.scale(39).count,Math.pow(E.K.count,10))&&near(E.scale(39).boss,Math.pow(E.K.boss,10))&&near(E.scale(40).hp/E.scale(39).hp,E.K.hp),'endless multipliers compound per floor: F31 x'+E.K.hp+' hp, F40 x'+E.scale(39).hp.toFixed(3)+' hp');
  ok(E.scale(29).hp===1&&E.scale(10).dmg===1,'no endless scaling on floors 1-30');
  newRun();window.__pause=true;S.floor=29;const s30=scaleF();S.endless={seed:12345};S.floor=39;startFloor();const s40=scaleF();
- ok(near(s40.hp,(1+39*.11)*Math.pow(1.06,10))&&near(s40.count,(1+39*.025)*Math.pow(1.03,10))&&near(S.dmgK,Math.pow(1.03,10)),'scaleF on F40 = base curve x endless multiplier');
- ok(s40.hp>s30.hp*2&&s40.hp<s30.hp*2.6,'smooth growth F30->F40 hp x'+(s40.hp/s30.hp).toFixed(2));
+ ok(near(s40.hp,(1+39*.11)*Math.pow(E.K.hp,10))&&near(s40.count,(1+39*.025)*Math.pow(E.K.count,10))&&near(S.dmgK,Math.pow(E.K.dmg,10)),'scaleF on F40 = base curve x endless multiplier');
+ {const st=[];for(let f=30;f<60;f++){const sa=E.scale(f-1),sb=E.scale(f),ha=(1+(f-1)*.11)*(f-1<30?1:sa.hp),hb=(1+f*.11)*sb.hp;st.push(hb/ha)}ok(near(s40.hp/s30.hp,(1+39*.11)/(1+29*.11)*Math.pow(E.K.hp,10))&&st.every(r=>r>1&&r<1.15),'smooth growth: F30->F40 hp x'+(s40.hp/s30.hp).toFixed(2)+', every floor step x'+Math.min(...st).toFixed(3)+'..x'+Math.max(...st).toFixed(3))}
  ok(E.cap(30,24+30*.7)===45&&E.cap(80,24+80*.7)===56&&E.cap(80,(24+80*.7)*1.2)===56&&E.cap(10,31)===31,'live-enemy cap clamps at 56 in endless (all difficulties)');
  {S.floor=79;startFloor();S.state='play';S.enemies=[];for(let i=0;i<40;i++)spawnWave();ok(S.enemies.length<=56,'F80 waves stay under the live cap ('+S.enemies.length+')');S.diff='hard';S.enemies=[];for(let i=0;i<40;i++)spawnWave();ok(S.enemies.length<=56,'F80 hard also capped ('+S.enemies.length+')');S.diff='normal';S.enemies=[]}
  {S.floor=39;startFloor();S.enemies=[];const ex=TDP_ENDLESS.scale(39).boss*(1+39*.03),b=spawnEnemy(S.f.boss,100,100);ok(near(b.max,ENEMIES[S.f.boss].hp*ex*E.bossW(S.f.boss)),'F40 boss HP scaled ('+S.f.boss+' '+Math.round(b.max)+')');S.enemies=[]}
@@ -171,7 +171,7 @@ render&&render();ok(true,'render with cb');cb.checked=false;cb.dispatchEvent(new
   render(1/60);ok(true,'endless death stats screen renders');
   goTitle();window.__pause=true;ok(/HARD F37 \(10:00\)/.test(document.getElementById('best').textContent),'title shows endless best per difficulty')}
  // --- title draft start
- {CFG.endless=true;btn.click();ok(S.state==='upgrade'&&S.draft&&S.draft.of===15&&S.floor===29&&!!S.endless,'title Endless starts a loadout draft');window.__pause=true;
-  let n=0;while(S.state==='upgrade'&&n<40){pick(0);n++}for(let i=0;i<200&&S.state!=='play';i++)update(1/60);ok(n===15&&S.floor===30&&S.f.endless&&S.p.ups.length>=1,'15 draft picks then F31 ('+S.p.weapons.length+' weapons, '+S.p.drones.length+' drones)')}
+ {CFG.endless=true;btn.click();ok(S.state==='upgrade'&&S.draft&&S.draft.of===22&&S.floor===29&&!!S.endless,'title Endless starts a loadout draft');window.__pause=true;
+  let n=0;while(S.state==='upgrade'&&n<40){pick(0);n++}for(let i=0;i<200&&S.state!=='play';i++)update(1/60);ok(n===22&&S.floor===30&&S.f.endless&&S.p.ups.length>=1,'22 draft picks then F31 ('+S.p.weapons.length+' weapons, '+S.p.drones.length+' drones)')}
  localStorage.removeItem('tdp_save');goTitle();window.__pause=true}
 }catch(e){L.push('EXC '+e.message+' '+e.stack)}L.push('ERRS '+JSON.stringify(window.ERRS||[]));document.body.dataset.log=L.join('\n')})();
