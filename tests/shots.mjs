@@ -9,6 +9,8 @@ const ev=async x=>{const r=await send('Runtime.evaluate',{expression:x,awaitProm
 const shot=async n=>{const r=await send('Page.captureScreenshot',{format:'png'});fs.writeFileSync(OUT+n+'.png',Buffer.from(r.result.data,'base64'));console.log('shot',n)};
 const go=async(url,mobile)=>{await send('Emulation.setDeviceMetricsOverride',mobile?{width:844,height:390,deviceScaleFactor:1,mobile:true}:{width:1280,height:720,deviceScaleFactor:1,mobile:false});if(mobile)await send('Emulation.setTouchEmulationEnabled',{enabled:true});await send('Page.navigate',{url});for(let i=0;i<120;i++){await sl(500);if(await ev('!!window.GAME_READY'))break}await sl(1500)};
 const U='http://localhost:8765/index.html';
+const lowhp=async()=>{await ev(`document.getElementById('menu')?.classList.add('hide');S.floor=13;S.state='play';startFloor();S.p.inv=1e9;1`);await sl(16000);await ev(`S.p.hp=Math.round(S.p.maxHp*.12);S.p.inv=1e9;1`);await sl(1200);await shot('17_low_health_warning')};
+if(process.env.ONLY==='lowhp'){await go(U+'?fresh='+Date.now());await ev('localStorage.clear();1');await go(U);await sl(3000);await ev(`document.querySelector('[data-a=start]').click();1`);await sl(3000);await ev(`dispatchEvent(new KeyboardEvent('keydown',{key:' '}));1`);await sl(2000);await lowhp();c.kill();process.exit(0)}
 await go(U+'?fresh='+Date.now());await ev('localStorage.clear();1');await go(U);
 await sl(3000);await shot('01_title');
 await ev(`document.querySelector('[data-a=start]').click();1`);await sl(7000);await shot('02_intro');
@@ -25,5 +27,6 @@ await ev(`S.enemies.length=0;S.items.forEach(i=>i.done=true);S.exit={x:S.p.x,y:S
 await ev(`CFG.cb=false;goTitle();document.querySelector('#m-title [data-a=settings]')?.click();1`);await sl(2500);await shot('14_settings_rebind');
 await ev(`document.getElementById('menu').classList.add('hide');newRun();S.floor=0;S.state='play';startFloor();window.__pause=true;TDP_STATS.ensure(S.stats);for(let f=0;f<23;f++){S.stats.ft[f]=40+((f*37)%90);if(f%5==4)S.stats.ft[f]+=60}S.stats.df={4:1,9:2,19:1};S.stats.deaths=4;['swarmer','runner','brute','spitter','exploder','leaper','mite'].forEach((t,i)=>S.stats.kt[t]=200-i*25);S.stats.kills=900;S.stats.lastHit='Brute';S.floor=23;S.f=FLOORS[23];S.enemies.length=0;S.state='dead';window.__pause=false;1`);await sl(2500);await shot('15_stats_death');
 await ev(`S.state='victory';for(let f=23;f<30;f++)S.stats.ft[f]=50+f;1`);await sl(2500);await shot('16_stats_victory');
+await go(U);await sl(2000);await ev(`document.querySelector('[data-a=start]').click();1`);await sl(3000);await ev(`dispatchEvent(new KeyboardEvent('keydown',{key:' '}));1`);await sl(2000);await lowhp();
 await go(U+'?touch=1',true);await ev(`document.querySelector('[data-a=start]').click();1`);await sl(1500);await ev(`dispatchEvent(new KeyboardEvent('keydown',{key:' '}));1`);await sl(5000);await shot('09_mobile_touch');
 c.kill();process.exit(0);
