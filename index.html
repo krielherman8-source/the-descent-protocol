@@ -542,7 +542,9 @@ const M=o=>new THREE.MeshStandardMaterial(o);const matCache={};
 // Resource lifecycle: KEEP holds shared geometries/materials (caches, templates); disposeTree() frees everything else under a root.
 const KEEP=new WeakSet();const keep=o=>{if(o)KEEP.add(o);return o};
 const keepTree=r=>r.traverse(o=>{if(o.geometry)KEEP.add(o.geometry);if(o.material)[].concat(o.material).forEach(m=>KEEP.add(m))});
-function disposeTree(r){if(!r)return;r.traverse(o=>{if(o.geometry&&!KEEP.has(o.geometry))o.geometry.dispose();if(o.material)for(const m of [].concat(o.material))if(!KEEP.has(m))m.dispose()})}
+// disposeQ: old floor content is freed one rendered frame after the new floor is built, so shader programs shared with
+// the new floor's materials (e.g. wall-fade clones) keep a user and are not released and recompiled on every floor.
+const disposeQ=[];function disposeTree(r){if(!r)return;r.traverse(o=>{if(o.geometry&&!KEEP.has(o.geometry))o.geometry.dispose();if(o.material)for(const m of [].concat(o.material))if(!KEEP.has(m))m.dispose()})}
 const emis=(c,i=2,base=0x000000)=>{const k=c+'|'+i;return matCache[k]||(matCache[k]=keep(M({color:base,emissive:new THREE.Color(c),emissiveIntensity:i,roughness:.6})))};
 const basic=(c,o)=>{const k='b'+c+JSON.stringify(o||{});return matCache[k]||(matCache[k]=keep(new THREE.MeshBasicMaterial(Object.assign({color:new THREE.Color(c)},o||{}))))};
 const add=(c,op)=>basic(c,{transparent:true,opacity:op,blending:THREE.AdditiveBlending,depthWrite:false});
@@ -639,8 +641,8 @@ function makeItem(it){const g=new THREE.Group(),c=new THREE.Color(it.color),u={}
  g.position.set(it.x,0,it.y);g.userData=u;return g}
 // ---- level ----
 let level=null,builtFor=null,lamps=[],winds=[],wellParts=null;
-function buildLevel(){if(level){scene.remove(level);disposeTree(level)}poolTrim=true;// level geometry + per-floor materials (wall-fade clones, set pieces)
- level=new THREE.Group();scene.add(level);lamps=[];winds=[];wellParts=null;itemMeshes.forEach(m=>{scene.remove(m);disposeTree(m)});itemMeshes.clear();
+function buildLevel(){if(level){scene.remove(level);disposeQ.push(level)}poolTrim=true;// level geometry + per-floor materials (wall-fade clones, set pieces)
+ level=new THREE.Group();scene.add(level);lamps=[];winds=[];wellParts=null;itemMeshes.forEach(m=>{scene.remove(m);disposeQ.push(m)});itemMeshes.clear();
  const f=S.f,tint=new THREE.Color(f.tint).offsetHSL(0,.2,.28),trim=emis(tint,1.1);
  const wall=(x,y,w,h,ht,fade)=>{const m=box(w,ht,h,mat.steel,x+w/2,ht/2,y+h/2);m.receiveShadow=true;const n0=level.children.length;level.add(m,box(w,2,h,mat.top,x+w/2,ht+1,y+h/2,false),box(w+1,2,2.5,trim,x+w/2,ht+2,y+h+.5,false),box(w+1,2,2.5,trim,x+w/2,ht+2,y-.5,false),box(2.5,2,h+1,trim,x-.5,ht+2,y+h/2,false),box(2.5,2,h+1,trim,x+w+.5,ht+2,y+h/2,false),box(w+1,2,h+1,trim,x+w/2,ht*.42,y+h/2,false));if(fade)wallFade.push({x,y,w,h,o:1,meshes:level.children.slice(n0),mats:[]})};
  wallFade.length=0;clearDecals();S.walls.forEach(w=>wall(w.x,w.y,w.w,w.h,72,true));wall(-26,-26,W+52,26,96);wall(-26,0,26,H,96);wall(W,0,26,H,96);wall(-26,H,W+52,26,22);
@@ -715,7 +717,7 @@ function applyQuality(){const q=CFG.quality;renderer.setPixelRatio(q==='low'?.85
  const sh=q!=='low';if(renderer.shadowMap.enabled!==sh){renderer.shadowMap.enabled=sh;scene.traverse(o=>{if(o.material)(Array.isArray(o.material)?o.material:[o.material]).forEach(m=>m.needsUpdate=true)})}
  sun.castShadow=sh;const ms=q==='high'?2048:1024;if(sun.shadow.mapSize.x!==ms){sun.shadow.mapSize.set(ms,ms);if(sun.shadow.map){sun.shadow.map.dispose();sun.shadow.map=null}}resize()}
 const camPos=new THREE.Vector3(),camLook=new THREE.Vector3();let lastShots=0,muzzleT=0;
-function render(dt){const snap=dt===undefined;dt=dt||1/60;const p=S.p,f=S.f;if(builtFor!==S.walls)buildLevel();
+function render(dt){const snap=dt===undefined;dt=dt||1/60;const p=S.p,f=S.f;if(disposeQ.length&&builtFor===S.walls){disposeQ.forEach(disposeTree);disposeQ.length=0}if(builtFor!==S.walls)buildLevel();
  // camera: fixed angle, smooth follow
  const tgt=S.state==='title'?new THREE.Vector3(W/2+Math.sin(S.t*.12)*260,0,H/2-40+Math.cos(S.t*.09)*70):new THREE.Vector3(clamp(p.x,300,W-300),0,clamp(p.y,250,H-220));camPos.lerp(tgt.clone().add(CAM_OFF),snap?1:1-Math.exp(-dt*5));
  camera.position.copy(camPos);camLook.copy(camPos).sub(CAM_OFF);

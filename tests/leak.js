@@ -25,6 +25,7 @@ async function sample(tag){window.__pause=true;await sleep(+(H.settle||400));/* 
   sceneChildren:sc.children.length,sceneObjs:objs,meshes,lights,lightsOn:litOn,poolKeys:Object.keys(D.POOL).length,sceneGeos:sg.size,poolBy:Object.fromEntries(Object.entries(D.POOL).map(([k,v])=>[k,v.length])),topKids:Object.entries(sc.children.reduce((a,c)=>{const k=(c.type)+(c.visible?'':'~');a[k]=(a[k]||0)+1;return a},{})).join(' '),pooled:pool,maps,caches:D.caches?D.caches():null,
   enemies:S.enemies.length,bullets:S.bullets.length+S.ebullets.length,parts:S.parts.length,decals:D.decals(),gibs:D.gibs.length,arcs:D.arcMeshes.length,
   heapMB:pm?+(pm.usedJSHeapSize/1048576).toFixed(2):null,...pr};
+ if(H.pn&&R.info.programs)r.progNames=R.info.programs.map(p=>p.name+':'+p.usedTimes);// #pn=1: list live shader programs
  out.push(JSON.stringify(r));document.body.dataset.progress=out.length;
  const sk=tag+'@'+r.floor;if(H.snap&&H.snap.split(',').includes(sk)){document.body.dataset.snap=sk;while(document.body.dataset.snap)await sleep(200)}// leak.mjs writes /tmp/leak/<sk>.heapsnapshot
  return r}
