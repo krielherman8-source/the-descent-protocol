@@ -1,3 +1,4 @@
+// usage: node --experimental-websocket tests/shots.mjs [outdir]   (Node 20; ONLY=lowhp for just 17_low_health_warning)
 import {spawn} from 'child_process';import fs from 'fs';
 const OUT=process.argv[2]||'/workspace/descent/screens_final2/';fs.mkdirSync(OUT,{recursive:true});
 const c=spawn('google-chrome',['--headless=new','--no-sandbox','--use-angle=swiftshader','--enable-unsafe-swiftshader','--remote-debugging-port=9334','--user-data-dir=/tmp/pw/prof2','about:blank'],{stdio:'ignore'});
