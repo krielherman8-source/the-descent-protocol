@@ -1,4 +1,5 @@
 // Killable objective-doing audit bot. hash: #runs=1&diff=normal&from=0&to=29&deaths=3
+// window.BOT_MANUAL=true (set by tests/leak.js) only exposes window.BOT_API={playFloor,...} and does not start runs.
 window.addEventListener('load',()=>setTimeout(()=>{try{main()}catch(e){document.body.dataset.log='CRASH '+e.stack}},300));
 function main(){
 const H=Object.fromEntries(location.hash.slice(1).split('&').filter(Boolean).map(a=>a.split('=')));
@@ -101,6 +102,7 @@ function playFloor(fi,run){fi=S.floor;const rec={f:fi+1,name:FLOORS[fi].name,obj
   // force complete
   S.items.forEach(i=>{i.done=true});S.enemies.forEach(e=>e.hp=0);S.surviveT=0;S.god=true;for(let j=0;j<600&&S.state==='play';j++){update(dt);if(S.exit){S.p.x=S.exit.x;S.p.y=S.exit.y}}
   S.god=false;if(S.state==='upgrade'){S.choices=rollChoices();pick(choosePick());for(let j=0;j<130;j++)update(dt)}return rec}}
+window.BOT_API={playFloor,choosePick,mainW};if(window.BOT_MANUAL)return;
 for(let r=0;r<RUNS;r++){newRun();window.__pause=true;S.god=false;
  if(FROM>0){/* fair loadout for mid-run start: simulate picks */for(let f=0;f<FROM;f++){S.choices=rollChoices();pick(choosePick());for(let j=0;j<130;j++)update(dt)}}
  const recs=[];for(let f=FROM;f<=TO;f++){S.god=false;const rc=playFloor(f,r);recs.push(rc);if(S.state==='victory')break}

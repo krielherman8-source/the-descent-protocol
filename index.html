@@ -819,6 +819,8 @@ function drawHUD(){const p=S.p,f=S.f;ctx.setTransform(1,0,0,1,0,0);ctx.clearRect
 let last=performance.now();function loop(now){const dt=Math.min(.05,(now-last)/1000);last=now;if(mouse.moved)aimRaycast();window.TDP_INPUT&&TDP_INPUT.poll(dt);if(!window.__pause)update(dt);render(dt);requestAnimationFrame(loop)}
 requestAnimationFrame(loop);
 Object.defineProperty(window,'S',{get:()=>S});
+// read-only debug handles for tests/leak.js (scene/pool/entity-mesh counts); not used by the game itself
+window.__TDP_DBG={scene,POOL,maps:{itemMeshes,enemyMeshes,bulletMeshes,pickMeshes,ebMeshes,ringMeshes,beamMeshes,orbMeshes,hazMeshes},gibs,arcMeshes,decals:()=>{let n=0;const a=decMesh.instanceMatrix.array;for(let i=0;i<DECMAX;i++)if(a[i*16]!==0||a[i*16+2]!==0)n++;return n},level:()=>level};
 TDP_CONTENT.init({get S(){return S},P,dist,rnd,clamp,W,H,CELL,spawnEnemy,spawnNear,hurtPlayer,floatText,burst,sfx,showBanner,ebullet,bossRing,bossSummon,bossCharge,tick,resolve,inWall,edgeSpawn,mkItem,nDone,allDone,DF,ENEMIES,pickType:()=>rollType(S.f.mix),THREE,M,emis,add,basic,box,sph,cyl,mat});
 Object.assign(OBJECTIVES,TDP_CONTENT.objectives());
 TDP_INST.init({THREE,scene,makeBug,ENEMIES,dist,add,geoFx,geoTorus});TDP_INST.prewarm(Object.keys(ENEMIES));Object.assign(BOSS_AI,TDP_CONTENT.BOSS_AI);
