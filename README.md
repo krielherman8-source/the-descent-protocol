@@ -66,4 +66,31 @@ Headless Chrome harness pages. `mk.py X.js X.html` inlines a test into a copy of
 - `sm.js` smoke-tests floors 16-30. `ui.js` covers menus, tutorial, touch, pad and ending. `st.js` covers rebinding and colourblind. `ex.js` checks exit reachability.
 - `perf.js` reports draw calls and hitches. `hc.js` probes shader compiles. `bot.js` is the full-run bot (`#runs=1&diff=hard`).
 - `au.js` + `aurun.sh` do the offline audio level render (real-time CDP via `cdp2.mjs`, because OfflineAudioContext cannot run under virtual time).
-- `suite.sh` runs the whole suite.
+- `suite.sh` runs the whole suite. `leak.js` + `leak.mjs` + `leakrun.sh` are the long-session leak harness (see Stability).
+
+## Stability (long-session leak pass, Oct 2026)
+Measured with `tests/leak.js` in real-time headless Chrome (`--enable-precise-memory-info --js-flags=--expose-gc`, GC before every sample). The bot plays a 30-floor Normal run (`sc=full`), and a cycle run (`sc=cycle`) repeats death→Restart, death→title→Continue and pause→Save&Quit→Start 6×. Raw logs are in `tests/leak_results/`.
+
+| Floor | geometries before → after | textures | heap MB before → after | scene objects before → after | live audio nodes before → after | listeners |
+|---|---|---|---|---|---|---|
+| F1  | 378 → 363 | 15 → 15 | 12.4 → 13.8 | 183 → 183 | 12 → 16 | 35 → 35 |
+| F5  | 476 → 392 | 15 → 15 | 16.7 → 17.7 | 239 → 222 | 18 → 23 | 35 → 35 |
+| F10 | 629 → 456 | 15 → 15 | 16.4 → 19.0 | 319 → 343 | 12 → 21 | 35 → 35 |
+| F20 | 830 → 457 | 15 → 15 | 18.9 → 29.9* | 449 → 370 | 12 → 22 | 35 → 35 |
+| F30 | 1153 → 468 | 15 → 15 | 21.7 → 21.7 | 740 → 443 | 12 → 23 | 35 → 35 |
+
+\* Transient spike on the Colossus floor; F21 reads 22.9 MB. Geometry counts spike on content-heavy floors (F19 is about 630), then fall back. Audio nodes are one-shot SFX still playing when the sample is taken, so they vary and do not accumulate.
+
+Cycle run (6 cycles): before, geometries went 364 → 1548, listeners 35 → 47 and heap 15 → 20.5 MB. After, geometries settle at about 404 and the heap at about 17 MB from cycle 2 onward. Listeners step 35 → 37 once and then stay flat. There is 1 interval, 1 rAF per frame and 0 stray timeouts. The small early rise comes from bounded caches warming up (gun models ≤7, drone models ≤6, emissive material cache keyed by content colour).
+
+**Fixed:**
+- Floor geometry and materials were never disposed on level change.
+- Overflow and non-pooled entity meshes were removed from the scene but not disposed.
+- Entity mesh pools grew without limit. They are now trimmed to 24 per type on every floor, and boss pools to 0.
+- Swapping gun or drone models rebuilt them every time. They are now cached.
+- The objective emissive pulse created a new cached material for every intensity value. It is now quantized to 0.05.
+- The intro crawl added 2 listeners on every start.
+- The `fxSet` instanced mesh was replaced without being disposed.
+- Shared resources are now in a `KEEP` set so disposal never touches them. The old floor is disposed one frame after the new floor has rendered, so shared shader programs are not recompiled.
+
+**Run it:** `tests/leakrun.sh TAG` runs both scenarios in parallel. It takes about 4 min, so run it in the background. Output goes to `/tmp/leak/TAG_full.txt`, `TAG_cycle.txt` and `TAG_summary.txt`. A single run: `node --experimental-websocket tests/leak.mjs 'leak.html#sc=full&diff=normal&cap=300&deaths=3' out.txt 40`. Add `&snap=after-floor@5,after-floor@30` to write heap snapshots to `/tmp/leak/`, then compare them with `python3 tests/heapdiff.py a.heapsnapshot b.heapsnapshot`. Add `&pn=1` to log live shader programs. `python3 tests/leaksum.py file…` prints the table.
