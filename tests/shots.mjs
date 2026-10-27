@@ -1,4 +1,4 @@
-// usage: node --experimental-websocket tests/shots.mjs [outdir]   (Node 20; ONLY=lowhp for just 17_low_health_warning)
+// usage: node --experimental-websocket tests/shots.mjs [outdir]   (Node 20; ONLY=lowhp for just 17_low_health_warning, ONLY=controls for just 18_controls_rebind)
 import {spawn} from 'child_process';import fs from 'fs';
 const OUT=process.argv[2]||'/workspace/descent/screens_final2/';fs.mkdirSync(OUT,{recursive:true});
 const c=spawn('google-chrome',['--headless=new','--no-sandbox','--use-angle=swiftshader','--enable-unsafe-swiftshader','--remote-debugging-port=9334','--user-data-dir=/tmp/pw/prof2','about:blank'],{stdio:'ignore'});
@@ -11,6 +11,8 @@ const shot=async n=>{const r=await send('Page.captureScreenshot',{format:'png'})
 const go=async(url,mobile)=>{await send('Emulation.setDeviceMetricsOverride',mobile?{width:844,height:390,deviceScaleFactor:1,mobile:true}:{width:1280,height:720,deviceScaleFactor:1,mobile:false});if(mobile)await send('Emulation.setTouchEmulationEnabled',{enabled:true});await send('Page.navigate',{url});for(let i=0;i<120;i++){await sl(500);if(await ev('!!window.GAME_READY'))break}await sl(1500)};
 const U='http://localhost:8765/index.html';
 const lowhp=async()=>{await ev(`document.getElementById('menu')?.classList.add('hide');S.floor=13;S.state='play';startFloor();S.p.inv=1e9;1`);await sl(16000);await ev(`S.p.hp=Math.round(S.p.maxHp*.12);S.p.inv=1e9;1`);await sl(1200);await shot('17_low_health_warning')};
+const controls=async()=>{await ev(`goTitle();document.querySelector('#m-title [data-a=controls]').click();1`);await sl(1500);await shot('18_controls_rebind')};
+if(process.env.ONLY==='controls'){await go(U+'?fresh='+Date.now());await ev('localStorage.clear();1');await go(U);await sl(2000);await controls();c.kill();process.exit(0)}
 if(process.env.ONLY==='lowhp'){await go(U+'?fresh='+Date.now());await ev('localStorage.clear();1');await go(U);await sl(3000);await ev(`document.querySelector('[data-a=start]').click();1`);await sl(3000);await ev(`dispatchEvent(new KeyboardEvent('keydown',{key:' '}));1`);await sl(2000);await lowhp();c.kill();process.exit(0)}
 await go(U+'?fresh='+Date.now());await ev('localStorage.clear();1');await go(U);
 await sl(3000);await shot('01_title');
@@ -25,7 +27,7 @@ await ev(`S.floor=24;S.state='play';startFloor();S.p.inv=1e9;1`);for(let i=0;i<8
 await ev(`CFG.cb=true;S.floor=21;S.state='play';startFloor();S.p.inv=1e9;1`);await sl(10000);await shot('13_colourblind_markers');
 await ev(`S.floor=29;startFloor();S.state='play';S.p.inv=1e9;1`);for(let i=0;i<80;i++){await sl(500);if(await ev('S.enemies.some(e=>ENEMIES[e.type].boss)'))break}await sl(2500);await shot('07_boss_overmind');
 await ev(`S.enemies.length=0;S.items.forEach(i=>i.done=true);S.exit={x:S.p.x,y:S.p.y};1`);await sl(8000);await shot('08_ending');await ev(`dispatchEvent(new KeyboardEvent('keydown',{key:' '}));1`);await sl(2500);await ev(`document.getElementById('crawl')?.className`).then(v=>console.log('crawl',v));
-await ev(`CFG.cb=false;goTitle();document.querySelector('#m-title [data-a=settings]')?.click();1`);await sl(2500);await shot('14_settings_rebind');
+await ev(`CFG.cb=false;goTitle();document.querySelector('#m-title [data-a=settings]')?.click();1`);await sl(2500);await shot('14_settings_rebind');await controls();
 await ev(`document.getElementById('menu').classList.add('hide');newRun();S.floor=0;S.state='play';startFloor();window.__pause=true;TDP_STATS.ensure(S.stats);for(let f=0;f<23;f++){S.stats.ft[f]=40+((f*37)%90);if(f%5==4)S.stats.ft[f]+=60}S.stats.df={4:1,9:2,19:1};S.stats.deaths=4;['swarmer','runner','brute','spitter','exploder','leaper','mite'].forEach((t,i)=>S.stats.kt[t]=200-i*25);S.stats.kills=900;S.stats.lastHit='Brute';S.floor=23;S.f=FLOORS[23];S.enemies.length=0;S.state='dead';window.__pause=false;1`);await sl(2500);await shot('15_stats_death');
 await ev(`S.state='victory';for(let f=23;f<30;f++)S.stats.ft[f]=50+f;1`);await sl(2500);await shot('16_stats_victory');
 await go(U);await sl(2000);await ev(`document.querySelector('[data-a=start]').click();1`);await sl(3000);await ev(`dispatchEvent(new KeyboardEvent('keydown',{key:' '}));1`);await sl(2000);await lowhp();

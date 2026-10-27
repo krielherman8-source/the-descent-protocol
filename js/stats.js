@@ -35,6 +35,6 @@ function draw(ctx,S,mode,o){const st=ensure(S.stats),p=S.p,VW=o.VW,VH=o.VH,T=o.t
  T('orange = boss floor · red ticks = deaths',x,by+58,'#699',10);
  const slow=ft.map((v,i)=>[v||0,i]).sort((a,b)=>b[0]-a[0]).slice(0,3).filter(a=>a[0]>0).map(a=>`F${a[1]+1} ${mmss(a[0])}`).join('  ');if(slow)T('Longest: '+slow,x,by+78,tx,12);
  if(!dead){T(`Weapons: ${p.weapons.map(k=>o.WEAPONS[k].name).join(', ')}`,VW/2,500,tx,13,'center');T(`Drones: ${p.drones.map(k=>o.DRONES[k].name).join(', ')}`,VW/2,524,tx,13,'center')}
- T(dead?'Click or press R to restart from floor 1  ·  Esc: title (Continue resumes your last checkpoint)':'Click or press R to play again  ·  Esc for title',VW/2,dead?560:580,dead?'#fbb':'#5aa',15,'center')}
+ const rk=window.TDP_SETTINGS?TDP_SETTINGS.keyLabel('r'):'R';T(dead?`Click or press ${rk} to restart from floor 1  ·  Esc: title (Continue resumes your last checkpoint)`:`Click or press ${rk} to play again  ·  Esc for title`,VW/2,dead?560:580,dead?'#fbb':'#5aa',15,'center')}
 window.TDP_STATS={kill,tick,hit,died,draw,ensure};
 })();

@@ -9,7 +9,7 @@
 .bar{height:2px;margin-top:12px;background:linear-gradient(90deg,transparent,#3ff,transparent);box-shadow:0 0 10px #3ff}
 #menu button{font:16px monospace;letter-spacing:3px;width:300px;padding:10px;color:#cff;background:rgba(10,40,46,.8);border:1px solid #2aa;cursor:pointer}
 .binds{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;max-width:640px;margin:6px auto}.binds .small{width:100%;text-align:center;font-size:12px}
-#menu button.bind{width:auto;min-width:140px;font-size:13px;padding:6px 8px;letter-spacing:1px}#menu button.bind.on{background:#2aa;color:#011}
+#menu button.bind{width:auto;min-width:140px;font-size:13px;padding:6px 8px;letter-spacing:1px}#menu button.bind.on{background:#2aa;color:#011}#menu button.bind.lit{border-color:#ff5;color:#ff8}#m-controls{max-height:96vh;overflow-y:auto;padding:14px 22px;gap:4px;box-sizing:border-box}#m-controls .binds{max-width:900px;margin:2px auto}#m-controls button.bind{min-width:200px;padding:4px 6px;font-size:12px}#m-controls td{padding:1px 10px;font-size:12px}#m-controls h2{margin:0}#ctl-msg{min-height:14px;color:#fc8}
 #menu button:hover{background:rgba(30,90,96,.9);color:#fff;box-shadow:0 0 14px #3ff}#menu button:disabled{opacity:.3;cursor:default;box-shadow:none}
 #menu label{display:flex;justify-content:space-between;align-items:center;width:330px;font:14px monospace;letter-spacing:2px}#menu select{font:12px monospace;background:#032;color:#cff;border:1px solid #2aa}
 #menu input[type=range]{width:170px;accent-color:#3ff}#menu td{padding:3px 14px;font:14px monospace}#menu td:first-child{color:#6ff;text-align:right}
@@ -25,10 +25,8 @@ s.textContent=JSON.stringify({imports:{three:local?'./vendor/three.module.js':cd
 <div class="panel" id="m-settings"><h2>SETTINGS</h2>
 <label>MASTER <input type="range" min="0" max="100" data-v="master"></label><label>SFX <input type="range" min="0" max="100" data-v="sfx"></label><label>MUSIC <input type="range" min="0" max="100" data-v="music"></label>
 <label>GRAPHICS <select id="s-q"><option value="low">LOW (no bloom/shadows)</option><option value="med">MEDIUM (bloom)</option><option value="high">HIGH (bloom, hi-res shadows)</option></select></label>
-<label>SCREEN SHAKE <input type="checkbox" id="s-shake"></label><button data-a="back">BACK</button></div>
-<div class="panel" id="m-controls"><h2>CONTROLS</h2><table>
-<tr><td>WASD</td><td>Move (screen-relative)</td></tr><tr><td>MOUSE</td><td>Aim · hold LMB to fire</td></tr><tr><td>1 – 7</td><td>Switch weapon</td></tr><tr><td>Q</td><td>Cycle drone</td></tr>
-<tr><td>E (hold)</td><td>Interact with objectives</td></tr><tr><td>1/2/3 · click</td><td>Choose upgrade in chamber</td></tr><tr><td>ESC</td><td>Pause</td></tr><tr><td>R</td><td>Restart after death</td></tr><tr><td>GAMEPAD</td><td>L-stick move · R-stick aim+fire · RT fire · A use · LB/RB weapon · Y drone · Start pause</td></tr><tr><td>TOUCH</td><td>Left thumb move · right thumb aim+fire · USE / WPN / DRN buttons</td></tr></table><button data-a="back">BACK</button></div></div>
+<label>SCREEN SHAKE <input type="checkbox" id="s-shake"></label><button data-a="controls">CONTROLS &amp; REBINDING</button><button data-a="back">BACK</button></div>
+<div class="panel" id="m-controls"><h2>CONTROLS</h2><button data-a="back">BACK</button></div></div>
 <link rel="stylesheet" href="css/ui.css"><script src="js/story.js"></script><script src="js/input.js"></script><script src="js/minimap.js"></script><script src="js/content.js"></script><script src="js/instancing.js"></script><script src="js/settings.js"></script><script src="js/stats.js"></script>
 <div id="load">LOADING THE DESCENT PROTOCOL…</div><script type="module">
 'use strict';
@@ -130,9 +128,9 @@ const holdItems=(f,label,color,time,extra)=>f.points.map(([cx,cy],i)=>mkItem(Obj
 const shootItems=(f,label,color,hp,extra)=>f.points.map(([cx,cy],i)=>mkItem(Object.assign({kind:'shoot',...P(cx,cy),label,color,hp,max:hp,r:20,idx:i},extra||{})));
 const nDone=S=>S.items.filter(i=>i.done).length,allDone=S=>S.items.every(i=>i.done);
 const OBJECTIVES={
- generators:{label:'Restore power',setup:(S,f)=>{S.items=holdItems(f,f.label||'GENERATOR','#3ff',2)},progress:S=>`${S.f.label||'Generator'}s online ${nDone(S)}/${S.items.length}  (hold E)`,done:allDone},
+ generators:{label:'Restore power',setup:(S,f)=>{S.items=holdItems(f,f.label||'GENERATOR','#3ff',2)},progress:S=>`${S.f.label||'Generator'}s online ${nDone(S)}/${S.items.length}  (${useHint().toLowerCase()})`,done:allDone},
  lockers:{label:'Unlock heavy weapon lockers',setup:(S,f)=>{S.items=holdItems(f,'LOCKER','#6cf',1.4);const wi=Math.floor(rnd(0,S.items.length));
-   S.items.forEach(it=>it.onDone=()=>lootLocker(it,it.idx===wi))},progress:S=>`Lockers opened ${nDone(S)}/${S.items.length}  (hold E)`,done:allDone},
+   S.items.forEach(it=>it.onDone=()=>lootLocker(it,it.idx===wi))},progress:S=>`Lockers opened ${nDone(S)}/${S.items.length}  (${useHint().toLowerCase()})`,done:allDone},
  maglocks:{label:'Disable magnetic locks',setup:(S,f)=>{S.items=holdItems(f,'MAG-LOCK','#a8f',2);S.well=P(20,11)},
   update(dt,S){const rem=S.items.filter(i=>!i.done).length;if(!rem)return;const p=S.p,str=230*rem/S.items.length,d=dist(p,S.well);
    if(d>4){const k=clamp(1-d/1000,.15,1);p.x+=(S.well.x-p.x)/d*str*k*dt;p.y+=(S.well.y-p.y)/d*str*k*dt}
@@ -148,7 +146,7 @@ const OBJECTIVES={
   update(dt,S){for(const it of S.items)if(it.prog>0&&!it.alarm){it.alarm=true;floatText(it.x,it.y-30,'ALARM!','#f66');spawnNear('swarmer',it.x,it.y,3,180)}},
   progress:S=>`Terminals hacked ${nDone(S)}/${S.items.length}  (stay close, progress decays)`,done:allDone},
  vents:{label:'Redirect airflow safely',setup:(S,f)=>{S.items=holdItems(f,'VALVE','#7df',2);S.winds=f.winds},
-  update(dt,S){const p=S.p;for(const z of S.winds){if(S.items[z.valve].done)continue;if(p.y>z.y0&&p.y<z.y1)p.x+=z.vx*dt*(S.holding&&keys.e?.45:1);
+  update(dt,S){const p=S.p;for(const z of S.winds){if(S.items[z.valve].done)continue;if(p.y>z.y0&&p.y<z.y1)p.x+=z.vx*dt*(S.holding&&useOn()?.45:1);
    for(const e of S.enemies)if(e.y>z.y0&&e.y<z.y1)e.x+=z.vx*.5*dt}},
   progress:S=>`Valves sealed ${nDone(S)}/${S.items.length}  — each stops one air current`,done:allDone},
  purge:{label:'Purge infestation',setup:(S,f)=>{S.items=shootItems(f,'SPORE NODE','#bf4',140*(1+S.floor*.05),{burnBonus:true,muck:95})},
@@ -166,7 +164,7 @@ const OBJECTIVES={
   progress:S=>`Sacs destroyed ${S.items.filter(i=>i.done&&!i.hatched).length}/${S.items.length}  hatched ${S.hatched}`+(S.items.some(i=>!i.done)?`  next hatch ${Math.ceil(Math.min(...S.items.filter(i=>!i.done).map(i=>i.hatchT)))}s`:''),done:allDone},
  survive:{label:'Survive',setup:(S,f)=>{S.items=[];S.surviveT=f.survive||60},update(dt,S){S.surviveT-=dt},
   progress:S=>`Survive the swarm: ${Math.max(0,Math.ceil(S.surviveT))}s`,done:S=>S.surviveT<=0},
- defrost:{label:'Defrost frozen systems',setup:(S,f)=>{S.items=holdItems(f,'FROZEN SYSTEM','#aef',3)},progress:S=>`Systems defrosted ${nDone(S)}/${S.items.length}  (hold E, avoid frost)`,done:allDone},
+ defrost:{label:'Defrost frozen systems',setup:(S,f)=>{S.items=holdItems(f,'FROZEN SYSTEM','#aef',3)},progress:S=>`Systems defrosted ${nDone(S)}/${S.items.length}  (${useHint().toLowerCase()}, avoid frost)`,done:allDone},
  boss:{label:'Kill the boss',setup:(S,f)=>{S.items=[];S.bossT=2.5;S.bossSpawned=false},
   update(dt,S,f){if(S.bossSpawned)return;S.bossT-=dt;if(S.bossT<=0){S.bossSpawned=true;const b=P(...(f.bossAt||[20,5]));spawnEnemy(f.boss,b.x,b.y);sfx('roar');S.shake=16;showBanner(ENEMIES[f.boss].name.toUpperCase(),f.bossLine||'',3)}},
   progress:S=>S.bossSpawned?`Kill ${ENEMIES[S.f.boss].name}`:'Something is coming...',done:S=>S.bossSpawned&&!S.enemies.some(e=>ENEMIES[e.type].boss)},
@@ -175,7 +173,7 @@ const OBJECTIVES={
    S.door=mkItem({kind:'hold',...P(...f.door),label:'SECURITY DOOR',color:'#f5a',time:2,active:false,onDone:()=>{S.bossSpawned=true;const b=spawnEnemy('warden',cp(20),cp(4));
     showBanner('BROOD WARDEN AWAKENS','Final wave incoming',3);sfx('roar');S.shake=16;for(let i=0;i<8;i++){const pt=edgeSpawn();spawnEnemy(pickR(['swarmer','runner','brute','exploder']),pt.x,pt.y)}}});S.items.push(S.door)},
   update(dt,S){S.door.active=S.cards>=3},
-  progress:S=>!S.door.done?`Keycards ${S.cards}/3`+(S.cards>=3?'  — open the SECURITY DOOR (hold E)':'  (shoot cocoons)'):S.enemies.some(e=>ENEMIES[e.type].boss)?'Kill the Brood Warden!':'Done',
+  progress:S=>!S.door.done?`Keycards ${S.cards}/3`+(S.cards>=3?`  — open the SECURITY DOOR (${useHint().toLowerCase()})`:'  (shoot cocoons)'):S.enemies.some(e=>ENEMIES[e.type].boss)?'Kill the Brood Warden!':'Done',
   done:S=>S.door.done&&S.bossSpawned&&!S.enemies.some(e=>ENEMIES[e.type].boss)},
 };
 
@@ -244,7 +242,9 @@ const FLOORS=[
 // ================= SETTINGS / SAVE =================
 const LS=(k,d)=>{try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}},LSset=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}};
 const DIFFS={easy:{name:'EASY',hp:.75,dmg:.6,count:.8,heal:1.6,boss:.8},normal:{name:'NORMAL',hp:1,dmg:1,count:1,heal:1,boss:1},hard:{name:'HARD',hp:1.3,dmg:1.5,count:1.2,heal:.55,boss:1.25}};
-const CFG=Object.assign({vol:{master:.8,sfx:.8,music:.55},quality:'high',shake:true,diff:'normal',tut:true},LS('tdp_cfg',{}));
+// settings schema v2 (js/settings.js migrate): old/bad blobs are validated key-by-key and missing keys get defaults
+const CFG_DEF={vol:{master:.8,sfx:.8,music:.55},quality:'high',shake:true,diff:'normal',tut:true,cb:false,interact:'hold',autofire:false,binds:{},pad:{}};
+const CFG=(()=>{let raw;try{raw=LS('tdp_cfg',{})}catch(e){raw={}}try{return TDP_SETTINGS.migrate(raw,CFG_DEF)}catch(e){console.warn('settings reset',e);return TDP_SETTINGS.migrate({},CFG_DEF)}})();
 const saveCfg=()=>LSset('tdp_cfg',CFG);
 function saveGame(){if(!S||S.demo)return;LSset('tdp_save',{v:3,diff:S.diff,floor:S.floor,p:{...S.p,dpos:undefined},stats:S.stats,at:Date.now()})}
 const loadSave=()=>{const s=LS('tdp_save',null);return s&&s.v===3&&FLOORS[s.floor]?s:null};
@@ -312,7 +312,12 @@ function musicTick(){const c=AU.ctx;if(!c||c.state!=='running')return;
 
 const IN={mx:0,my:0,aim:null,fire:false,src:'kbm'};window.IN=IN;
 const keys={},mouse={x:W/2,y:H/2,down:false,sx:0,sy:0,cx:0,cy:0,moved:false};
-const mapK=k=>window.TDP_SETTINGS?TDP_SETTINGS.mapKey(k):k;addEventListener('keydown',e=>{const k=mapK(e.key.toLowerCase());if(k==='\u0000')return;keys[k]=true;onKey(k)});addEventListener('keyup',e=>keys[mapK(e.key.toLowerCase())]=false);
+const mapK=k=>window.TDP_SETTINGS?TDP_SETTINGS.mapKey(k):k;addEventListener('keydown',e=>{const raw=e.key.toLowerCase(),k=mapK(raw);if(k==='\u0000')return;if(S&&S.state==='play'&&(k==='fire'||raw===' '||raw==='tab'))e.preventDefault();keys[k]=true;if(k==='e'&&!e.repeat)useEdge();onKey(k,raw)});addEventListener('keyup',e=>keys[mapK(e.key.toLowerCase())]=false);
+// interact: 'hold' = held while the use control is down; 'toggle' = each press latches/unlatches (S.useLatch)
+function useEdge(){if(CFG.interact==='toggle'&&S&&S.state==='play')S.useLatch=!S.useLatch}
+const useOn=()=>CFG.interact==='toggle'?!!(S&&S.useLatch):!!keys.e;
+const kL=a=>TDP_SETTINGS.keyLabel(a),pL=a=>TDP_SETTINGS.padLabel(a),useHint=()=>`${TDP_SETTINGS.useVerb()} ${TDP_SETTINGS.useCtl(IN.src)}`;
+function cycleWeapon(d){if(!S||!S.p)return;const w=S.p.weapons;S.p.weapon=w[(w.indexOf(S.p.weapon)+d+w.length)%w.length]}
 const setM=e=>{IN.aim=null;IN.src='kbm';mouse.cx=e.clientX;mouse.cy=e.clientY;mouse.sx=e.clientX/hs;mouse.sy=e.clientY/hs;mouse.moved=true};
 addEventListener('mousemove',setM);addEventListener('mousedown',e=>{setM(e);mouse.down=true;onClick()});addEventListener('mouseup',()=>mouse.down=false);
 addEventListener('contextmenu',e=>e.preventDefault());
@@ -325,7 +330,7 @@ function startFloor(){const f=FLOORS[S.floor];S.f=f;S.obj=OBJECTIVES[f.objective
  S.grid=new Uint8Array(GW*GH);for(let y=0;y<GH;y++)for(let x=0;x<GW;x++)S.grid[x+y*GW]=S.walls.some(w=>cp(x)>w.x&&cp(x)<w.x+w.w&&cp(y)>w.y&&cp(y)<w.y+w.h)?1:0;
  S.flow=new Int16Array(GW*GH);S.flowT=0;
  Object.assign(S.p,P(...f.spawn));S.enemies=[];S.bullets=[];S.ebullets=[];S.parts=[];S.arcs=[];S.rings=[];S.beams=[];S.orbs=[];S.booms=[];S.decoy=null;S.pickups=[];S.p.hpos={x:S.p.x,y:S.p.y};S.exit=null;S.choices=null;S.texts=[];
- S.winds=null;S.well=null;S.hazards=[];S.carry=null;S.socket=null;S.floorT=0;S.eliteSpawned=false;fixSpawn(f);const fx=f.points||!f.n?f:Object.assign({},f,{points:autoPoints(f.n)});S.fx=fx;S.obj.setup(S,fx);makeHazards(f);S.waveT=2;S.wave=0;S.cleared=false;showBanner(`FLOOR ${S.floor+1} — ${f.name.toUpperCase()}`,f.task,3.5)}
+ S.winds=null;S.well=null;S.useLatch=false;S.hazards=[];S.carry=null;S.socket=null;S.floorT=0;S.eliteSpawned=false;fixSpawn(f);const fx=f.points||!f.n?f:Object.assign({},f,{points:autoPoints(f.n)});S.fx=fx;S.obj.setup(S,fx);makeHazards(f);S.waveT=2;S.wave=0;S.cleared=false;showBanner(`FLOOR ${S.floor+1} — ${f.name.toUpperCase()}`,f.task,3.5)}
 function showBanner(a,b,t){S.banner={a,b,life:t}}
 function floatText(x,y,t,col){S.texts.push({x,y,t,col:col||'#bff',life:1.6})}
 // Gentler per-floor scaling (30 floors); difficulty mostly comes from new enemy mixes, hazards and objectives.
@@ -434,9 +439,9 @@ function burst(x,y,col,n){for(let i=0;i<n;i++){const a=rnd(0,6.28),s=rnd(40,220)
 function ebullet(x,y,a,speed,dmg,col){S.ebullets.push({x,y,vx:Math.cos(a)*speed,vy:Math.sin(a)*speed,dmg,life:4,col:col||'#c6f',r:5})}
 
 // ================= FLOW / STATE =================
-function onKey(k){if(!S)return;if(k==='escape'){if(S.state==='play')pauseGame();else if(S.state==='paused'){if(menuStack.length>1)backMenu();else resumeGame()}else if(S.state==='title'&&menuStack.length>1)backMenu();else if(S.state==='dead'||S.state==='victory'){goTitle()}return}if(S.state==='title'||S.state==='paused'||S.state==='descent')return;if((S.state==='dead'||S.state==='victory')&&k==='r'){startGame();return}
- if(S.state==='upgrade'){if('123'.includes(k))pick(+k-1);return}
- if(S.state==='play'){if('1234567'.includes(k)&&S.p.weapons[+k-1])S.p.weapon=S.p.weapons[+k-1];
+function onKey(k,raw){if(!S)return;if(k==='escape'){if(S.state==='play')pauseGame();else if(S.state==='paused'){if(menuStack.length>1)backMenu();else resumeGame()}else if(S.state==='title'&&menuStack.length>1)backMenu();else if(S.state==='dead'||S.state==='victory'){goTitle()}return}if(S.state==='title'||S.state==='paused'||S.state==='descent')return;if((S.state==='dead'||S.state==='victory')&&k==='r'){startGame();return}
+ if(S.state==='upgrade'){const n=/^[123]$/.test(raw||'')?raw:/^[123]$/.test(k)?k:null;if(n)pick(+n-1);return}
+ if(S.state==='play'){if(/^[1-7]$/.test(k)&&S.p.weapons[+k-1])S.p.weapon=S.p.weapons[+k-1];if(k==='wnext')cycleWeapon(1);if(k==='wprev')cycleWeapon(-1);
   if(k==='q'){const d=S.p.drones;S.p.drone=d[(d.indexOf(S.p.drone)+1)%d.length]}}}
 function onClick(){if(!S)return;if(S.state==='dead'||S.state==='victory')startGame();
  else if(S.state==='upgrade'&&S.choices)S.choices.forEach((c,i)=>{const b=cardRect(i);if(mouse.sx>b.x&&mouse.sx<b.x+b.w&&mouse.sy>b.y&&mouse.sy<b.y+b.h)pick(i)})}
@@ -454,10 +459,10 @@ function cardRect(i){const w=260,h=150,g=30,x0=VW/2-(w*3+g*2)/2;return{x:x0+i*(w
 
 // ================= UPDATE =================
 // ---- floor-1 tutorial: data-driven steps; each advances when its condition holds ----
-const TUT=[{kbm:'MOVE with W A S D',pad:'MOVE with the LEFT STICK',touch:'MOVE: drag with your LEFT thumb',ok:(t,S)=>dist(S.p,t.o)>140},
- {kbm:'AIM with the mouse · HOLD LEFT BUTTON to fire',pad:'AIM with the RIGHT STICK (pushing it fires)',touch:'AIM + FIRE: drag with your RIGHT thumb',ok:(t,S)=>S.stats.shots-t.s0>=8},
- {kbm:'Generators are marked on the MINIMAP and by edge ARROWS · stand at one and HOLD E',pad:'Follow the edge ARROWS to a generator · HOLD A to power it',touch:'Follow the edge ARROWS to a generator · HOLD the USE button',ok:(t,S)=>S.items.some(i=>i.done)},
- {kbm:'Green crosses heal you · Q cycles drones · 1-7 switch weapons',pad:'Green crosses heal you · Y cycles drones · LB/RB switch weapons',touch:'Green crosses heal you · DRN cycles drones · WPN switches weapons',ok:t=>t.t>7},
+const TUT=[{kbm:()=>'MOVE with '+['w','a','s','d'].map(kL).join(' '),pad:'MOVE with the LEFT STICK',touch:'MOVE: drag with your LEFT thumb',ok:(t,S)=>dist(S.p,t.o)>140},
+ {kbm:()=>CFG.autofire?'AIM with the mouse · AUTO-FIRE is on, you fire at the aim point':`AIM with the mouse · HOLD LEFT BUTTON (or ${kL('fire')}) to fire`,pad:()=>CFG.autofire?'AIM with the RIGHT STICK · AUTO-FIRE is on':`AIM with the RIGHT STICK (pushing it fires) · ${pL('fire')} fires`,touch:'AIM + FIRE: drag with your RIGHT thumb',ok:(t,S)=>S.stats.shots-t.s0>=8},
+ {kbm:()=>`Generators are marked on the MINIMAP and by edge ARROWS · stand at one and ${TDP_SETTINGS.useVerb()} ${kL('e')}`,pad:()=>`Follow the edge ARROWS to a generator · ${TDP_SETTINGS.useVerb()} ${pL('use')} to power it`,touch:()=>`Follow the edge ARROWS to a generator · ${TDP_SETTINGS.useVerb()} the USE button`,ok:(t,S)=>S.items.some(i=>i.done)},
+ {kbm:()=>`Green crosses heal you · ${kL('q')} cycles drones · ${TDP_SETTINGS.slotsLabel()} or ${kL('wprev')}/${kL('wnext')} switch weapons`,pad:()=>`Green crosses heal you · ${pL('drone')} cycles drones · ${pL('wprev')}/${pL('wnext')} switch weapons`,touch:'Green crosses heal you · DRN cycles drones · WPN switches weapons',ok:t=>t.t>7},
  {kbm:'Finish the objective, clear the swarm, then enter the UPGRADE CHAMBER',ok:t=>t.t>7}];
 function tutTick(dt){if(S.floor!==0||!CFG.tut||S.demo)return;const t=S.tut||(S.tut={i:0,t:0,o:{x:S.p.x,y:S.p.y},s0:S.stats.shots});t.t+=dt;
  const st=TUT[t.i];if(st&&st.ok(t,S)){t.i++;t.t=0;t.s0=S.stats.shots;sfx('ui');if(t.i>=TUT.length){CFG.tut=false;saveCfg()}}}
@@ -473,11 +478,11 @@ function update(dt){S.t+=dt;S._dt=dt;if(S.banner&&S.banner.life>0)S.banner.life-
  p.x+=mx/m*p.speed*p.slow*dt;p.y+=my/m*p.speed*p.slow*dt;resolve(p);
  if(IN.aim!=null){mouse.x=p.x+Math.cos(IN.aim)*220;mouse.y=p.y+Math.sin(IN.aim)*220}
  const aim=Math.atan2(mouse.y-p.y,mouse.x-p.x),w=WEAPONS[p.weapon];p.cd-=dt;
- if((mouse.down||IN.fire)&&p.cd<=0){p.cd=(S.carry?1.25:1)/(w.rate*p.rateMul);S.stats.shots++;for(let i=0;i<p.multishot;i++)w.fire(p,aim+(i-(p.multishot-1)/2)*.12);sfx(p.weapon)}
+ if((mouse.down||IN.fire||keys.fire||CFG.autofire)&&p.cd<=0){p.cd=(S.carry?1.25:1)/(w.rate*p.rateMul);S.stats.shots++;for(let i=0;i<p.multishot;i++)w.fire(p,aim+(i-(p.multishot-1)/2)*.12);sfx(p.weapon)}
  const D=DRONES[p.drone];p.da+=dt*D.spin;p.dpos={x:p.x+Math.cos(p.da)*D.orbit,y:p.y+Math.sin(p.da)*D.orbit};D.update(p,dt);
  // items
  S.holding=null;for(const it of S.items){if(it.done||!it.active)continue;const d=dist(it,p);
-  if(it.kind==='hold'){if(d<70&&keys.e){it.prog+=dt/it.time;S.holding=it;sfx('progress');if(it.prog>=1){it.done=true;it.prog=1;burst(it.x,it.y,it.color,30);sfx('complete');floatText(it.x,it.y-30,it.label+' DONE',it.color);it.onDone&&it.onDone(it)}}
+  if(it.kind==='hold'){if(d<70&&useOn()){it.prog+=dt/it.time;S.holding=it;sfx('progress');if(it.prog>=1){it.done=true;S.useLatch=false;it.prog=1;burst(it.x,it.y,it.color,30);sfx('complete');floatText(it.x,it.y-30,it.label+' DONE',it.color);it.onDone&&it.onDone(it)}}
    else if(it.decay)it.prog=Math.max(0,it.prog-it.decay*dt)}
   else if(it.kind==='zone'){if(d<it.r){it.prog+=dt/it.time;sfx('progress');if(it.prog>=1){it.done=true;it.prog=1;burst(it.x,it.y,it.color,40);sfx('complete');floatText(it.x,it.y-40,it.label+' STABLE',it.color)}}}
   else if((it.kind==='touch'||it.kind==='pickup')&&d<it.r+p.r+8){it.done=true;burst(it.x,it.y,it.color,25);sfx('pickup');if(it.kind==='touch')floatText(it.x,it.y-30,it.label+' RELAYED',it.color);it.onDone&&it.onDone(it)}
@@ -797,7 +802,7 @@ function drawHUD(){const p=S.p,f=S.f;ctx.setTransform(1,0,0,1,0,0);ctx.clearRect
  ctx.shadowColor='#000';ctx.shadowBlur=4;
  for(const it of S.items){if((it.done&&it.kind!=='hold')||(it.kind==='pickup'&&it.done))continue;const s=toScreen(it.x,it.kind==='hold'?95:70,it.y);if(!s.vis)continue;
   ctx.globalAlpha=it.active||it.done?1:.4;text(it.label,s.x,s.y,it.color,fs,'center');
-  if(it.kind==='hold'&&!it.done&&it.active){if(dist(it,p)<55)text('HOLD E',s.x,s.y-fs*1.3,'#fff',fs+2,'center');if(it.prog>0){ctx.fillStyle='#022';ctx.fillRect(s.x-25,s.y+5,50,5);ctx.fillStyle='#fff';ctx.fillRect(s.x-25,s.y+5,50*it.prog,5)}}
+  if(it.kind==='hold'&&!it.done&&it.active){if(dist(it,p)<55)text(CFG.interact==='toggle'&&S.useLatch?`INTERACTING · PRESS ${TDP_SETTINGS.useCtl(IN.src)} TO STOP`:useHint(),s.x,s.y-fs*1.3,'#fff',fs+2,'center');if(it.prog>0){ctx.fillStyle='#022';ctx.fillRect(s.x-25,s.y+5,50,5);ctx.fillStyle='#fff';ctx.fillRect(s.x-25,s.y+5,50*it.prog,5)}}
   if(it.kind==='shoot'){ctx.fillStyle='#300';ctx.fillRect(s.x-22,s.y+5,44,4);ctx.fillStyle=it.color;ctx.fillRect(s.x-22,s.y+5,44*it.hp/it.max,4)}}
  ctx.globalAlpha=1;if(S.exit){const s=toScreen(S.exit.x,120,S.exit.y);text(S.floor===FLOORS.length-1?'EXTRACTION':'UPGRADE CHAMBER',s.x,s.y,'#7ff',fs+2,'center')}
  for(const t of S.texts){const s=toScreen(t.x,70,t.y);ctx.globalAlpha=Math.min(1,t.life);text(t.t,s.x,s.y,t.col,fs+2,'center')}ctx.globalAlpha=1;ctx.shadowBlur=0;
@@ -808,12 +813,12 @@ function drawHUD(){const p=S.p,f=S.f;ctx.setTransform(1,0,0,1,0,0);ctx.clearRect
  text(`HP ${Math.ceil(p.hp)}/${p.maxHp}`+(p.drone==='bastion'?(p.shield?'  [SHIELD]':'  [shield charging]'):''),24,31,'#012',12);
  text(`FLOOR ${S.floor+1}/${FLOORS.length}: ${f.name.toUpperCase()}`,18,54,'#7ff',16);
  text('OBJECTIVE: '+(S.exit?(S.floor===FLOORS.length-1?'Reach extraction':'Enter the upgrade chamber'):S.obj.done(S)?`Clear remaining swarm (${S.enemies.length})`:S.obj.progress(S)),18,74,'#bff',12);
- ctx.font='11px monospace';let x=18,y=94;p.weapons.forEach((k,i)=>{const s=`[${i+1}] ${WEAPONS[k].name}`,w=ctx.measureText(s).width;if(x+w>500){x=18;y+=15}text(s,x,y,k===p.weapon?'#fff':'#477',11);x+=w+12});
+ ctx.font='11px monospace';let x=18,y=94;p.weapons.forEach((k,i)=>{const s=`[${IN.src==='pad'?i+1:kL(String(i+1))}] ${WEAPONS[k].name}`,w=ctx.measureText(s).width;if(x+w>500){x=18;y+=15}text(s,x,y,k===p.weapon?'#fff':'#477',11);x+=w+12});
  const cm=p.mods[p.weapon]||[];text('Mods: '+(cm.length?cm.map(m=>MODS[m].name).join(', '):'none'),18,y+18,cm.length?'#fc8':'#466',11);
- text(`Drone [Q]: ${p.drones.map(k=>k===p.drone?'>'+DRONES[k].name+'<':DRONES[k].name).join('  ')}`,18,y+36,'#4fc',11);
+ text(`Drone [${IN.src==='pad'?pL('drone'):IN.src==='touch'?'DRN':kL('q')}]: ${p.drones.map(k=>k===p.drone?'>'+DRONES[k].name+'<':DRONES[k].name).join('  ')}`,18,y+36,'#4fc',11);
  text('UPGRADES',VW-16,24,'#7ff',13,'right');p.ups.slice(-14).forEach((u,i)=>text(u,VW-16,42+i*15,'#5cc',11,'right'));
  if(S.state==='play'||S.state==='paused')TDP_MINIMAP.draw(ctx,S,{W,H,size:220,x:12,y:VH-12-124,isBoss:e=>ENEMIES[e.type].boss,aim:Math.atan2(mouse.y-p.y,mouse.x-p.x)});
- if(S.tut&&S.floor===0&&TUT[S.tut.i]&&S.state==='play'){const st=TUT[S.tut.i],msg=st[IN.src]||st.kbm;ctx.font='16px monospace';const w=ctx.measureText(msg).width+40;
+ if(S.tut&&S.floor===0&&TUT[S.tut.i]&&S.state==='play'){const st=TUT[S.tut.i],m0=st[IN.src]||st.kbm,msg=typeof m0==='function'?m0():m0;ctx.font='16px monospace';const w=ctx.measureText(msg).width+40;
   ctx.fillStyle='rgba(2,20,24,.85)';ctx.fillRect(VW/2-w/2,VH-130,w,44);ctx.strokeStyle='#3ff';ctx.shadowColor='#3ff';ctx.shadowBlur=10;ctx.strokeRect(VW/2-w/2,VH-130,w,44);ctx.shadowBlur=0;
   text(`TUTORIAL ${S.tut.i+1}/${TUT.length}`,VW/2,VH-136,'#6ff',11,'center');text(msg,VW/2,VH-102,'#eff',16,'center')}
  const boss=S.enemies.find(e=>ENEMIES[e.type].boss);if(boss){hudPanel(VW/2-260,VH-58,520,46);hudBar(VW/2-250,VH-34,500,14,boss.hp/boss.max,['#a02','#f5a'],20);text(ENEMIES[boss.type].name.toUpperCase()+(boss.type==='overmind'?`  — PHASE ${boss.phase||1}`:''),VW/2,VH-40,'#f9c',13,'center')}
@@ -834,11 +839,11 @@ window.__TDP_DBG={scene,POOL,maps:{itemMeshes,enemyMeshes,bulletMeshes,pickMeshe
 TDP_CONTENT.init({get S(){return S},P,dist,rnd,clamp,W,H,CELL,spawnEnemy,spawnNear,hurtPlayer,floatText,burst,sfx,showBanner,ebullet,bossRing,bossSummon,bossCharge,tick,resolve,inWall,edgeSpawn,mkItem,nDone,allDone,DF,ENEMIES,pickType:()=>rollType(S.f.mix),THREE,M,emis,add,basic,box,sph,cyl,mat,keep});
 Object.assign(OBJECTIVES,TDP_CONTENT.objectives());
 TDP_INST.init({THREE,scene,makeBug,ENEMIES,dist,add,geoFx,geoTorus});TDP_INST.prewarm(Object.keys(ENEMIES));Object.assign(BOSS_AI,TDP_CONTENT.BOSS_AI);
-Object.assign(window,{setDifficulty:k=>setDifficulty(k),startIntro:()=>startIntro(),audioInit,hasBloom:()=>!!composer,CFG,saveGame,loadSave,recordBest,pauseGame,resumeGame,newRun,continueRun,goTitle,applyQuality,AU,sfx,menuDepth:()=>menuStack.length,musicTick,update,render,startGame,startFloor,spawnWave,onKey,damage,pick,inWall,P,cp,dist,keys,mouse,WEAPONS,DRONES,FLOORS,ENEMIES,OBJECTIVES,rollChoices,MODS,explodeAt,spawnNear,rnd,THREE,renderer,camera,aimRaycast,GAME_READY:true});
+Object.assign(window,{useOn,useEdge,cycleWeapon,TUT,setDifficulty:k=>setDifficulty(k),startIntro:()=>startIntro(),audioInit,hasBloom:()=>!!composer,CFG,saveGame,loadSave,recordBest,pauseGame,resumeGame,newRun,continueRun,goTitle,applyQuality,AU,sfx,menuDepth:()=>menuStack.length,musicTick,update,render,startGame,startFloor,spawnWave,onKey,damage,pick,inWall,P,cp,dist,keys,mouse,WEAPONS,DRONES,FLOORS,ENEMIES,OBJECTIVES,rollChoices,MODS,explodeAt,spawnNear,rnd,THREE,renderer,camera,aimRaycast,GAME_READY:true});
 
 // ================= MENUS (title / pause / settings / controls) =================
 const menuEl=document.getElementById('menu');let menuStack=[];
-function showPanel(id){document.querySelectorAll('.panel').forEach(p=>p.classList.toggle('on',p.id===id));menuEl.classList.remove('hide');menuEl.classList.toggle('title',id==='m-title'||S.state==='title');if(id==='m-title'){refreshTitle();refreshDiff()}if(id==='m-settings')syncSettingsUI()}
+function showPanel(id){document.querySelectorAll('.panel').forEach(p=>p.classList.toggle('on',p.id===id));menuEl.classList.remove('hide');menuEl.classList.toggle('title',id==='m-title'||S.state==='title');if(id==='m-title'){refreshTitle();refreshDiff()}if(id==='m-settings')syncSettingsUI();TDP_SETTINGS.cancel();if(id==='m-controls')TDP_SETTINGS.refresh()}
 function openMenu(id){menuStack.push(id);showPanel(id)}
 function backMenu(){menuStack.pop();sfx('uiBack');if(menuStack.length)showPanel(menuStack[menuStack.length-1]);else hideMenu()}
 function hideMenu(){menuStack=[];menuEl.classList.add('hide')}
@@ -849,7 +854,7 @@ function syncSettingsUI(){menuEl.querySelectorAll('input[data-v]').forEach(i=>i.
 menuEl.querySelectorAll('input[data-v]').forEach(i=>i.addEventListener('input',()=>{CFG.vol[i.dataset.v]=i.value/100;applyVolumes();saveCfg()}));
 document.getElementById('s-q').addEventListener('change',e=>{CFG.quality=e.target.value;applyQuality();saveCfg();sfx('ui')});
 document.getElementById('s-shake').addEventListener('change',e=>{CFG.shake=e.target.checked;saveCfg();sfx('ui')});
-TDP_SETTINGS.init({CFG,save:saveCfg,sfx});
+TDP_SETTINGS.init({CFG,save:saveCfg,sfx});saveCfg();
 function goTitle(){startGame();S.state='title';S.demo=true;openMenuRoot('m-title')}
 function openMenuRoot(id){menuStack=[id];showPanel(id)}
 function newRun(){startGame();S.state='play';hideMenu();mouse.down=false}
@@ -868,6 +873,6 @@ addEventListener('pointerdown',()=>{audioInit();if(AU.ctx&&AU.ctx.state==='suspe
 addEventListener('keydown',()=>{audioInit();if(AU.ctx&&AU.ctx.state==='suspended')AU.ctx.resume()},{capture:true});
 
 window.TDP_INPUT&&TDP_INPUT.init({IN,keys,onKey,state:()=>S&&S.state,menuOpen:()=>!menuEl.classList.contains('hide'),
- tap:(x,y)=>{mouse.sx=x/hs;mouse.sy=y/hs;onClick()},cycleWeapon:d=>{const w=S.p.weapons;S.p.weapon=w[(w.indexOf(S.p.weapon)+d+w.length)%w.length]}});
+ tap:(x,y)=>{mouse.sx=x/hs;mouse.sy=y/hs;onClick()},cycleWeapon,useEdge});
 applyQuality();goTitle();
 </script></body></html>
