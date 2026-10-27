@@ -6,13 +6,14 @@ An angled top-down 3D sci-fi swarm shooter. It is built with Three.js r160 and h
 Three.js and its postprocessing addons are vendored in `vendor/`. When you open the file straight from disk (`file://`), the import map falls back to the unpkg CDN.
 
 ## Controls
-- WASD: move (screen-relative).
-- Mouse: aim. Hold left click to fire.
-- Hold E: interact.
-- 1-7: switch weapon. Q: cycle drone.
+These are the defaults. Every keyboard key and gamepad button can be changed in **Settings → Controls & rebinding**, and all prompts, HUD hints and the Controls screen show your current keys.
+- W A S D: move (screen-relative).
+- Mouse: aim. Hold left click (or F) to fire.
+- Hold E: interact. You can switch this to toggle (press once to start, press again to stop).
+- 1-7: pick a weapon slot. Z / X: previous / next weapon. Q: cycle drone.
 - 1/2/3 or click: pick an upgrade card.
-- Esc: pause, or go back in menus. R: restart after death.
-- **Gamepad:** left stick/d-pad move, right stick aim, RT/LT fire, A or X use, LB/RB switch weapon, Y cycle drone, Start pause, B back.
+- P: pause. Esc always pauses and goes back in menus, and can't be rebound. R: restart after death.
+- **Gamepad** (standard mapping): left stick/d-pad move, right stick aim (pushing it fires), RT fire, A use, LB/RB switch weapon, Y cycle drone, Start pause, B back. Every button except the d-pad can be remapped.
 - **Touch** (auto-detected, or `?touch=1`): floating left stick to move, right stick to aim and fire, plus USE/WPN/DRN/pause buttons.
 
 ## Features
@@ -25,7 +26,10 @@ Three.js and its postprocessing addons are vendored in `vendor/`. When you open 
   - Master, SFX and music volume.
   - Graphics quality: low (no bloom or shadows), medium (bloom, 1024 shadows), high (bloom, 2048 shadows, HiDPI).
   - Screen shake toggle.
-  - Key rebinding for move / interact / cycle-drone (conflicts swap, Esc cancels, Reset keys).
+  - **Controls & rebinding** screen. Keyboard: move, fire, interact, drone, previous/next weapon, weapon slots 1-7, pause and restart. Click an action, then press a key. If the key is already used, the two actions swap. Esc cancels, and Reset keys restores the defaults.
+  - Gamepad remapping on the same screen: fire, use, previous/next weapon, drone, pause and back. Click an action, then press a pad button. Conflicts swap here too, and Reset pad restores the defaults.
+  - Interact mode: Hold or Toggle. Auto-fire: on or off (fires all the time at the aim point).
+  - Settings are versioned (`v: 2`). Older saves are upgraded on load, and missing or corrupt values fall back to the defaults.
   - Colourblind markers: shape glyphs (not just colour) on objectives, minimap and edge arrows.
 - **Stats screen** on death and victory: run totals, kills by enemy type, time-per-floor chart (boss floors and deaths marked), probable cause of death.
 - **Save:** an automatic checkpoint each time you descend from an upgrade chamber stores the floor, loadout and stats. Continue resumes from it. Winning clears the save.
@@ -63,7 +67,7 @@ Tuned with a killable scripted bot that also plays every objective (skill 1 and 
 
 ## Tests (`tests/`)
 Headless Chrome harness pages. `mk.py X.js X.html` inlines a test into a copy of index.html, and `run.sh page#hash budget` runs it with virtual time and prints the log.
-- `sm.js` smoke-tests floors 16-30. `ui.js` covers menus, tutorial, touch, pad and ending. `st.js` covers rebinding and colourblind. `ex.js` checks exit reachability.
+- `sm.js` smoke-tests floors 16-30. `ui.js` covers menus, tutorial, touch, pad and ending. `st.js` covers keyboard and gamepad rebinding, hold/toggle interact, auto-fire, binding-aware prompts, settings migration and colourblind. `ex.js` checks exit reachability.
 - `perf.js` reports draw calls and hitches. `hc.js` probes shader compiles. `bot.js` is the full-run bot (`#runs=1&diff=hard`).
 - `au.js` + `aurun.sh` do the offline audio level render (real-time CDP via `cdp2.mjs`, because OfflineAudioContext cannot run under virtual time).
 - `suite.sh` runs the whole suite. `leak.js` + `leak.mjs` + `leakrun.sh` are the long-session leak harness (see Stability).
