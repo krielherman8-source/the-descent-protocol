@@ -55,8 +55,8 @@ const WEAPONS={
   fire:(p,a)=>teslaArc(p,a,26)},
  grenade_launcher:{name:'Grenade Launcher',desc:'Lobbed grenades blast a wide area',rate:1.2,implemented:true,
   fire:(p,a)=>shoot(p,a,{dmg:16,speed:560,spread:.03,life:.85,col:'#fd6',r:6,grenade:{r:85,dmg:42}})},
- railgun:{name:'Needle Railgun',desc:'Hitscan needle pierces every enemy in a line',rate:1.0,implemented:true,
-  fire:(p,a)=>railShot(p,a,58)},
+ railgun:{name:'Needle Railgun',desc:'Hitscan needle pierces every enemy in a line',rate:1.15,implemented:true,
+  fire:(p,a)=>railShot(p,a,70)},
  bio_harvester:{name:'Bio-Harvester',desc:'Leech beam drains enemies and heals you',rate:10,implemented:true,
   fire:(p,a)=>leechBeam(p,a,5.5)},
 };
@@ -144,8 +144,8 @@ const OBJECTIVES={
  biomass:{label:'Burn alien biomass',setup:(S,f)=>{S.items=shootItems(f,'BIOMASS','#9f3',200*(1+S.floor*.05),{burnBonus:true,r:24,spawnT:rnd(3,6)})},
   update(dt,S){for(const it of S.items){if(it.done)continue;it.spawnT-=dt;if(it.spawnT<=0){it.spawnT=6.5;spawnNear('swarmer',it.x,it.y,2)}}},
   progress:S=>`Biomass burned ${nDone(S)}/${S.items.length}  (shoot it — flames x2)`,done:allDone},
- hack:{label:'Hack reactor terminals',setup:(S,f)=>{S.items=holdItems(f,'TERMINAL','#3fc',3.5,{decay:.25})},
-  update(dt,S){for(const it of S.items)if(it.prog>0&&!it.alarm){it.alarm=true;floatText(it.x,it.y-30,'ALARM!','#f66');spawnNear('swarmer',it.x,it.y,5,180)}},
+ hack:{label:'Hack reactor terminals',setup:(S,f)=>{S.items=holdItems(f,'TERMINAL','#3fc',3.5,{decay:.2})},
+  update(dt,S){for(const it of S.items)if(it.prog>0&&!it.alarm){it.alarm=true;floatText(it.x,it.y-30,'ALARM!','#f66');spawnNear('swarmer',it.x,it.y,3,180)}},
   progress:S=>`Terminals hacked ${nDone(S)}/${S.items.length}  (stay close, progress decays)`,done:allDone},
  vents:{label:'Redirect airflow safely',setup:(S,f)=>{S.items=holdItems(f,'VALVE','#7df',2);S.winds=f.winds},
   update(dt,S){const p=S.p;for(const z of S.winds){if(S.items[z.valve].done)continue;if(p.y>z.y0&&p.y<z.y1)p.x+=z.vx*dt*(S.holding&&keys.e?.45:1);
@@ -223,7 +223,7 @@ const FLOORS=[
  // ---------- Floors 16-19: industrial depths ----------
  Fx('Pumpworks','Restart the flood pumps','generators','#2a6a5a','industrial',[[0,5,14,1],[26,5,14,1],[8,11,1,6],[31,11,1,6],[14,17,12,1]],{n:4,label:'PUMP',hz:{acid:3,steam:3},set:'pumps',mix:M3}),
  Fx('Relay Spire','Escort the relay payload to the spire','escort','#4a4a9a','industrial',[[6,3,3,3],[12,8,3,3],[25,8,3,3],[31,3,3,3],[6,16,3,3],[31,16,3,3]],{path:[[3,20],[3,12],[20,12],[20,6],[37,6]],payload:'RELAY CORE',spawn:[5,20],exit:[36,6],hz:{lasers:[[20,17,200,.6]]},set:'spire',mix:M3}),
- Fx('Quarantine Labs','Carry power cells to the containment grid','cells','#3a8a3a','industrial',[[6,3,1,7],[6,3,8,1],[33,3,1,7],[26,3,8,1],[6,13,1,7],[6,19,8,1],[33,13,1,7],[26,19,8,1],[17,8,6,1],[17,14,6,1]],{n:4,socket:[20,11],hz:{frost:2},set:'tanks',elite:{type:'warden',at:35,line:'A warden guards the labs'},mix:M4}),
+ Fx('Quarantine Labs','Carry power cells to the containment grid','cells','#3a8a3a','industrial',[[6,3,1,7],[6,3,8,1],[33,3,1,7],[26,3,8,1],[6,13,1,7],[6,19,8,1],[33,13,1,7],[26,19,8,1],[17,8,6,1],[17,14,6,1]],{n:4,socket:[20,11],hz:{frost:2},set:'tanks',elite:{type:'warden',at:45,line:'A warden guards the labs'},mix:M3,wave:[7,3],interval:8.5}),
  Fx('Data Core','Reboot the data core nodes in the dark','reboot','#1d4a8a','industrial',[5,10,15,24,29,34].flatMap(x=>[[x,3,1,6],[x,14,1,6]]),{n:5,window:40,dark:true,hz:{steam:2},set:'racks',mix:M4}),
  // ---------- Floors 20-25: the hive ----------
  Fx('Hive Threshold','Slay the Hive Colossus','boss','#9a2a6a','hive',[[8,6,3,2],[29,6,3,2],[8,15,3,2],[29,15,3,2]],{boss:'colossus',bossLine:'The hive wakes. Watch the ground slams.',spawn:[20,19],mix:M5,interval:12,hz:{acid:2},set:'ribs'}),
@@ -422,9 +422,9 @@ function leechBeam(p,a,dmg){let best=null,bs=1e9;for(const t of hittables()){con
  S.stats.leech++;const d=dmg*p.dmgMul;damage(best,d,{mods:p.mods[p.weapon],wk:p.weapon});if(!best.kind){const h=d*.3;p.hp=Math.min(p.maxHp,p.hp+h);S.stats.healed+=h}
  S.beams.push({x1:p.x,y1:p.y,x2:best.x,y2:best.y,col:'#6f6',life:.1,w:4});if(Math.random()<.5)S.parts.push({x:best.x,y:best.y,vx:(p.x-best.x)*2,vy:(p.y-best.y)*2,life:.4,col:'#7f7'})}
 function teslaArc(p,a,dmg){const T=hittables();let best=null,bs=1e9;
- for(const t of T){const d=dist(t,p);if(d>430)continue;const da=Math.abs(angDiff(Math.atan2(t.y-p.y,t.x-p.x),a));if(da>.5)continue;const s=d*(1+da*2);if(s<bs&&los(p,t)){bs=s;best=t}}
+ for(const t of T){const d=dist(t,p);if(d>390)continue;const da=Math.abs(angDiff(Math.atan2(t.y-p.y,t.x-p.x),a));if(da>.5)continue;const s=d*(1+da*2);if(s<bs&&los(p,t)){bs=s;best=t}}
  const pts=[{x:p.x,y:p.y}];if(!best){pts.push({x:p.x+Math.cos(a)*110,y:p.y+Math.sin(a)*110});S.arcs.push({pts,life:.12});return}
- const hit=new Set();let cur=best,dm=dmg*p.dmgMul;for(let j=0;j<5&&cur;j++){hit.add(cur);pts.push({x:cur.x,y:cur.y});damage(cur,dm,{mods:p.mods[p.weapon],wk:p.weapon});dm*=.85;
+ const hit=new Set();let cur=best,dm=dmg*p.dmgMul;for(let j=0;j<5&&cur;j++){hit.add(cur);pts.push({x:cur.x,y:cur.y});damage(cur,dm,{mods:p.mods[p.weapon],wk:p.weapon});dm*=.78;
   let nx=null,nd=170;for(const t of T){if(hit.has(t))continue;const d=dist(t,cur);if(d<nd&&los(cur,t)){nd=d;nx=t}}cur=nx}
  S.arcs.push({pts,life:.15})}
 function hurtPlayer(amt){const p=S.p;if(p.inv>0||S.god)return;if(p.drone==='bastion'&&p.shield){p.shield=false;p.shieldT=4;p.inv=.3;floatText(p.x,p.y-25,'BLOCKED','#8af');sfx('shield');return}
@@ -471,7 +471,7 @@ function update(dt){S.t+=dt;S._dt=dt;if(S.banner&&S.banner.life>0)S.banner.life-
  p.x+=mx/m*p.speed*p.slow*dt;p.y+=my/m*p.speed*p.slow*dt;resolve(p);
  if(IN.aim!=null){mouse.x=p.x+Math.cos(IN.aim)*220;mouse.y=p.y+Math.sin(IN.aim)*220}
  const aim=Math.atan2(mouse.y-p.y,mouse.x-p.x),w=WEAPONS[p.weapon];p.cd-=dt;
- if((mouse.down||IN.fire)&&p.cd<=0){p.cd=(S.carry?2:1)/(w.rate*p.rateMul);S.stats.shots++;for(let i=0;i<p.multishot;i++)w.fire(p,aim+(i-(p.multishot-1)/2)*.12);sfx(p.weapon)}
+ if((mouse.down||IN.fire)&&p.cd<=0){p.cd=(S.carry?1.5:1)/(w.rate*p.rateMul);S.stats.shots++;for(let i=0;i<p.multishot;i++)w.fire(p,aim+(i-(p.multishot-1)/2)*.12);sfx(p.weapon)}
  const D=DRONES[p.drone];p.da+=dt*D.spin;p.dpos={x:p.x+Math.cos(p.da)*D.orbit,y:p.y+Math.sin(p.da)*D.orbit};D.update(p,dt);
  // items
  S.holding=null;for(const it of S.items){if(it.done||!it.active)continue;const d=dist(it,p);
@@ -815,7 +815,7 @@ function drawHUD(){const p=S.p,f=S.f;ctx.setTransform(1,0,0,1,0,0);ctx.clearRect
 let last=performance.now();function loop(now){const dt=Math.min(.05,(now-last)/1000);last=now;if(mouse.moved)aimRaycast();window.TDP_INPUT&&TDP_INPUT.poll(dt);if(!window.__pause)update(dt);render(dt);requestAnimationFrame(loop)}
 requestAnimationFrame(loop);
 Object.defineProperty(window,'S',{get:()=>S});
-TDP_CONTENT.init({get S(){return S},P,dist,rnd,clamp,W,H,CELL,spawnEnemy,spawnNear,hurtPlayer,floatText,burst,sfx,showBanner,ebullet,bossRing,bossSummon,bossCharge,tick,resolve,inWall,mkItem,nDone,allDone,DF,ENEMIES,pickType:()=>rollType(S.f.mix),THREE,M,emis,add,basic,box,sph,cyl,mat});
+TDP_CONTENT.init({get S(){return S},P,dist,rnd,clamp,W,H,CELL,spawnEnemy,spawnNear,hurtPlayer,floatText,burst,sfx,showBanner,ebullet,bossRing,bossSummon,bossCharge,tick,resolve,inWall,edgeSpawn,mkItem,nDone,allDone,DF,ENEMIES,pickType:()=>rollType(S.f.mix),THREE,M,emis,add,basic,box,sph,cyl,mat});
 Object.assign(OBJECTIVES,TDP_CONTENT.objectives());
 TDP_INST.init({THREE,scene,makeBug,ENEMIES,dist,add,geoFx,geoTorus});TDP_INST.prewarm(Object.keys(ENEMIES));Object.assign(BOSS_AI,TDP_CONTENT.BOSS_AI);
 Object.assign(window,{setDifficulty:k=>setDifficulty(k),startIntro:()=>startIntro(),audioInit,hasBloom:()=>!!composer,CFG,saveGame,loadSave,recordBest,pauseGame,resumeGame,newRun,continueRun,goTitle,applyQuality,AU,sfx,menuDepth:()=>menuStack.length,musicTick,update,render,startGame,startFloor,spawnWave,onKey,damage,pick,inWall,P,cp,dist,keys,mouse,WEAPONS,DRONES,FLOORS,ENEMIES,OBJECTIVES,rollChoices,MODS,explodeAt,spawnNear,rnd,THREE,renderer,camera,aimRaycast,GAME_READY:true});
