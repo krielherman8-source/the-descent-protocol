@@ -16,16 +16,18 @@ for(let i=0;i<40&&!window.BOT_API;i++)await sleep(100);
 const {playFloor}=window.BOT_API;
 async function gcAll(){if(!window.gc)return;for(let i=0;i<3;i++){gc();await sleep(60)}}
 async function sample(tag){window.__pause=true;await sleep(+(H.settle||400));/* let rAF loop render and audio drain */window.render(1/60);await gcAll();
- const sc=D.scene;let objs=0,lights=0,litOn=0,meshes=0;sc.traverse(o=>{objs++;if(o.isMesh||o.isInstancedMesh)meshes++;if(o.isLight){lights++}});
+ const sc=D.scene;let objs=0,lights=0,litOn=0,meshes=0;const sg=new Set();sc.traverse(o=>{objs++;if(o.geometry)sg.add(o.geometry);if(o.isMesh||o.isInstancedMesh)meshes++;if(o.isLight){lights++}});
  sc.traverseVisible(o=>{if(o.isLight&&o.intensity>0)litOn++});
  R.info.autoReset=false;R.info.reset();R.render(sc,window.camera);const calls=R.info.render.calls;R.info.autoReset=true;
  let pool=0;for(const k in D.POOL)pool+=D.POOL[k].length;const maps={};for(const k in D.maps)maps[k]=D.maps[k].size;
  const pr=LEAKPROBE.snap(),pm=performance.memory;
  const r={tag,floor:S.floor+1,state:S.state,geo:R.info.memory.geometries,tex:R.info.memory.textures,progs:R.info.programs?R.info.programs.length:0,calls,
-  sceneChildren:sc.children.length,sceneObjs:objs,meshes,lights,lightsOn:litOn,poolKeys:Object.keys(D.POOL).length,pooled:pool,maps,
+  sceneChildren:sc.children.length,sceneObjs:objs,meshes,lights,lightsOn:litOn,poolKeys:Object.keys(D.POOL).length,sceneGeos:sg.size,poolBy:Object.fromEntries(Object.entries(D.POOL).map(([k,v])=>[k,v.length])),topKids:Object.entries(sc.children.reduce((a,c)=>{const k=(c.type)+(c.visible?'':'~');a[k]=(a[k]||0)+1;return a},{})).join(' '),pooled:pool,maps,caches:D.caches?D.caches():null,
   enemies:S.enemies.length,bullets:S.bullets.length+S.ebullets.length,parts:S.parts.length,decals:D.decals(),gibs:D.gibs.length,arcs:D.arcMeshes.length,
   heapMB:pm?+(pm.usedJSHeapSize/1048576).toFixed(2):null,...pr};
- out.push(JSON.stringify(r));document.body.dataset.progress=out.length;return r}
+ out.push(JSON.stringify(r));document.body.dataset.progress=out.length;
+ const sk=tag+'@'+r.floor;if(H.snap&&H.snap.split(',').includes(sk)){document.body.dataset.snap=sk;while(document.body.dataset.snap)await sleep(200)}// leak.mjs writes /tmp/leak/<sk>.heapsnapshot
+ return r}
 const key=k=>{dispatchEvent(new KeyboardEvent('keydown',{key:k}));dispatchEvent(new KeyboardEvent('keyup',{key:k}))};
 const click=sel=>{const b=document.querySelector(sel);b.dispatchEvent(new MouseEvent('mousedown',{bubbles:true}));b.dispatchEvent(new MouseEvent('click',{bubbles:true}))};
 async function skipCrawl(){for(let i=0;i<30&&S.state==='intro';i++){await sleep(500);key(' ')}}

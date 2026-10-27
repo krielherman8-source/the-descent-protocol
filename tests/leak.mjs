@@ -21,7 +21,10 @@ ws.onmessage=e=>{const m=JSON.parse(e.data);if(pend[m.id]){pend[m.id](m);delete 
  if(m.method==='Runtime.consoleAPICalled'&&m.params.type==='error')cons.push('CONSOLE.ERROR '+m.params.args.map(a=>a.value??a.description).join(' ').slice(0,200))};
 await new Promise(r=>ws.onopen=r);const send=(method,params={})=>new Promise(r=>{pend[++id]=r;ws.send(JSON.stringify({id,method,params}))});
 await send('Runtime.enable');await send('Page.navigate',{url:'http://localhost:8765/'+process.argv[2]});const T0=Date.now();let log='';const TMAX=(+process.argv[4]||40)*60000;
-while(Date.now()-T0<TMAX){await sl(3000);const r=await send('Runtime.evaluate',{expression:'document.body&&(document.body.dataset.log||"")'});log=r.result?.result?.value||'';if(log.includes('ERRS')||log.startsWith('CRASH'))break}
+async function heapSnap(name){const chunks=[];const prev=ws.onmessage;ws.onmessage=e=>{const m=JSON.parse(e.data);if(m.method==='HeapProfiler.addHeapSnapshotChunk')chunks.push(m.params.chunk);else prev(e)};
+ await send('HeapProfiler.collectGarbage');await send('HeapProfiler.takeHeapSnapshot',{reportProgress:false});ws.onmessage=prev;fs.writeFileSync('/tmp/leak/'+name+'.heapsnapshot',chunks.join(''))}
+while(Date.now()-T0<TMAX){await sl(1000);{const q=await send('Runtime.evaluate',{expression:'document.body&&document.body.dataset.snap||""'});const sn=q.result?.result?.value;
+ if(sn){await heapSnap(sn.replace(/[^\w@.-]/g,'_'));await send('Runtime.evaluate',{expression:'delete document.body.dataset.snap'})}}const r=await send('Runtime.evaluate',{expression:'document.body&&(document.body.dataset.log||"")'});log=r.result?.result?.value||'';if(log.includes('ERRS')||log.startsWith('CRASH'))break}
 if(!log){const r=await send('Runtime.evaluate',{expression:'document.body&&document.body.dataset.progress'});log='TIMEOUT progress='+(r.result?.result?.value)}
 fs.writeFileSync(process.argv[3],log+'\nCDP_CONSOLE '+JSON.stringify(cons.slice(0,10))+'\nwall='+Math.round((Date.now()-T0)/1000)+'s\n');
 c.kill();try{fs.rmSync(prof,{recursive:true,force:true})}catch{}process.exit(0);

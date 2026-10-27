@@ -45,7 +45,7 @@ function update(list,t,p){for(const k in kinds){kinds[k].n=0}let nf=0,nr=0,ns=0;
   if(e.stun>0){tmp.e.set(Math.PI/2,0,t*10);tmp.q.setFromEuler(tmp.e);tmp.s.setScalar(r*.9);tmp.p.set(0,r*1.7,0);L.compose(tmp.p,tmp.q,tmp.s);L.premultiply(M);fxSet('st',ns++,L)}}
  for(const k in kinds){const K=kinds[k];for(const pt of K.parts){pt.mesh.count=pt===K.legPart?K.n*3:K.n;pt.mesh.instanceMatrix.needsUpdate=true;pt.mesh.castShadow=pt.cs&&!lod}}
  fx.hf.count=nf;fx.fr.count=nr;fx.st.count=ns;for(const f in fx)fx[f].instanceMatrix.needsUpdate=true}
-const fxObj={};function fxSet(n,i,m){if(i>=fx[n].instanceMatrix.count){const o=fx[n];fx[n]=mk(o.geometry,o.material,o.instanceMatrix.count*2);root.remove(o)}fx[n].setMatrixAt(i,m)}
+const fxObj={};function fxSet(n,i,m){if(i>=fx[n].instanceMatrix.count){const o=fx[n];fx[n]=mk(o.geometry,o.material,o.instanceMatrix.count*2);root.remove(o);o.dispose()}fx[n].setMatrixAt(i,m)}
 let Y;function prewarm(types){Y=Y||new T.Vector3(0,1,0);for(const t of types)if(handles(t)&&!kinds[t])build(t)}
 function stats(){let n=0;for(const k in kinds)n+=kinds[k].parts.length;return{types:Object.keys(kinds).length,meshes:n+3}}
 // Constant light budget: three.js recompiles every lit material when the number of visible point lights changes

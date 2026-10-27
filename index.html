@@ -539,8 +539,12 @@ const pLight=new THREE.PointLight(0x66fff0,14000,520,2);scene.add(pLight);
 const muzzle=new THREE.PointLight(0xbfffff,0,320,2);scene.add(muzzle);
 // ---- materials ----
 const M=o=>new THREE.MeshStandardMaterial(o);const matCache={};
-const emis=(c,i=2,base=0x000000)=>{const k=c+'|'+i;return matCache[k]||(matCache[k]=M({color:base,emissive:new THREE.Color(c),emissiveIntensity:i,roughness:.6}))};
-const basic=(c,o)=>{const k='b'+c+JSON.stringify(o||{});return matCache[k]||(matCache[k]=new THREE.MeshBasicMaterial(Object.assign({color:new THREE.Color(c)},o||{})))};
+// Resource lifecycle: KEEP holds shared geometries/materials (caches, templates); disposeTree() frees everything else under a root.
+const KEEP=new WeakSet();const keep=o=>{if(o)KEEP.add(o);return o};
+const keepTree=r=>r.traverse(o=>{if(o.geometry)KEEP.add(o.geometry);if(o.material)[].concat(o.material).forEach(m=>KEEP.add(m))});
+function disposeTree(r){if(!r)return;r.traverse(o=>{if(o.geometry&&!KEEP.has(o.geometry))o.geometry.dispose();if(o.material)for(const m of [].concat(o.material))if(!KEEP.has(m))m.dispose()})}
+const emis=(c,i=2,base=0x000000)=>{const k=c+'|'+i;return matCache[k]||(matCache[k]=keep(M({color:base,emissive:new THREE.Color(c),emissiveIntensity:i,roughness:.6})))};
+const basic=(c,o)=>{const k='b'+c+JSON.stringify(o||{});return matCache[k]||(matCache[k]=keep(new THREE.MeshBasicMaterial(Object.assign({color:new THREE.Color(c)},o||{}))))};
 const add=(c,op)=>basic(c,{transparent:true,opacity:op,blending:THREE.AdditiveBlending,depthWrite:false});
 const mat={steel:M({color:0x1f2a31,metalness:.55,roughness:.42}),dark:M({color:0x0f161a,metalness:.5,roughness:.55}),armor:M({color:0x2e3c45,metalness:.6,roughness:.4}),
  armorDark:M({color:0x1b252b,metalness:.6,roughness:.45}),gun:M({color:0x101417,metalness:.8,roughness:.3}),top:M({color:0x2a363d,metalness:.5,roughness:.5})};
@@ -549,7 +553,7 @@ function floorTex(){const c=document.createElement('canvas');c.width=c.height=25
   g.fillStyle='#0a0f12';for(const[a,b]of[[10,10],[118,10],[10,118],[118,118]]){g.beginPath();g.arc(x+a,y+b,3,0,7);g.fill()}
   if(i===j){g.strokeStyle='#10171b';g.lineWidth=3;for(let k=24;k<108;k+=10){g.beginPath();g.moveTo(x+22,y+k);g.lineTo(x+106,y+k);g.stroke()}}}
  const t=new THREE.CanvasTexture(c);t.wrapS=t.wrapT=THREE.RepeatWrapping;t.repeat.set(W/192,H/192);t.colorSpace=THREE.SRGBColorSpace;t.anisotropy=4;return t}
-const floorMat=M({map:floorTex(),metalness:.45,roughness:.55});
+const floorMat=keep(M({map:floorTex(),metalness:.45,roughness:.55}));Object.values(mat).forEach(keep);
 const ground=new THREE.Mesh(new THREE.PlaneGeometry(W,H),floorMat);ground.rotation.x=-Math.PI/2;ground.position.set(W/2,0,H/2);ground.receiveShadow=true;scene.add(ground);
 const outer=new THREE.Mesh(new THREE.PlaneGeometry(6000,6000),M({color:0x030506,roughness:1}));outer.rotation.x=-Math.PI/2;outer.position.set(W/2,-2,H/2);scene.add(outer);
 // ---- models ----
@@ -602,10 +606,11 @@ function makeOvermind(){const g=new THREE.Group(),col=new THREE.Color('#ff2050')
  for(let i=0;i<3;i++){const t=new THREE.Group();for(let j=0;j<3;j++){const c=cyl(5,9,70,tm,0,0,0,8);c.rotation.z=Math.PI/2;c.position.x=70;const a=new THREE.Group();a.rotation.y=(i*3+j)*0.698;a.add(c);t.add(a)}legs.push(t);g.add(t)}
  const brain=new THREE.Mesh(new THREE.IcosahedronGeometry(50,2),M({color:0x501020,emissive:col,emissiveIntensity:.6,roughness:.35,flatShading:true}));brain.position.y=60;brain.castShadow=true;g.add(brain);
  g.add(sph(14,emis(0xffee88,2.5),38,62,0),cyl(40,55,30,mat.armorDark,0,15,0));g.userData={legs,abd:brain};return g}
-const bugTpl={};const bugClone=t=>{if(!bugTpl[t])bugTpl[t]=makeBug(t);const custom=bugTpl[t].userData.custom,c=custom?makeBug(t):bugTpl[t].clone();const r=ENEMIES[t].r;const fr=new THREE.Mesh(geoFx,add(0x88ddff,.35));fr.scale.setScalar(r*1.15);fr.position.y=r*.7;
+const bugTpl={};const bugClone=t=>{if(!bugTpl[t]){bugTpl[t]=makeBug(t);if(!bugTpl[t].userData.custom)keepTree(bugTpl[t])}// clones share the template's geometry/materials
+ const custom=bugTpl[t].userData.custom,c=custom?makeBug(t):bugTpl[t].clone();const r=ENEMIES[t].r;const fr=new THREE.Mesh(geoFx,add(0x88ddff,.35));fr.scale.setScalar(r*1.15);fr.position.y=r*.7;
  const st=new THREE.Mesh(geoTorus,add(0xffff66,.9));st.rotation.x=Math.PI/2;st.scale.setScalar(r*.9);st.position.y=r*1.7;const hf=new THREE.Mesh(geoFx,add(0xffffff,.32));hf.scale.setScalar(r*1.05);hf.position.y=r*.7;hf.visible=false;c.add(fr,st,hf);
  c.userData=custom?Object.assign(c.userData,{fr,st,hf}):{legs:c.children.slice(0,3),abd:c.children[3],fr,st,hf};return c};
-const geoFx=new THREE.SphereGeometry(1,12,8),geoTorus=new THREE.TorusGeometry(1,.12,6,16);
+const geoFx=keep(new THREE.SphereGeometry(1,12,8)),geoTorus=keep(new THREE.TorusGeometry(1,.12,6,16));
 function makeDrone(k){const g=new THREE.Group(),c=DRONES[k].color;g.add(cyl(9,6,4,mat.armor,0,0,0),new THREE.Mesh(new THREE.TorusGeometry(10,1.4,6,20),emis(c,1.4)),sph(3.5,emis(c,1.6),0,-3,0));
  g.children[1].rotation.x=Math.PI/2;if(k==='torchlet'){const a=new THREE.Mesh(new THREE.SphereGeometry(42,16,10),add(0xff7a30,.12));a.name='aura';g.add(a)}
  if(k==='needler')for(let i=0;i<4;i++){const c2=new THREE.Mesh(new THREE.ConeGeometry(2,14,5),emis(c,1.2,0x220033));c2.rotation.z=Math.PI/2;c2.rotation.y=i*Math.PI/2;c2.position.set(Math.cos(i*Math.PI/2)*12,0,-Math.sin(i*Math.PI/2)*12);c2.rotation.order='YZX';g.add(c2)}
@@ -634,8 +639,8 @@ function makeItem(it){const g=new THREE.Group(),c=new THREE.Color(it.color),u={}
  g.position.set(it.x,0,it.y);g.userData=u;return g}
 // ---- level ----
 let level=null,builtFor=null,lamps=[],winds=[],wellParts=null;
-function buildLevel(){if(level){scene.remove(level);level.traverse(o=>{if(o.geometry)o.geometry.dispose()})}
- level=new THREE.Group();scene.add(level);lamps=[];winds=[];wellParts=null;itemMeshes.forEach(m=>scene.remove(m));itemMeshes.clear();
+function buildLevel(){if(level){scene.remove(level);disposeTree(level)}poolTrim=true;// level geometry + per-floor materials (wall-fade clones, set pieces)
+ level=new THREE.Group();scene.add(level);lamps=[];winds=[];wellParts=null;itemMeshes.forEach(m=>{scene.remove(m);disposeTree(m)});itemMeshes.clear();
  const f=S.f,tint=new THREE.Color(f.tint).offsetHSL(0,.2,.28),trim=emis(tint,1.1);
  const wall=(x,y,w,h,ht,fade)=>{const m=box(w,ht,h,mat.steel,x+w/2,ht/2,y+h/2);m.receiveShadow=true;const n0=level.children.length;level.add(m,box(w,2,h,mat.top,x+w/2,ht+1,y+h/2,false),box(w+1,2,2.5,trim,x+w/2,ht+2,y+h+.5,false),box(w+1,2,2.5,trim,x+w/2,ht+2,y-.5,false),box(2.5,2,h+1,trim,x-.5,ht+2,y+h/2,false),box(2.5,2,h+1,trim,x+w+.5,ht+2,y+h/2,false),box(w+1,2,h+1,trim,x+w/2,ht*.42,y+h/2,false));if(fade)wallFade.push({x,y,w,h,o:1,meshes:level.children.slice(n0),mats:[]})};
  wallFade.length=0;clearDecals();S.walls.forEach(w=>wall(w.x,w.y,w.w,w.h,72,true));wall(-26,-26,W+52,26,96);wall(-26,0,26,H,96);wall(W,0,26,H,96);wall(-26,H,W+52,26,22);
@@ -665,13 +670,15 @@ const itemMeshes=new Map(),enemyMeshes=new Map(),bulletMeshes=new Map(),pickMesh
 // object pooling: meshes of keyed lists (enemies, bullets) are hidden and reused instead of rebuilt
 const POOL={};
 function sync(list,map,make,upd,key){const seen=new Set();for(const o of list){let m=map.get(o);if(!m){const pk=key?key(o):undefined,pl=pk!==undefined&&POOL[pk];if(pl&&pl.length){m=pl.pop();m.visible=true;m.userData.px=m.userData.py=undefined}else{m=make(o);if(!m)continue;m.userData.pk=pk;scene.add(m)}map.set(o,m)}seen.add(o);upd(o,m)}
- for(const[o,m]of map)if(!seen.has(o)){map.delete(o);const pk=m.userData.pk,pl=pk!==undefined&&(POOL[pk]=POOL[pk]||[]);if(pl&&pl.length<160){m.visible=false;pl.push(m)}else scene.remove(m)}}
-const player=makeMarine();scene.add(player);let droneKey=null,droneMesh=null,gunKey=null;
+ for(const[o,m]of map)if(!seen.has(o)){map.delete(o);const pk=m.userData.pk,pl=pk!==undefined&&(POOL[pk]=POOL[pk]||[]);if(pl&&pl.length<160){m.visible=false;pl.push(m)}else{scene.remove(m);disposeTree(m)}}}
+// Pools only ever grew: after a floor change shrink each to POOL_KEEP (boss models to 0) and free the rest.
+const POOL_KEEP=24;var poolTrim=false;function trimPools(){for(const k in POOL){const pl=POOL[k],cap=k[0]==='e'&&ENEMIES[k.slice(1)]&&ENEMIES[k.slice(1)].boss?0:POOL_KEEP;while(pl.length>cap){const m=pl.pop();scene.remove(m);disposeTree(m)}if(!pl.length)delete POOL[k]}}
+const player=makeMarine();scene.add(player);let droneKey=null,droneMesh=null,gunKey=null;const gunCache={},droneCache={};// one model per weapon/drone, reused on every switch
 const shield=new THREE.Mesh(new THREE.SphereGeometry(26,20,12),add(0x88aaff,.18));scene.add(shield);
 const flash=new THREE.Mesh(new THREE.SphereGeometry(6,8,6),add(0xddffff,.9));scene.add(flash);
 const exitG=new THREE.Group();{const r=new THREE.Mesh(new THREE.TorusGeometry(34,3,8,40),emis(0x33ffee,1.5));r.rotation.x=Math.PI/2;r.position.y=3;
  const b=new THREE.Mesh(new THREE.CylinderGeometry(30,34,220,24,1,true),add(0x33ffee,.15));b.position.y=110;exitG.add(r,b);const L=new THREE.PointLight(0x33ffee,12000,300,2);L.position.y=40;exitG.add(L)}scene.add(exitG);
-const geoDisc=new THREE.CircleGeometry(1,28),geoB=new THREE.SphereGeometry(1,8,6),geoRing=new THREE.RingGeometry(.85,1,40),geoBeam=new THREE.BoxGeometry(1,1,1);const beamMeshes=new Map(),orbMeshes=new Map(),hazMeshes=new Map();
+const geoDisc=keep(new THREE.CircleGeometry(1,28)),geoB=keep(new THREE.SphereGeometry(1,8,6)),geoRing=keep(new THREE.RingGeometry(.85,1,40)),geoBeam=keep(new THREE.BoxGeometry(1,1,1));const beamMeshes=new Map(),orbMeshes=new Map(),hazMeshes=new Map();
 const boomL=new THREE.PointLight(0xffaa44,0,340,2);scene.add(boomL);
 const decoyG=makeMarine();decoyG.traverse(o=>{if(o.isMesh){o.material=add(0x77eeff,.3);o.castShadow=false}});const decoyRing=new THREE.Mesh(new THREE.RingGeometry(26,30,32),add(0x99eeff,.5));decoyRing.rotation.x=-Math.PI/2;decoyRing.position.y=2;decoyG.add(decoyRing);scene.add(decoyG);
 const PMAX=2000,pGeo=new THREE.BufferGeometry(),pPos=new Float32Array(PMAX*3),pCol=new Float32Array(PMAX*3);
@@ -723,9 +730,9 @@ function render(dt){const snap=dt===undefined;dt=dt||1/60;const p=S.p,f=S.f;if(b
  const tip={x:p.x+Math.cos(aim)*34-Math.sin(aim)*9,y:p.y+Math.sin(aim)*34+Math.cos(aim)*9};
  muzzle.position.set(tip.x,32,tip.y);muzzle.intensity=muzzleT>0?16000:0;muzzle.color.set({flamethrower:0xff8840,grenade_launcher:0xffcc55,railgun:0xdd99ff,bio_harvester:0x66ff66}[p.weapon]||0xbfffff);
  flash.visible=muzzleT>0;flash.position.copy(muzzle.position);flash.scale.setScalar(rnd(.7,1.4));
- if(gunKey!==p.weapon){gunKey=p.weapon;const gh=player.userData.gun;gh.clear();gh.add(makeGun(p.weapon))}
+ if(gunKey!==p.weapon){gunKey=p.weapon;const gh=player.userData.gun;gh.clear();gh.add(gunCache[p.weapon]||(gunCache[p.weapon]=makeGun(p.weapon)))}
  // drone
- if(droneKey!==p.drone){if(droneMesh)scene.remove(droneMesh);droneMesh=makeDrone(p.drone);scene.add(droneMesh);droneKey=p.drone}
+ if(droneKey!==p.drone){if(droneMesh)scene.remove(droneMesh);droneMesh=droneCache[p.drone]||(droneCache[p.drone]=makeDrone(p.drone));scene.add(droneMesh);droneKey=p.drone}
  droneMesh.position.set(p.dpos.x,46+Math.sin(S.t*4)*4,p.dpos.y);droneMesh.rotation.y=S.t*3;if(p.drone==='specter')droneMesh.visible=Math.random()>.12;else droneMesh.visible=true;
  decoyG.visible=!!S.decoy;if(S.decoy){decoyG.position.set(S.decoy.x,0,S.decoy.y);decoyG.rotation.y=S.t*.5;decoyG.visible=Math.random()>.1;decoyRing.scale.setScalar(1+((S.t*2)%1)*.6)}
  if(S.booms.length){const b=S.booms[S.booms.length-1];boomL.position.set(b.x,40,b.y);boomL.color.set(b.col);boomL.intensity=60000*b.life/.18}else boomL.intensity=0;
@@ -737,11 +744,11 @@ function render(dt){const snap=dt===undefined;dt=dt||1/60;const p=S.p,f=S.f;if(b
  for(const w of winds){const on=!S.items[w.z.valve].done;for(const s of w.set){s.visible=on;s.position.x=((S.t*w.z.vx*1.6+s.userData.o*7)%W+W)%W}}
  // items
  sync(S.items,itemMeshes,makeItem,(it,g)=>{const u=g.userData,c=u.core;g.visible=true;if(TDP_CONTENT.itemUpd(it,g))return;
-  if(it.kind==='hold'){c.material=emis(it.color,it.done?1.4:it.active?.45+Math.sin(S.t*3)*.15:.08);u.bar.visible=!it.done&&it.prog>0;u.bar.scale.y=Math.max(.01,it.prog*60);u.bar.position.y=10+it.prog*30;if(u.spin)u.spin.rotation.z+=it.done?0:.02}
+  if(it.kind==='hold'){c.material=emis(it.color,it.done?1.4:it.active?Math.round((.45+Math.sin(S.t*3)*.15)*20)/20:.08);u.bar.visible=!it.done&&it.prog>0;u.bar.scale.y=Math.max(.01,it.prog*60);u.bar.position.y=10+it.prog*30;if(u.spin)u.spin.rotation.z+=it.done?0:.02}
   else if(it.kind==='shoot'){c.visible=!it.done;g.children.forEach(ch=>{if(ch!==u.muck&&ch!==c)ch.visible=!it.done});if(u.muck)u.muck.visible=!it.done;
    c.scale.setScalar(1+Math.sin(S.t*(it.hatchT!==undefined?3+12/Math.max(1,it.hatchT):3)+it.idx)*(it.hatchT!==undefined&&it.hatchT<6?.18:.07));if(it.label==='COCOON')c.scale.y*=1.5;u.m.emissiveIntensity=it.flash>0?3:.6}
   else if(it.kind==='touch'){c.rotation.y+=.04;c.position.y=34+Math.sin(S.t*3)*4;c.material=emis(it.color,it.done?.6:it.active?1.4:.15);u.beam.visible=it.active&&!it.done}
-  else if(it.kind==='zone'){u.rings.forEach((r,i)=>{r.rotation.x=Math.PI/2+Math.sin(S.t*(1+i)+i)*.6;r.rotation.y=S.t*(i+1)*.7});c.material=emis(it.color,it.done?.6:.8+Math.sin(S.t*6)*.4);u.floor.material.opacity=dist(S.p,it)<it.r?.8:.35;u.L.intensity=it.done?5000:16000}
+  else if(it.kind==='zone'){u.rings.forEach((r,i)=>{r.rotation.x=Math.PI/2+Math.sin(S.t*(1+i)+i)*.6;r.rotation.y=S.t*(i+1)*.7});c.material=emis(it.color,it.done?.6:Math.round((.8+Math.sin(S.t*6)*.4)*20)/20);u.floor.material.opacity=dist(S.p,it)<it.r?.8:.35;u.L.intensity=it.done?5000:16000}
   else if(it.kind==='pickup'){g.visible=!it.done;c.rotation.y+=.05;c.position.y=22+Math.sin(S.t*4)*3}});
  exitG.visible=!!S.exit;if(S.exit){exitG.position.set(S.exit.x,0,S.exit.y);exitG.children[0].rotation.z=S.t}
  // enemies
@@ -762,6 +769,7 @@ function render(dt){const snap=dt===undefined;dt=dt||1/60;const p=S.p,f=S.f;if(b
   const m=new THREE.Mesh(geoDisc,add(h.type==='acid'?0x9aff20:0xbfe8ff,h.type==='acid'?.32:.28));m.scale.setScalar(h.r);m.rotation.x=-Math.PI/2;return m},(h,m)=>{if(h.cx||h.type==='steam'){TDP_CONTENT.hazUpd(h,m);return}
   if(h.type==='laser'){m.position.set(h.x,0,h.y);const b=m.getObjectByName('b');const L=h.el??h.len,r0=h.r0||0;b.position.set(Math.cos(h.a)*(L+r0)/2,30,Math.sin(h.a)*(L+r0)/2);b.rotation.y=-h.a;b.scale.set(Math.max(1,L-r0),3,3)}
   else{m.position.set(h.x,1+(h.type==='acid'?Math.sin(S.t*3+h.x)*.3:0),h.y);if(h.life!==undefined)m.scale.setScalar(h.r*Math.min(1,h.life*.8,.3+(7-h.life)*3))}});
+ if(poolTrim){poolTrim=false;trimPools()}// after the syncs above released the previous floor's meshes
  // arcs
  drawArcs();
  if(S.arcs.length)muzzle.intensity=20000;
@@ -820,8 +828,8 @@ let last=performance.now();function loop(now){const dt=Math.min(.05,(now-last)/1
 requestAnimationFrame(loop);
 Object.defineProperty(window,'S',{get:()=>S});
 // read-only debug handles for tests/leak.js (scene/pool/entity-mesh counts); not used by the game itself
-window.__TDP_DBG={scene,POOL,maps:{itemMeshes,enemyMeshes,bulletMeshes,pickMeshes,ebMeshes,ringMeshes,beamMeshes,orbMeshes,hazMeshes},gibs,arcMeshes,decals:()=>{let n=0;const a=decMesh.instanceMatrix.array;for(let i=0;i<DECMAX;i++)if(a[i*16]!==0||a[i*16+2]!==0)n++;return n},level:()=>level};
-TDP_CONTENT.init({get S(){return S},P,dist,rnd,clamp,W,H,CELL,spawnEnemy,spawnNear,hurtPlayer,floatText,burst,sfx,showBanner,ebullet,bossRing,bossSummon,bossCharge,tick,resolve,inWall,edgeSpawn,mkItem,nDone,allDone,DF,ENEMIES,pickType:()=>rollType(S.f.mix),THREE,M,emis,add,basic,box,sph,cyl,mat});
+window.__TDP_DBG={scene,POOL,maps:{itemMeshes,enemyMeshes,bulletMeshes,pickMeshes,ebMeshes,ringMeshes,beamMeshes,orbMeshes,hazMeshes},gibs,arcMeshes,caches:()=>({guns:Object.keys(gunCache).length,drones:Object.keys(droneCache).length,mats:Object.keys(matCache).length,bugTpl:Object.keys(bugTpl).length,weapons:Object.keys(WEAPONS).length,droneTypes:Object.keys(DRONES).length}),decals:()=>{let n=0;const a=decMesh.instanceMatrix.array;for(let i=0;i<DECMAX;i++)if(a[i*16]!==0||a[i*16+2]!==0)n++;return n},level:()=>level};
+TDP_CONTENT.init({get S(){return S},P,dist,rnd,clamp,W,H,CELL,spawnEnemy,spawnNear,hurtPlayer,floatText,burst,sfx,showBanner,ebullet,bossRing,bossSummon,bossCharge,tick,resolve,inWall,edgeSpawn,mkItem,nDone,allDone,DF,ENEMIES,pickType:()=>rollType(S.f.mix),THREE,M,emis,add,basic,box,sph,cyl,mat,keep});
 Object.assign(OBJECTIVES,TDP_CONTENT.objectives());
 TDP_INST.init({THREE,scene,makeBug,ENEMIES,dist,add,geoFx,geoTorus});TDP_INST.prewarm(Object.keys(ENEMIES));Object.assign(BOSS_AI,TDP_CONTENT.BOSS_AI);
 Object.assign(window,{setDifficulty:k=>setDifficulty(k),startIntro:()=>startIntro(),audioInit,hasBloom:()=>!!composer,CFG,saveGame,loadSave,recordBest,pauseGame,resumeGame,newRun,continueRun,goTitle,applyQuality,AU,sfx,menuDepth:()=>menuStack.length,musicTick,update,render,startGame,startFloor,spawnWave,onKey,damage,pick,inWall,P,cp,dist,keys,mouse,WEAPONS,DRONES,FLOORS,ENEMIES,OBJECTIVES,rollChoices,MODS,explodeAt,spawnNear,rnd,THREE,renderer,camera,aimRaycast,GAME_READY:true});

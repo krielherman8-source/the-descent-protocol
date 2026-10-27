@@ -5,7 +5,7 @@
 (function(){
 let A=null;const TAU=Math.PI*2;
 const shared={};
-function init(api){A=api;const T=A.THREE;shared.disc=new T.CircleGeometry(1,28);shared.ring=new T.RingGeometry(.86,1,40);shared.box=new T.BoxGeometry(1,1,1);shared.col=new T.CylinderGeometry(1,1,1,16,1,true)}
+function init(api){A=api;const T=A.THREE;shared.disc=new T.CircleGeometry(1,28);shared.ring=new T.RingGeometry(.86,1,40);shared.box=new T.BoxGeometry(1,1,1);shared.col=new T.CylinderGeometry(1,1,1,16,1,true);if(A.keep)for(const k in shared)A.keep(shared[k])}// shared: never disposed by index.html's disposeTree
 const S=()=>A.S;
 const qe=(c,i)=>A.emis(c,Math.round(i*10)/10);
 const own=(c,op)=>A.add(c,op).clone();// per-mesh material when opacity animates

@@ -37,7 +37,7 @@ function crawl(lines,opt){opt=opt||{};let el=document.getElementById('crawl');if
  const finish=()=>{if(done)return;done=true;el.className='';el.innerHTML='';removeEventListener('keydown',kh,true);el.removeEventListener('pointerdown',ph);clearTimeout(to);opt.onDone&&opt.onDone()};
  const kh=e=>{if(!armed)return;if(e.key===' '||e.key==='Enter'||e.key==='Escape'){e.stopPropagation();e.preventDefault();finish()}};
  const ph=e=>{e.stopPropagation();if(armed)finish()};
- addEventListener('keydown',kh,true);el.addEventListener('pointerdown',ph);['mousedown','touchstart'].forEach(t=>el.addEventListener(t,e=>e.stopPropagation()));const to=setTimeout(finish,dur*1000+(opt.hold||2500));
+ addEventListener('keydown',kh,true);el.addEventListener('pointerdown',ph);if(!el._tdpStop){el._tdpStop=true;['mousedown','touchstart'].forEach(t=>el.addEventListener(t,e=>e.stopPropagation()))}/* once per element (was re-added on every crawl) */const to=setTimeout(finish,dur*1000+(opt.hold||2500));
  return{finish,active:()=>!done,elapsed:()=>(performance.now()-t0)/1000}}
 function creditsHTML(){return CREDITS.map(([a,b])=>`<div class="cr-row"><span>${a}</span>${b?`<b>${b}</b>`:''}</div>`).join('')}
 window.TDP_STORY={INTRO,ENDING,CREDITS,crawl,creditsHTML};
