@@ -1,0 +1,62 @@
+RUN 0 skill=1 diff=normal floor=61 endless=527978591 eu={"oc":4,"ap":6,"sl":3,"nw":1} armor=0.61 weapons=kinetic,grenade_launcher,flamethrower,pulse_shotgun,tesla,railgun drones=aegis,harvestor,needler,torchlet,bastion,specter dmg=9.42 rate=6.51 hp=220 mods={"kinetic":["explosive","cryo","emp","vampiric"],"tesla":["explosive","cryo","emp","vampiric"]} state=play
+  F1 generators t=18s deaths=0 un=0 endHp=100 low=100  src={}
+  F2 lockers    t=18s deaths=0 un=0 endHp=100 low=100  src={}
+  F3 maglocks   t=26s deaths=0 un=0 endHp=100 low=100  src={}
+  F4 beacons    t=17s deaths=0 un=0 endHp=100 low=100  src={}
+  F5 biomass    t=39s deaths=0 un=0 endHp=100 low=100  src={}
+  F6 hack       t=28s deaths=0 un=1 endHp=100 low=89  src={"mob":21}
+  F7 vents      t=52s deaths=0 un=12 endHp=100 low=66  src={"other":34}
+  F8 purge      t=36s deaths=0 un=0 endHp=100 low=91  src={"bullet":9}
+  F9 reboot     t=27s deaths=0 un=0 endHp=125 low=92  src={"mob":41,"bullet":7}
+  F10 keycards   t=208s deaths=3 un=8 endHp=125 low=125 KILLEDx3 [d@52s en=20 hold Keycards 3/3  — open the SECURITY DOOR (] [d@36s en=27 hold Keycards 3/3  — open the SECURITY DOOR (] [d@26s en=18 shoot Kill the Brood Warden!] src={"mob":310,"bullet":63,"boss":56}
+  F11 reactor    t=73s deaths=1 un=0 endHp=125 low=91  [d@33s en=20 hunt Reactor stabilized 100%  (stand inside t] src={"other":60,"mob":99}
+  F12 eggs       t=43s deaths=0 un=0 endHp=15 low=15  src={"mob":73,"other":37}
+  F13 boss:prime t=149s deaths=3 un=0 endHp=125 low=15 KILLEDx3 [d@5s en=11 hunt Kill Swarmer Prime] [d@9s en=6 hunt Kill Swarmer Prime] [d@20s en=9 hunt Kill Swarmer Prime] src={"mob":15,"other":15,"boss":15}
+  F14 survive    t=102s deaths=1 un=0 endHp=90 low=90  [d@44s en=31 hunt Survive the swarm: 1s] src={"mob":116,"bullet":95}
+  F15 defrost    t=45s deaths=0 un=4 endHp=41 low=41  src={"mob":64,"bullet":23}
+  F16 generators t=102s deaths=3 un=10 endHp=59 low=41 KILLEDx3 [d@17s en=15 hold PUMPs online 2/4  (hold e)] [d@14s en=27 hold PUMPs online 2/4  (hold e)] [d@23s en=18 hold PUMPs online 3/4  (hold e)] src={"mob":118,"other":36}
+  F17 escort     t=250s deaths=3 un=0 endHp=125 low=59 KILLEDx3 [d@18s en=14 escort Payload 37%  — CONTESTED: clear the bugs] [d@16s en=28 escort Payload 32%  — slowed: bugs on it] [d@14s en=10 escort Payload 30%  — slowed: bugs on it] src={"mob":144,"other":35}
+  F18 cells      t=25s deaths=0 un=0 endHp=90 low=90  src={"bullet":11,"mob":24}
+  F19 reboot     t=36s deaths=0 un=1 endHp=83 low=83  src={"mob":32}
+  F20 boss:colossus t=400s deaths=3 un=0 endHp=150 low=83 KILLEDx3 [d@68s en=20 hunt Kill Hive Colossus] [d@68s en=17 hunt Kill Hive Colossus] [d@39s en=17 hunt Kill Hive Colossus] src={"mob":110,"bullet":11,"boss":85,"other":22}
+  F21 eggs       t=50s deaths=0 un=0 endHp=29 low=16  src={"mob":211,"bullet":8}
+  F22 purge      t=140s deaths=3 un=0 endHp=101 low=29 KILLEDx3 [d@16s en=30 shoot Spore nodes purged 0/7  (avoid the muck)] [d@15s en=35 shoot Spore nodes purged 0/7  (avoid the muck)] [d@11s en=24 shoot Spore nodes purged 1/7  (avoid the muck)] src={"other":26,"mob":40,"bullet":11}
+  F23 beacons    t=236s deaths=3 un=3 endHp=173 low=101 KILLEDx3 [d@70s en=3 hunt Relay beacons in order 6/6] [d@42s en=24 hunt Relay beacons in order 6/6] [d@54s en=8 hunt Relay beacons in order 6/6] src={"other":142,"boss":74,"bullet":36,"mob":69}
+  F24 vents      t=72s deaths=0 un=17 endHp=93 low=75  src={"bullet":48,"mob":63}
+  F25 boss:matriarch t=300s deaths=0 un=0 endHp=0 low=undefined TIMEOUT unstick=0 hz[acid:96/r38,acid:139/r38,acid:165/r38,acid:163/r38] ex= winds=0 pd=0.00,0.00 st=play mode=hunt p=405,530 en=13{matriarch@715,536 hp4406 brute@645,471 hp25 carrier@551,457 hp131 spitter@582,417 hp3 carrier@638,512 hp262 spitter@518,377 hp83 carrier@634,434 hp495 carrier@484,388 hp466} items[] obj=Kill Hive Matriarch src={"bullet":504,"mob":231,"other":14}
+  F26 defend     t=243s deaths=3 un=0 endHp=175 low=175 KILLEDx3 [d@65s en=35 defend Core sealed 66%  integrity 62%  — SAPPER] [d@37s en=37 defend Core sealed 58%  integrity 29%  — SAPPER] [d@27s en=36 defend Core sealed 22%  integrity 50%  — SAPPER] src={"bullet":250,"mob":589,"other":54}
+  F27 maglocks   t=49s deaths=0 un=5 endHp=175 low=140  src={"other":16,"bullet":12,"mob":27}
+  F28 survive    t=68s deaths=0 un=0 endHp=175 low=141  src={"other":34,"bullet":12,"boss":34}
+  F29 biomass    t=43s deaths=0 un=0 endHp=175 low=157  src={"other":2,"bullet":12}
+  F30 boss:overmind t=170s deaths=0 un=0 endHp=175 low=131  src={"bullet":422,"other":282,"mob":20}
+  F31 purge      [Spore Fields] t=25s deaths=0 un=0 endHp=175 low=175  src={}
+  F32 maglocks   [Gravity Collapse] t=40s deaths=0 un=1 endHp=175 low=168  src={"mob":7}
+  F33 survive    [Dead Sector] t=65s deaths=0 un=0 endHp=175 low=175  src={}
+  F34 reactor    [Fusion Complex] t=52s deaths=0 un=0 endHp=175 low=82  src={"other":82,"mob":84}
+  F35 boss:warden [Warden's Return] t=26s deaths=0 un=0 endHp=175 low=130  src={"boss":45}
+  F36 vents      [Acid Cisterns] t=64s deaths=0 un=18 endHp=200 low=160  src={"mob":72}
+  F37 eggs       [Brood Tunnels] t=28s deaths=0 un=0 endHp=200 low=200  src={}
+  F38 vents      [Ventilation] t=51s deaths=0 un=12 endHp=200 low=182  src={"bullet":18}
+  F39 biomass    [The Heart] t=26s deaths=0 un=0 endHp=200 low=176  src={"bullet":18}
+  F40 boss:overmind [The Overmind] t=61s deaths=0 un=0 endHp=200 low=173  src={"bullet":168,"other":108,"mob":27}
+  F41 lockers    [The Armory] t=21s deaths=0 un=0 endHp=200 low=180  src={"bullet":20}
+  F42 biomass    [Nesting Grounds] t=7s deaths=0 un=0 endHp=200 low=200  src={}
+  F43 purge      [Biomass Overgrowth] t=10s deaths=0 un=0 endHp=200 low=200  src={}
+  F44 defend     [Core Breach] t=61s deaths=0 un=0 endHp=200 low=178  src={"bullet":66}
+  F45 boss:prime [Lockdown] t=20s deaths=0 un=0 endHp=200 low=200  src={}
+  F46 maglocks   [Gravity Well] t=22s deaths=0 un=0 endHp=200 low=200  src={}
+  F47 survive    [Swarm Nest] t=54s deaths=0 un=0 endHp=220 low=173  src={"bullet":46}
+  F48 hack       [Security Network] t=28s deaths=0 un=1 endHp=220 low=220  src={}
+  F49 escort     [Relay Spire] t=382s deaths=3 un=0 endHp=220 low=220 KILLEDx3 [d@23s en=44 escort Payload 37%  — CONTESTED: clear the bugs] [d@29s en=39 escort Payload 43%  — CONTESTED: clear the bugs] [d@74s en=36 escort Payload 63%  — CONTESTED: clear the bugs] src={"mob":1036,"bullet":197}
+  F50 boss:colossus [Hive Threshold] t=29s deaths=0 un=0 endHp=220 low=220  src={}
+  F51 reboot     [System Purge] t=24s deaths=0 un=1 endHp=220 low=161  src={"mob":59,"bullet":26}
+  F52 cells      [Quarantine Labs] t=23s deaths=0 un=0 endHp=220 low=220  src={}
+  F53 eggs       [Egg Chamber] t=11s deaths=0 un=0 endHp=220 low=220  src={}
+  F54 beacons    [Neural Lattice] t=24s deaths=0 un=0 endHp=220 low=159  src={"mob":61,"bullet":30}
+  F55 boss:matriarch [Brood Throne] t=37s deaths=0 un=0 endHp=220 low=148  src={"mob":88,"bullet":70}
+  F56 beacons    [Dark Sector] t=13s deaths=0 un=0 endHp=220 low=220  src={}
+  F57 reboot     [Data Core] t=36s deaths=1 un=1 endHp=220 low=220  [d@14s en=47 hold Core nodes 3/5  — 28s left before reset!] src={"mob":221}
+  F58 generators [Breaching] t=16s deaths=0 un=0 endHp=220 low=220  src={}
+  F59 keycards   [Cocooned Outpost] t=18s deaths=0 un=1 endHp=220 low=113  src={"boss":107}
+  F60 boss:overmind [The Overmind] t=43s deaths=0 un=0 endHp=220 low=141  src={"bullet":202,"other":78}
+ERRS []

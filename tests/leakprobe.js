@@ -25,16 +25,16 @@ window.requestAnimationFrame=function(f){const id=rAF.call(window,t=>{pend.delet
 window.cancelAnimationFrame=function(id){pend.delete(id);return cAF.call(window,id)};
 (function tick(){perFrameMax=Math.max(perFrameMax,pend.size);frames++;rAF.call(window,tick)})();
 // ---- Web Audio: count nodes created / still reachable (FinalizationRegistry after gc) / currently playing sources ----
-const A={created:0,collected:0,byType:{},live:{},playing:0,conn:0,disc:0};
+const A={created:0,collected:0,byType:{},live:{},playing:0,conn:0,disc:0,startErr:0,startErrMsg:''};// playing counts only starts that succeeded
 const fr=new FinalizationRegistry(t=>{A.collected++;A.live[t]--});
 const BAC=window.BaseAudioContext&&BaseAudioContext.prototype;
 if(BAC)for(const k of Object.getOwnPropertyNames(BAC))if(/^create(?!PeriodicWave|Buffer$)/.test(k)&&typeof BAC[k]==='function'){const orig=BAC[k];
  BAC[k]=function(...a){const n=orig.apply(this,a);const t=k.slice(6);A.created++;A.byType[t]=(A.byType[t]||0)+1;A.live[t]=(A.live[t]||0)+1;fr.register(n,t);
-  if(n instanceof AudioScheduledSourceNode){const st=n.start;n.start=function(...b){A.playing++;n.addEventListener('ended',()=>A.playing--,{once:true});return st.apply(n,b)}}return n}}
+  if(n instanceof AudioScheduledSourceNode){const st=n.start;n.start=function(...b){let r;try{r=st.apply(n,b)}catch(e){A.startErr++;if(!A.startErrMsg)A.startErrMsg=String(e).slice(0,160)+' args='+JSON.stringify(b);throw e}A.playing++;n.addEventListener('ended',()=>A.playing--,{once:true});return r}}return n}}
 if(window.AudioNode){const c=AudioNode.prototype.connect,d=AudioNode.prototype.disconnect;AudioNode.prototype.connect=function(...a){A.conn++;return c.apply(this,a)};AudioNode.prototype.disconnect=function(...a){A.disc++;return d.apply(this,a)}}
 P.audio=A;
 // ---- console errors ----
 P.errors=[];const ce=console.error;console.error=function(...a){P.errors.push(a.map(String).join(' ').slice(0,200));return ce.apply(console,a)};
 P.snap=()=>{let live=0;const byT={};for(const v of L.values()){if(!v.ref.deref())continue;live++;const k=v.t+':'+v.type;byT[k]=(byT[k]||0)+1}
- const r={frames,vis:document.visibilityState,listeners:live,listenersBy:byT,intervals:iv.size,timeouts:to.size,rafPending:pend.size,rafPerFrameMax:perFrameMax,audioCreated:A.created,audioLive:Object.values(A.live).reduce((a,b)=>a+b,0),audioLiveBy:Object.assign({},A.live),audioPlaying:A.playing,audioConn:A.conn,audioDisc:A.disc};perFrameMax=0;return r};
+ const r={frames,vis:document.visibilityState,listeners:live,listenersBy:byT,intervals:iv.size,timeouts:to.size,rafPending:pend.size,rafPerFrameMax:perFrameMax,audioCreated:A.created,audioLive:Object.values(A.live).reduce((a,b)=>a+b,0),audioLiveBy:Object.assign({},A.live),audioPlaying:A.playing,audioConn:A.conn,audioDisc:A.disc,audioStartErr:A.startErr,audioStartErrMsg:A.startErrMsg};perFrameMax=0;return r};
 })();
