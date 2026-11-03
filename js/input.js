@@ -65,6 +65,6 @@ function apply(){const IN=A.IN,L=sticks.L,Rr=sticks.R;if(L){const m=Math.hypot(L
  if(Rr){const m=Math.hypot(Rr.dx,Rr.dy);if(m>10){IN.aim=Math.atan2(Rr.dy,Rr.dx);IN.fire=true}else IN.fire=false}else IN.fire=false}
 function init(api){A=api;addEventListener('touchstart',onStart,{passive:false});addEventListener('touchmove',onMove,{passive:false});addEventListener('touchend',onEnd,{passive:false});addEventListener('touchcancel',onEnd,{passive:false});
  addEventListener('gamepadconnected',()=>{});if(/[?&]touch=1/.test(location.search))enableTouch()}
-function poll(){if(!A)return;try{pollPad()}catch(e){}if(touchOn&&ui)ui.classList.toggle('hidden',A.state()!=='play')}
+function poll(){if(!A)return;try{pollPad()}catch(e){}if(touchOn&&ui){ui.classList.toggle('hidden',A.state()!=='play');const ub=document.getElementById('tb-e');if(ub)ub.classList.toggle('deemph',!!(typeof CFG!=='undefined'&&CFG&&CFG.interact==='auto'))}}
 window.TDP_INPUT={init,poll,touchActive:()=>touchOn,padActive:()=>padOn,_sticks:sticks};
 })();

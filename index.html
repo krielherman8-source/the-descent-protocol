@@ -1,6 +1,7 @@
 <!DOCTYPE html><html><head><meta charset="utf-8"><title>THE DESCENT PROTOCOL</title>
 <style>html,body{margin:0;background:#020507;overflow:hidden;font-family:monospace}#gl,#hud{position:fixed;left:0;top:0;display:block}#hud{pointer-events:none}
-#load{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;color:#5ff;font:16px monospace}</style>
+#load{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;color:#5ff;font:16px monospace}#tb-e.deemph{opacity:.35;transform:scale(.8)}
+</style>
 <style>#menu{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:radial-gradient(ellipse at center,rgba(0,20,24,.35),rgba(0,0,0,.8));z-index:5}
 #menu.hide{display:none}#menu.title{background:radial-gradient(ellipse at center,rgba(0,15,18,.1),rgba(0,0,0,.75))}
 .panel{display:none;flex-direction:column;align-items:center;gap:12px;color:#bff;min-width:380px;padding:26px 34px;background:rgba(2,14,18,.72);border:1px solid #2aa;box-shadow:0 0 30px rgba(40,255,230,.18),inset 0 0 30px rgba(40,255,230,.06)}
@@ -324,8 +325,10 @@ const keys={},mouse={x:W/2,y:H/2,down:false,sx:0,sy:0,cx:0,cy:0,moved:false};
 const mapK=k=>window.TDP_SETTINGS?TDP_SETTINGS.mapKey(k):k;addEventListener('keydown',e=>{const raw=e.key.toLowerCase(),k=mapK(raw);if(k==='\u0000')return;if(S&&S.state==='play'&&(k==='fire'||raw===' '||raw==='tab'))e.preventDefault();keys[k]=true;if(k==='e'&&!e.repeat)useEdge();onKey(k,raw)});addEventListener('keyup',e=>keys[mapK(e.key.toLowerCase())]=false);
 // interact: 'hold' = held while the use control is down; 'toggle' = each press latches/unlatches (S.useLatch)
 function useEdge(){if(CFG.interact==='toggle'&&S&&S.state==='play')S.useLatch=!S.useLatch}
-const useOn=()=>CFG.interact==='toggle'?!!(S&&S.useLatch):!!keys.e;
-const kL=a=>TDP_SETTINGS.keyLabel(a),pL=a=>TDP_SETTINGS.padLabel(a),useHint=()=>`${TDP_SETTINGS.useVerb()} ${TDP_SETTINGS.useCtl(IN.src)}`;
+const useOn=()=>CFG.interact==='toggle'?!!(S&&S.useLatch):CFG.interact==='auto'?true:!!keys.e;
+const autoUse=()=>CFG.interact==='auto';
+const standVerb=l=>{l=String(l||'');return /TERMINAL|CORE NODE/.test(l)?'HACK':/LOCKER|DOOR/.test(l)?'OPEN':/MAG-LOCK/.test(l)?'DISABLE':/VALVE/.test(l)?'SEAL':/FROZEN/.test(l)?'DEFROST':/GENERATOR/.test(l)?'POWER UP':/PUMP/.test(l)?'START':'ACTIVATE'};
+const kL=a=>TDP_SETTINGS.keyLabel(a),pL=a=>TDP_SETTINGS.padLabel(a),useHint=it=>autoUse()?(it?`STAND HERE TO ${standVerb(it.label)}`:'stand on it'):`${TDP_SETTINGS.useVerb()} ${TDP_SETTINGS.useCtl(IN.src)}`;
 function cycleWeapon(d){if(!S||!S.p)return;const w=S.p.weapons;S.p.weapon=w[(w.indexOf(S.p.weapon)+d+w.length)%w.length]}
 const setM=e=>{IN.aim=null;IN.src='kbm';mouse.cx=e.clientX;mouse.cy=e.clientY;mouse.sx=e.clientX/hs;mouse.sy=e.clientY/hs;mouse.moved=true};
 addEventListener('mousemove',setM);addEventListener('mousedown',e=>{setM(e);mouse.down=true;onClick()});addEventListener('mouseup',()=>mouse.down=false);
@@ -340,7 +343,7 @@ function startFloor(){const f=floorAt(S.floor);S.f=f;S.dmgK=S.endless&&S.floor>=
  S.walls=f.walls.map(([cx,cy,cw,ch])=>({x:cx*CELL,y:cy*CELL,w:cw*CELL,h:ch*CELL}));
  S.grid=new Uint8Array(GW*GH);for(let y=0;y<GH;y++)for(let x=0;x<GW;x++)S.grid[x+y*GW]=S.walls.some(w=>cp(x)>w.x&&cp(x)<w.x+w.w&&cp(y)>w.y&&cp(y)<w.y+w.h)?1:0;
  S.flow=new Int16Array(GW*GH);S.flowT=0;
- Object.assign(S.p,P(...f.spawn));S.enemies=[];S.bullets=[];S.ebullets=[];S.parts=[];S.arcs=[];S.rings=[];S.dying=[];S.beams=[];S.orbs=[];S.booms=[];S.decoy=null;S.pickups=[];S.hpPity=0;if(!S.demo){const nk=S.floor<10?2:1;for(let i=0;i<nk;i++){const q={x:S.p.x+(i?-70:70),y:S.p.y+40,r:12};resolve(q);S.pickups.push({x:q.x,y:q.y,life:1e9,heal:hpHeal(),start:true})}}S.p.hpos={x:S.p.x,y:S.p.y};S.exit=null;S.choices=null;S.texts=[];
+ Object.assign(S.p,P(...f.spawn));S.enemies=[];S.bullets=[];S.ebullets=[];S.parts=[];S.arcs=[];S.rings=[];S.dying=[];S.beams=[];S.orbs=[];S.booms=[];S.decoy=null;S.pickups=[];S.hpPity=0;if(!S.demo){const nk=S.floor<10?2:1;for(let i=0;i<nk;i++){const q={x:S.p.x+(i?-70:70),y:S.p.y+40,r:12};resolve(q);S.pickups.push({x:q.x,y:q.y,life:1e9,heal:hpHeal(),start:true})}}S.p.hpos={x:S.p.x,y:S.p.y};S.exit=null;S.exitDwell=0;S.choices=null;S.texts=[];
  S.winds=null;S.well=null;S.useLatch=false;S.hazards=[];S.carry=null;S.socket=null;S.floorT=0;S.eliteSpawned=false;fixSpawn(f);const fx=f.points||!f.n?f:Object.assign({},f,{points:autoPoints(f.n)});S.fx=fx;S.obj.setup(S,fx);makeHazards(f);S.waveT=2;S.wave=0;S.cleared=false;showBanner(`${floorLbl(S.floor)} — ${f.name.toUpperCase()}`,f.task,3.5);if(S.endless)recordEndless()}
 function showBanner(a,b,t){S.banner={a,b,life:t}}
 function floatText(x,y,t,col){S.texts.push({x,y,t,col:col||'#bff',life:1.6})}
@@ -518,7 +521,7 @@ function update(dt){S.t+=dt;S._dt=dt;if(S.banner&&S.banner.life>0)S.banner.life-
  const objDone=S.obj.done(S);
  if(!objDone){S.waveT-=dt;if(S.waveT<=0){spawnWave();S.waveT=Math.max(f.interval*.75,f.interval-S.floor*.1)}}
  else if(!S.exit&&S.enemies.length===0){S.exit=P(...(f.exit||[20,11]));showBanner('FLOOR CLEAR',isFinal()?'Reach the extraction chamber':'Enter the upgrade chamber',2.5)}
- if(S.exit&&dist(S.exit,p)<40){if(isFinal()){S.state='ending';recordBest(true);if(!CFG.endless){CFG.endless=true;saveCfg()}try{localStorage.removeItem('tdp_save')}catch(e){}sfx('complete');playEnding();return}S.state='upgrade';S.choices=rollChoices();sfx('complete');return}
+ if(S.exit){S.exitDwell=dist(S.exit,p)<40?(S.exitDwell||0)+dt:0}if(S.exit&&dist(S.exit,p)<40&&(!autoUse()||S.exitDwell>=.4)){if(isFinal()){S.state='ending';recordBest(true);if(!CFG.endless){CFG.endless=true;saveCfg()}try{localStorage.removeItem('tdp_save')}catch(e){}sfx('complete');playEnding();return}S.state='upgrade';S.choices=rollChoices();sfx('complete');return}
  // enemies
  S.flowT-=dt;if(S.flowT<=0){buildFlow();S.flowT=.2}
  p.inv-=dt;
@@ -852,7 +855,7 @@ function drawHUD(){const p=S.p,f=S.f;ctx.setTransform(1,0,0,1,0,0);ctx.clearRect
  ctx.shadowColor='#000';ctx.shadowBlur=4;
  for(const it of S.items){if((it.done&&it.kind!=='hold')||(it.kind==='pickup'&&it.done))continue;const s=toScreen(it.x,it.kind==='hold'?95:70,it.y);if(!s.vis)continue;
   ctx.globalAlpha=it.active||it.done?1:.4;text(it.label,s.x,s.y,it.color,fs,'center');
-  if(it.kind==='hold'&&!it.done&&it.active){if(dist(it,p)<55)text(CFG.interact==='toggle'&&S.useLatch?`INTERACTING · PRESS ${TDP_SETTINGS.useCtl(IN.src)} TO STOP`:useHint(),s.x,s.y-fs*1.3,'#fff',fs+2,'center');if(it.prog>0){ctx.fillStyle='#022';ctx.fillRect(s.x-25,s.y+5,50,5);ctx.fillStyle='#fff';ctx.fillRect(s.x-25,s.y+5,50*it.prog,5)}}
+  if(it.kind==='hold'&&!it.done&&it.active){if(dist(it,p)<55)text(CFG.interact==='toggle'&&S.useLatch?`INTERACTING · PRESS ${TDP_SETTINGS.useCtl(IN.src)} TO STOP`:useHint(it),s.x,s.y-fs*1.3,'#fff',fs+2,'center');if(it.prog>0){ctx.fillStyle='#022';ctx.fillRect(s.x-25,s.y+5,50,5);ctx.fillStyle='#fff';ctx.fillRect(s.x-25,s.y+5,50*it.prog,5)}}
   if(it.kind==='shoot'){ctx.fillStyle='#300';ctx.fillRect(s.x-22,s.y+5,44,4);ctx.fillStyle=it.color;ctx.fillRect(s.x-22,s.y+5,44*it.hp/it.max,4)}}
  ctx.globalAlpha=1;if(S.exit){const s=toScreen(S.exit.x,120,S.exit.y);text(isFinal()?'EXTRACTION':'UPGRADE CHAMBER',s.x,s.y,'#7ff',fs+2,'center')}
  for(const t of S.texts){const s=toScreen(t.x,70,t.y);ctx.globalAlpha=Math.min(1,t.life);text(t.t,s.x,s.y,t.col,fs+2,'center')}ctx.globalAlpha=1;ctx.shadowBlur=0;
@@ -885,7 +888,7 @@ let last=performance.now();function loop(now){const dt=Math.min(.05,(now-last)/1
 requestAnimationFrame(loop);
 Object.defineProperty(window,'S',{get:()=>S});
 // read-only debug handles for tests/leak.js (scene/pool/entity-mesh counts); not used by the game itself
-window.__TDP_DBG={scene,camOff:CAM_OFF,POOL,maps:{itemMeshes,enemyMeshes,bulletMeshes,pickMeshes,ebMeshes,ringMeshes,beamMeshes,orbMeshes,hazMeshes},gibs,arcMeshes,caches:()=>({guns:Object.keys(gunCache).length,drones:Object.keys(droneCache).length,mats:Object.keys(matCache).length,bugTpl:Object.keys(bugTpl).length,weapons:Object.keys(WEAPONS).length,droneTypes:Object.keys(DRONES).length}),decals:()=>{let n=0;const a=decMesh.instanceMatrix.array;for(let i=0;i<DECMAX;i++)if(a[i*16]!==0||a[i*16+2]!==0)n++;return n},level:()=>level};
+window.__TDP_DBG={useHint:it=>useHint(it),scene,camOff:CAM_OFF,POOL,maps:{itemMeshes,enemyMeshes,bulletMeshes,pickMeshes,ebMeshes,ringMeshes,beamMeshes,orbMeshes,hazMeshes},gibs,arcMeshes,caches:()=>({guns:Object.keys(gunCache).length,drones:Object.keys(droneCache).length,mats:Object.keys(matCache).length,bugTpl:Object.keys(bugTpl).length,weapons:Object.keys(WEAPONS).length,droneTypes:Object.keys(DRONES).length}),decals:()=>{let n=0;const a=decMesh.instanceMatrix.array;for(let i=0;i<DECMAX;i++)if(a[i*16]!==0||a[i*16+2]!==0)n++;return n},level:()=>level};
 TDP_CONTENT.init({get S(){return S},P,dist,rnd,clamp,W,H,CELL,spawnEnemy,spawnNear,hurtPlayer,floatText,burst,sfx,showBanner,ebullet,bossRing,bossSummon,bossCharge,tick,resolve,inWall,edgeSpawn,mkItem,nDone,allDone,DF,ENEMIES,pickType:()=>rollType(S.f.mix),THREE,M,emis,add,basic,box,sph,cyl,mat,keep});
 Object.assign(OBJECTIVES,TDP_CONTENT.objectives());TDP_ENDLESS.init({FLOORS,mix:M6});
 TDP_INST.init({THREE,scene,makeBug,ENEMIES,dist,add,geoFx,geoTorus});TDP_INST.prewarm(Object.keys(ENEMIES));Object.assign(BOSS_AI,TDP_CONTENT.BOSS_AI);

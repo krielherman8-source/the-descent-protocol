@@ -7,7 +7,8 @@
    Colourblind mode swaps objective/exit/boss/hazard marker colours for the Okabe–Ito palette and adds a distinct
    shape per marker role. */
 (function(){
-const VERSION=3;  // v3: + endless (post-game unlock flag)
+const VERSION=4;  // v3: + endless (post-game unlock flag); v4: + interact 'auto' (default on touch devices, applied once to older saves on touch)
+const isTouchDev=()=>{try{return !!(window.matchMedia&&matchMedia('(pointer: coarse)').matches)||('ontouchstart' in window)||(navigator.maxTouchPoints>0)}catch(e){return false}};
 // [logical action, label, default raw key]
 const KB=[['w','MOVE UP','w'],['a','MOVE LEFT','a'],['s','MOVE DOWN','s'],['d','MOVE RIGHT','d'],
  ['fire','FIRE','f'],['e','INTERACT','e'],['q','CYCLE DRONE','q'],['wprev','PREV WEAPON','z'],['wnext','NEXT WEAPON','x'],
@@ -46,7 +47,8 @@ function migrate(raw,def){const o=JSON.parse(JSON.stringify(def||{}));const r=is
  if(['easy','normal','hard'].includes(r.diff))o.diff=r.diff;
  for(const b of['shake','tut','cb','autofire','endless'])if(typeof r[b]==='boolean')o[b]=r[b];
  if(typeof o.cb!=='boolean')o.cb=false;if(typeof o.autofire!=='boolean')o.autofire=false;if(typeof o.endless!=='boolean')o.endless=false;
- o.interact=r.interact==='toggle'?'toggle':'hold';
+ o.interact=['toggle','auto','hold'].includes(r.interact)?r.interact:'hold';
+ if(isTouchDev()&&(!isObj(raw)||!(r.v>=4)))o.interact='auto';
  o.binds=cleanMap(r.binds,KB,KDEF,validKey,[...'fzxcvgtyuhjklbnmoip8902345671']);o.pad=cleanMap(r.pad,PAD,PDEF,validBtn,[2,6,8,10,11,16,0,1,3,4,5,7,9]);
  o.v=VERSION;return o}
 // ---------- keyboard ----------
@@ -73,7 +75,7 @@ const padListening=()=>!!(listening&&listening.kind==='pad');
 function cancel(){if(listening){listening=null;flash='';refresh()}}
 function resetKeys(){CFG.binds={};rebuild();listening=null;save();refresh()}
 function resetPad(){CFG.pad={};listening=null;save();refresh()}
-function setInteract(m){CFG.interact=m==='toggle'?'toggle':'hold';save();refresh()}
+function setInteract(m){CFG.interact=['toggle','auto'].includes(m)?m:'hold';save();refresh()}
 function setAutofire(v){CFG.autofire=!!v;save();refresh()}
 // ---------- UI ----------
 function el(tag,cls,html){const e=document.createElement(tag);if(cls)e.className=cls;if(html!=null)e.innerHTML=html;return e}
@@ -91,7 +93,7 @@ function init(o){CFG=o.CFG;save=()=>{o.save();onChange&&onChange()};sfx=o.sfx;on
   for(const[a,n]of PAD){const b=el('button','bind');b.dataset.pad=a;b.addEventListener('click',ev=>{ev.stopPropagation();listening={kind:'pad',a};flash='';refresh();sfx&&sfx('ui')});pd.appendChild(b);ui.pad[a]=[b,n]}
   const rp=el('button','bind rs','RESET PAD');rp.id='rs-pad';rp.addEventListener('click',ev=>{ev.stopPropagation();resetPad()});pd.appendChild(rp);
   const op=el('div','binds');op.id='ctl-opt';
-  const im=el('button','bind');im.id='s-interact';im.addEventListener('click',ev=>{ev.stopPropagation();setInteract(CFG.interact==='toggle'?'hold':'toggle');sfx&&sfx('ui')});
+  const im=el('button','bind');im.id='s-interact';im.addEventListener('click',ev=>{ev.stopPropagation();setInteract({hold:'toggle',toggle:'auto',auto:'hold'}[CFG.interact]||'hold');sfx&&sfx('ui')});
   const af=el('button','bind');af.id='s-autofire';af.addEventListener('click',ev=>{ev.stopPropagation();setAutofire(!CFG.autofire);sfx&&sfx('ui')});
   op.appendChild(im);op.appendChild(af);
   const msg=el('div','small');msg.id='ctl-msg';
@@ -105,7 +107,7 @@ function init(o){CFG=o.CFG;save=()=>{o.save();onChange&&onChange()};sfx=o.sfx;on
 function refresh(){const cbI=document.getElementById('s-cb');if(cbI&&CFG)cbI.checked=!!CFG.cb;if(!ui||!CFG)return;
  for(const a in ui.kb){const[b,n]=ui.kb[a],on=listening&&listening.kind==='kb'&&listening.a===a;b.textContent=on?`${n}: press a key…`:`${n}: ${keyLabel(a)}`;b.classList.toggle('on',!!on)}
  for(const a in ui.pad){const[b,n]=ui.pad[a],on=listening&&listening.kind==='pad'&&listening.a===a;b.textContent=on?`${n}: press a pad button…`:`${n}: ${padLabel(a)}`;b.classList.toggle('on',!!on)}
- ui.im.textContent='INTERACT MODE: '+(CFG.interact==='toggle'?'TOGGLE':'HOLD');ui.af.textContent='AUTO-FIRE: '+(CFG.autofire?'ON':'OFF');ui.af.classList.toggle('lit',!!CFG.autofire);
+ ui.im.textContent='INTERACT MODE: '+({toggle:'TOGGLE',auto:'AUTO (STAND ON IT)'}[CFG.interact]||'HOLD');ui.af.textContent='AUTO-FIRE: '+(CFG.autofire?'ON':'OFF');ui.af.classList.toggle('lit',!!CFG.autofire);
  ui.msg.textContent=flash||'';
  const R=[['MOUSE','Aim · hold left button to fire'+(CFG.autofire?' (auto-fire is ON: fires at the aim point)':'')],
   ['ESC','Pause / back (always) · '+keyLabel('escape')+' also pauses'],['1/2/3 · click','Choose upgrade in chamber'],
@@ -113,7 +115,7 @@ function refresh(){const cbI=document.getElementById('s-cb');if(cbI&&CFG)cbI.che
   ['TOUCH','Left thumb move · right thumb aim+fire · USE / WPN / DRN buttons']];
  ui.fx.innerHTML=R.map(([a,b])=>`<tr><td>${a}</td><td>${b}</td></tr>`).join('')}
 // HUD helpers: the verb + control for the current input source
-const useVerb=()=>CFG&&CFG.interact==='toggle'?'PRESS':'HOLD';
+const useVerb=()=>CFG&&CFG.interact==='toggle'?'PRESS':CFG&&CFG.interact==='auto'?'STAND HERE':'HOLD';
 function useCtl(src){return src==='pad'?padLabel('use'):src==='touch'?'USE':keyLabel('e')}
 function on(){return !!(CFG&&CFG.cb)}
 function itemColor(o){return on()&&OKABE.item[o.kind]?OKABE.item[o.kind]:o.color}

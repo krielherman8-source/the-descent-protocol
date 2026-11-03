@@ -9,7 +9,7 @@ Three.js and its postprocessing addons are vendored in `vendor/`. When you open 
 These are the defaults. Every keyboard key and gamepad button can be changed in **Settings → Controls & rebinding**, and all prompts, HUD hints and the Controls screen show your current keys.
 - W A S D: move (screen-relative).
 - Mouse: aim. Hold left click (or F) to fire.
-- Hold E: interact. You can switch this to toggle (press once to start, press again to stop).
+- Hold E: interact. You can switch this to Toggle (press once to start, press again to stop) or Auto (just stand on the object; E still works).
 - 1-7: pick a weapon slot. Z / X: previous / next weapon. Q: cycle drone.
 - 1/2/3 or click: pick an upgrade card.
 - P: pause. Esc always pauses and goes back in menus, and can't be rebound. R: restart after death.
@@ -28,8 +28,8 @@ These are the defaults. Every keyboard key and gamepad button can be changed in 
   - Screen shake toggle.
   - **Controls & rebinding** screen. Keyboard: move, fire, interact, drone, previous/next weapon, weapon slots 1-7, pause and restart. Click an action, then press a key. If the key is already used, the two actions swap. Esc cancels, and Reset keys restores the defaults.
   - Gamepad remapping on the same screen: fire, use, previous/next weapon, drone, pause and back. Click an action, then press a pad button. Conflicts swap here too, and Reset pad restores the defaults.
-  - Interact mode: Hold or Toggle. Auto-fire: on or off (fires all the time at the aim point).
-  - Settings are versioned (`v: 2`). Older saves are upgraded on load, and missing or corrupt values fall back to the defaults.
+  - Interact mode: Hold, Toggle or Auto (default on phones and tablets; the USE button is dimmed). In Auto, exits need a short ~0.4 s stand; upgrade cards still need a tap. Auto-fire: on or off (fires all the time at the aim point).
+  - Settings are versioned (`v: 4`). Older saves are upgraded on load, and missing or corrupt values fall back to the defaults.
   - Colourblind markers: shape glyphs (not just colour) on objectives, minimap and edge arrows.
 - **Health drops:** green +HP crosses pulse with a ground glow and fly to you within ~120 px when you're hurt. Each floor starts with 2 medkits near the spawn (1 from F11). Kill drop chance is 5% (10% under 50% HP), doubled for Brutes/Brood Carriers (which drop a big +35), scaled ×1.6 on F1–5 and ×1.3 on F6–15. A pity drop is guaranteed after 7/10/14 kills without one (early/mid/late) while under 50% HP. Bosses drop 4 big kits. Heal is about 22 HP (25 on F1–5); Easy gets more drops and slightly bigger heals, Hard fewer (difficulty heal ×1.6 / ×1 / ×0.55).
 - **Gravity well (Mag-lock floors):** the pull only acts within 400 px, at 40% of your move speed at the edge rising to 60% at the core (always escapable, frame-rate independent), and fades in over the first 3 s. Aliens are not pulled. The core does 8 HP/s on Normal (time-based) with a pulsing red core, a red vignette, an on-screen warning and a warning tone. You always spawn outside the pull radius. Test: `tests/gw.js` (60 and 144 fps).

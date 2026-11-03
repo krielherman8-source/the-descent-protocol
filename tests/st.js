@@ -9,16 +9,16 @@ const kd=(k,o)=>dispatchEvent(new KeyboardEvent('keydown',Object.assign({key:k},
 const B=a=>document.querySelector(`button.bind[data-bind="${a}"]`),PB=a=>document.querySelector(`button.bind[data-pad="${a}"]`);
 const rebind=(a,k)=>{B(a).click();kd(k)};
 // --- migration from the old (v1, unversioned) blob loaded at boot
-ok(CFG.v===3&&T.VERSION===3,'migrated cfg has version 3');
+ok(CFG.v===4&&T.VERSION===4,'migrated cfg has version 4');
 ok(CFG.endless===false,'old blob migrates with Endless locked');
 ok(CFG.quality==='med'&&CFG.diff==='hard'&&CFG.shake===false&&CFG.vol.master===.5,'old values kept');
 ok(T.key('w')==='i'&&T.key('e')==='f','old key overrides kept');
 ok(T.key('fire')!=='f'&&T.mapKey(T.key('fire'))==='fire'&&T.mapKey('f')==='e','new default clashing with old override relocated ('+T.keyLabel('fire')+')');
 ok(CFG.interact==='hold'&&CFG.autofire===false&&CFG.pad&&typeof CFG.pad==='object','new fields filled with defaults');
-ok(cfgLS().v===3&&cfgLS().endless===false,'migrated cfg written back');
+ok(cfgLS().v===4&&cfgLS().endless===false,'migrated cfg written back');
 // bad data never crashes
 let bad=0,badAt=[];for(const r of [null,undefined,5,'x',[],{vol:null,binds:[1,2],pad:'q'},{vol:{master:'loud',sfx:NaN,music:9},quality:7,interact:'sideways',autofire:'yes',binds:{w:'Escape',fire:42,zz:'k',e:'w'},pad:{fire:99,use:-1,drone:'3',back:13}}]){try{const m=T.migrate(r,{vol:{master:.8,sfx:.8,music:.55},quality:'high',diff:'normal',shake:true,tut:true,cb:false,interact:'hold',autofire:false,binds:{},pad:{}});
- if(m.v!==3||m.endless!==false||typeof m.binds!=='object'||Array.isArray(m.binds)||!(m.vol.master>=0&&m.vol.master<=1)||!(m.vol.music<=1)||m.interact!=='hold'||m.autofire!==false||m.binds.w==='Escape'||m.binds.zz||m.binds.fire||m.pad.fire!==undefined||m.pad.back!==undefined){bad++;badAt.push(JSON.stringify(m))}}catch(e){bad++;badAt.push(e.message)}}
+ if(m.v!==4||m.endless!==false||typeof m.binds!=='object'||Array.isArray(m.binds)||!(m.vol.master>=0&&m.vol.master<=1)||!(m.vol.music<=1)||m.interact!=='hold'||m.autofire!==false||m.binds.w==='Escape'||m.binds.zz||m.binds.fire||m.pad.fire!==undefined||m.pad.back!==undefined){bad++;badAt.push(JSON.stringify(m))}}catch(e){bad++;badAt.push(e.message)}}
 ok(bad===0,'migrate survives bad/corrupt data'+(bad?' BAD '+badAt.join(';'):''));
 document.querySelector('[data-a=controls]')||0;
 // --- keyboard screen
@@ -71,6 +71,15 @@ ok(/press u/i.test(S.obj.progress(S)),'prompt says PRESS in toggle mode');
 kd('u');ku('u');for(let i=0;i<20;i++)update(1/60);const p2=it.prog;ok(p2>p1,'toggle: one press keeps interacting');
 kd('u',{repeat:true});for(let i=0;i<5;i++)update(1/60);ok(S.useLatch===true,'key repeat ignored');
 kd('u');ku('u');const p3=it.prog;for(let i=0;i<20;i++)update(1/60);ok(it.prog===p3&&!S.useLatch,'toggle: second press stops');
+document.getElementById('s-interact').click();ok(CFG.interact==='auto'&&/AUTO/.test(document.getElementById('s-interact').textContent),'interact mode auto');
+{const it2=S.items.find(i=>i.kind==='hold'&&!i.done&&i.active&&i!==it)||it;S.p.x=it2.x;S.p.y=it2.y;const q0=it2.prog;for(let i=0;i<20;i++)update(1/60);ok(it2.prog>q0,'auto: progress while standing on it, no key');
+ ok(/stand/i.test(S.obj.progress(S))&&/STAND HERE TO/.test(__TDP_DBG.useHint(it2)),'auto prompt: '+__TDP_DBG.useHint(it2));
+ S.p.x=it2.x+300;S.p.y=it2.y;const q1=it2.prog;for(let i=0;i<20;i++)update(1/60);ok(it2.prog<=q1,'auto: no progress out of range');
+ const tt=it2.time;it2.prog=0;S.p.x=it2.x;S.p.y=it2.y;let n=0;while(!it2.done&&n<6000){update(1/60);n++}ok(it2.done&&Math.abs(n/60-tt)<.3,'auto: same duration as hold ('+(n/60).toFixed(2)+'s vs '+tt+'s)');}
+{const ex=S.exit;S.exit={x:S.p.x,y:S.p.y};S.exitDwell=0;const st0=S.state,f0=S.floor;update(1/60);update(1/60);ok(S.state===st0&&S.floor===f0,'auto: exit needs ~0.4s dwell (not instant)');S.exit=ex;S.exitDwell=0}
+{const m=d=>T.migrate(d,{interact:'hold',binds:{},pad:{}});ok(m({v:3,interact:'hold'}).interact==='hold'&&m({v:3,interact:'auto'}).interact==='auto','desktop: old save keeps hold, auto accepted');
+ window.ontouchstart=null;ok(m(null).interact==='auto'&&m({v:3,interact:'hold'}).interact==='auto'&&m({v:4,interact:'hold'}).interact==='hold','touch: default auto, v3 save upgraded to auto once, v4 choice respected');delete window.ontouchstart;
+ ok(m(null).interact==='hold','desktop default stays hold');}
 document.getElementById('s-interact').click();ok(CFG.interact==='hold','back to hold');
 // reset keys
 document.getElementById('rs-kb').click();ok(['w','a','s','d','e','q','1','2','3','7','r'].every(a=>T.key(a)===a)&&T.key('fire')==='f'&&T.key('escape')==='p'&&T.mapKey('i')==='i','reset keys -> defaults');
@@ -91,7 +100,7 @@ press(9,1);step(1);press(9,0);step(1);ok(S.state==='paused','START pauses');resu
 document.getElementById('rs-pad').click();ok(T.pad('fire')===7&&T.pad('use')===0&&T.pad('drone')===3&&T.pad('back')===1,'reset pad -> defaults');
 navigator.getGamepads=()=>[];step(2);
 // persistence
-rebind('fire','c');document.getElementById('s-autofire').click();const ls=cfgLS();ok(ls.v===3&&ls.binds.fire==='c'&&ls.autofire===true&&ls.pad&&!ls.pad.fire,'persisted to localStorage');
+rebind('fire','c');document.getElementById('s-autofire').click();const ls=cfgLS();ok(ls.v===4&&ls.binds.fire==='c'&&ls.autofire===true&&ls.pad&&!ls.pad.fire,'persisted to localStorage');
 document.getElementById('s-autofire').click();T.resetKeys();
 // colourblind
 const cb=document.getElementById('s-cb');ok(!!cb,'cb checkbox');cb.checked=true;cb.dispatchEvent(new Event('change'));ok(T.on(),'cb on');
