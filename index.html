@@ -27,12 +27,12 @@ s.textContent=JSON.stringify({imports:{three:local?'./vendor/three.module.js':cd
 <label>GRAPHICS <select id="s-q"><option value="low">LOW (no bloom/shadows)</option><option value="med">MEDIUM (bloom)</option><option value="high">HIGH (bloom, hi-res shadows)</option></select></label>
 <label>SCREEN SHAKE <input type="checkbox" id="s-shake"></label><button data-a="controls">CONTROLS &amp; REBINDING</button><button data-a="back">BACK</button></div>
 <div class="panel" id="m-controls"><h2>CONTROLS</h2><button data-a="back">BACK</button></div></div>
-<link rel="stylesheet" href="css/ui.css"><script src="js/story.js"></script><script src="js/input.js"></script><script src="js/minimap.js"></script><script src="js/content.js"></script><script src="js/instancing.js"></script><script src="js/settings.js"></script><script src="js/stats.js"></script><script src="js/endless.js"></script>
+<link rel="stylesheet" href="css/ui.css"><script src="js/story.js"></script><script src="js/input.js"></script><script src="js/minimap.js"></script><script src="js/content.js"></script><script src="js/instancing.js"></script><script src="js/visuals.js"></script><script src="js/settings.js"></script><script src="js/stats.js"></script><script src="js/endless.js"></script>
 <div id="load">LOADING THE DESCENT PROTOCOL…</div><script type="module">
 'use strict';
 let THREE;
 try{THREE=await import('three')}catch(e){console.warn('three via import map failed, trying CDN',e);THREE=await import('https://unpkg.com/three@0.160.0/build/three.module.js')}
-let ADDONS=null;try{const m=await Promise.all(['EffectComposer','RenderPass','UnrealBloomPass','OutputPass'].map(n=>import(`three/addons/postprocessing/${n}.js`)));ADDONS=Object.assign({},...m)}catch(e){console.warn('postprocessing unavailable — bloom off',e)}
+let ADDONS=null;try{const m=await Promise.all(['EffectComposer','RenderPass','UnrealBloomPass','OutputPass','ShaderPass'].map(n=>import(`three/addons/postprocessing/${n}.js`)));ADDONS=Object.assign({},...m)}catch(e){console.warn('postprocessing unavailable — bloom off',e)}
 document.getElementById('load').remove();
 // ================= CONSTANTS / HELPERS =================
 const W=1280,H=720,CELL=32,GW=40,GH=23;
@@ -569,7 +569,7 @@ const KEEP=new WeakSet();const keep=o=>{if(o)KEEP.add(o);return o};
 const keepTree=r=>r.traverse(o=>{if(o.geometry)KEEP.add(o.geometry);if(o.material)[].concat(o.material).forEach(m=>KEEP.add(m))});
 // disposeQ: old floor content is freed one rendered frame after the new floor is built, so shader programs shared with
 // the new floor's materials (e.g. wall-fade clones) keep a user and are not released and recompiled on every floor.
-const disposeQ=[];function disposeTree(r){if(!r)return;r.traverse(o=>{if(o.geometry&&!KEEP.has(o.geometry))o.geometry.dispose();if(o.material)for(const m of [].concat(o.material))if(!KEEP.has(m))m.dispose()})}
+const disposeQ=[];function disposeTree(r){if(!r)return;r.traverse(o=>{if(o.isInstancedMesh&&o.parent&&o.parent.name!=='instanced-enemies'&&o!==gibMesh&&o!==decMesh)o.dispose();if(o.geometry&&!KEEP.has(o.geometry))o.geometry.dispose();if(o.material)for(const m of [].concat(o.material))if(!KEEP.has(m))m.dispose()})}
 const emis=(c,i=2,base=0x000000)=>{const k=c+'|'+i;return matCache[k]||(matCache[k]=keep(M({color:base,emissive:new THREE.Color(c),emissiveIntensity:i,roughness:.6})))};
 const basic=(c,o)=>{const k='b'+c+JSON.stringify(o||{});return matCache[k]||(matCache[k]=keep(new THREE.MeshBasicMaterial(Object.assign({color:new THREE.Color(c)},o||{}))))};
 const add=(c,op)=>basic(c,{transparent:true,opacity:op,blending:THREE.AdditiveBlending,depthWrite:false});
@@ -581,6 +581,10 @@ function floorTex(){const c=document.createElement('canvas');c.width=c.height=25
   if(i===j){g.strokeStyle='#10171b';g.lineWidth=3;for(let k=24;k<108;k+=10){g.beginPath();g.moveTo(x+22,y+k);g.lineTo(x+106,y+k);g.stroke()}}}
  const t=new THREE.CanvasTexture(c);t.wrapS=t.wrapT=THREE.RepeatWrapping;t.repeat.set(W/192,H/192);t.colorSpace=THREE.SRGBColorSpace;t.anisotropy=4;return t}
 const floorMat=keep(M({map:floorTex(),metalness:.45,roughness:.55}));Object.values(mat).forEach(keep);
+TDP_VIS.init({THREE});const VT=TDP_VIS.textures(W,H);// procedural PBR maps (Medium/High); Low keeps floorMat/mat.steel
+const floorMatHQ=keep(M({...VT.FM,metalness:.55,roughness:1,normalScale:new THREE.Vector2(1.2,1.2)})),wallMatHQ=keep(M({...VT.WM,metalness:.5,roughness:1,normalScale:new THREE.Vector2(1,1)}));
+const topMatHQ=keep(M({...VT.FM,metalness:.6,roughness:1}));
+const hq=()=>CFG.quality!=='low';
 const ground=new THREE.Mesh(new THREE.PlaneGeometry(W,H),floorMat);ground.rotation.x=-Math.PI/2;ground.position.set(W/2,0,H/2);ground.receiveShadow=true;scene.add(ground);
 const outer=new THREE.Mesh(new THREE.PlaneGeometry(6000,6000),M({color:0x030506,roughness:1}));outer.rotation.x=-Math.PI/2;outer.position.set(W/2,-2,H/2);scene.add(outer);
 // ---- models ----
@@ -669,10 +673,10 @@ let level=null,builtFor=null,lamps=[],winds=[],wellParts=null;
 function buildLevel(){if(level){scene.remove(level);disposeQ.push(level)}poolTrim=true;// level geometry + per-floor materials (wall-fade clones, set pieces)
  level=new THREE.Group();scene.add(level);lamps=[];winds=[];wellParts=null;itemMeshes.forEach(m=>{scene.remove(m);disposeQ.push(m)});itemMeshes.clear();
  const f=S.f,tint=new THREE.Color(f.tint).offsetHSL(0,.2,.28),trim=emis(tint,1.1);
- const wall=(x,y,w,h,ht,fade)=>{const m=box(w,ht,h,mat.steel,x+w/2,ht/2,y+h/2);m.receiveShadow=true;const n0=level.children.length;level.add(m,box(w,2,h,mat.top,x+w/2,ht+1,y+h/2,false),box(w+1,2,2.5,trim,x+w/2,ht+2,y+h+.5,false),box(w+1,2,2.5,trim,x+w/2,ht+2,y-.5,false),box(2.5,2,h+1,trim,x-.5,ht+2,y+h/2,false),box(2.5,2,h+1,trim,x+w+.5,ht+2,y+h/2,false),box(w+1,2,h+1,trim,x+w/2,ht*.42,y+h/2,false));if(fade)wallFade.push({x,y,w,h,o:1,meshes:level.children.slice(n0),mats:[]})};
+ const HQ=hq(),wm=HQ?wallMatHQ:mat.steel;const wall=(x,y,w,h,ht,fade)=>{const m=box(w,ht,h,wm,x+w/2,ht/2,y+h/2);if(HQ)TDP_VIS.wallUV(m.geometry,w,ht,h,128);m.receiveShadow=true;const n0=level.children.length;const tp=box(w,2,h,HQ?topMatHQ:mat.top,x+w/2,ht+1,y+h/2,false);if(HQ)TDP_VIS.wallUV(tp.geometry,w,2,h,256);level.add(m,tp,box(w+1,2,2.5,trim,x+w/2,ht+2,y+h+.5,false),box(w+1,2,2.5,trim,x+w/2,ht+2,y-.5,false),box(2.5,2,h+1,trim,x-.5,ht+2,y+h/2,false),box(2.5,2,h+1,trim,x+w+.5,ht+2,y+h/2,false),box(w+1,2,h+1,trim,x+w/2,ht*.42,y+h/2,false));if(fade)wallFade.push({x,y,w,h,o:1,meshes:level.children.slice(n0),mats:[]})};
  wallFade.length=0;clearDecals();S.walls.forEach(w=>wall(w.x,w.y,w.w,w.h,72,true));wall(-26,-26,W+52,26,96);wall(-26,0,26,H,96);wall(W,0,26,H,96);wall(-26,H,W+52,26,22);
  for(const[x,y,w,h]of[[W/2,6,W-12,2],[W/2,H-6,W-12,2],[6,H/2,2,H-12],[W-6,H/2,2,H-12]])level.add(box(w,1,h,emis(tint,1.2),x,.6,y,false));
- const TH={facility:[0xffffff,0x1f2a31],industrial:[0xd0d8c8,0x26302a],hive:[0xd09aa8,0x2a1a22],core:[0xa8d8e0,0x1a2430]}[f.theme||'facility'];floorMat.color.set(TH[0]);mat.steel.color.set(TH[1]);
+ const TH={facility:[0xffffff,0x1f2a31],industrial:[0xd0d8c8,0x26302a],hive:[0xd09aa8,0x2a1a22],core:[0xa8d8e0,0x1a2430]}[f.theme||'facility'];floorMat.color.set(TH[0]);mat.steel.color.set(TH[1]);floorMatHQ.color.set(TH[0]);wallMatHQ.color.set(TH[1]).multiplyScalar(4.5);topMatHQ.color.set(TH[1]).multiplyScalar(2.6);
  if(f.theme==='hive'||f.theme==='core'){const om=M({color:f.theme==='hive'?0x3a1020:0x102a30,emissive:new THREE.Color(f.theme==='hive'?0x701030:0x10a0a0),emissiveIntensity:.25,roughness:.4,flatShading:true});
   for(const w of S.walls)for(let k=0;k<4;k++){const b=new THREE.Mesh(new THREE.IcosahedronGeometry(rnd(10,22),0),om);b.position.set(w.x+rnd(0,w.w),rnd(0,30),w.y+(Math.random()<.5?0:w.h));b.castShadow=true;level.add(b)}
   for(let k=0;k<18;k++){const v=new THREE.Mesh(new THREE.CircleGeometry(rnd(20,60),7),add(f.theme==='hive'?0x8a1040:0x10a0a0,.12));v.rotation.x=-Math.PI/2;v.position.set(rnd(0,W),.8,rnd(0,H));level.add(v)}}
@@ -684,6 +688,7 @@ function buildLevel(){if(level){scene.remove(level);disposeQ.push(level)}poolTri
  if(S.winds)for(const z of S.winds){const set=[];for(let k=0;k<16;k++){const s=box(60,1.5,2.5,add(0x99e8ff,.35),0,20+(k%4)*12,z.y0+20+((k*53)%(z.y1-z.y0-40)),false);s.userData.o=k*97;level.add(s);set.push(s)}winds.push({z,set})}
  for(const w of wallFade)for(const m of w.meshes){const c=m.material.clone();c.transparent=true;c.userData.base=m.material.opacity??1;m.material=c;w.mats.push(c)}
  TDP_CONTENT.setPiece(f,{T:THREE,add:(...o)=>level.add(...o),walls:S.walls,trim,P,W,H});
+ if(HQ){const pg=new THREE.Group();level.add(pg);TDP_VIS.props({group:pg,W,H,dark:mat.dark,emis:emis(tint,1.6),inner:(x,y)=>S.walls.some(w=>x>w.x-40&&x<w.x+w.w+40&&y>w.y-40&&y<w.y+w.h+40)}).forEach(keep)}
  builtFor=S.walls;camPos.set(S.p.x,0,S.p.y).add(CAM_OFF);needWarm=true}
 // shader pre-warm: once per level build, draw one (microscopic, light-stripped) copy of every enemy/boss model plus fx
 // meshes next to the camera target so every program (incl. shadow-depth variants) is compiled before play starts.
@@ -736,11 +741,14 @@ function fxUpdate(dt){const p=S.p;
 function drawArcs(){let n=0;const seg=(A,B,w,m)=>{let o=arcMeshes[n++];if(!o){o=new THREE.Mesh(geoBeam,m);arcGroup.add(o);arcMeshes.push(o)}o.material=m;o.visible=true;const dx=B.x-A.x,dy=B.y-A.y;o.position.set((A.x+B.x)/2,28,(A.y+B.y)/2);o.rotation.set(0,-Math.atan2(dy,dx),0);o.scale.set(Math.hypot(dx,dy)+w,w,w)};
  for(const a of S.arcs)for(let i=1;i<a.pts.length;i++){const A=a.pts[i-1],B=a.pts[i];let prev={x:A.x,y:A.y};for(let k=1;k<=5;k++){const t=k/5,j=k<5?12:0,q={x:A.x+(B.x-A.x)*t+rnd(-j,j),y:A.y+(B.y-A.y)*t+rnd(-j,j)};seg(prev,q,3,arcMat2);seg(prev,q,9,arcMat3);prev=q}}
  for(let i=n;i<arcMeshes.length;i++)arcMeshes[i].visible=false}
-var composer=null,bloomPass=null;
-if(ADDONS){try{composer=new ADDONS.EffectComposer(renderer);composer.addPass(new ADDONS.RenderPass(scene,camera));bloomPass=new ADDONS.UnrealBloomPass(new THREE.Vector2(512,512),.8,.55,.78);composer.addPass(bloomPass);composer.addPass(new ADDONS.OutputPass());resize()}catch(e){console.warn('bloom disabled',e);composer=null}}
+var composer=null,bloomPass=null,gradePass=null;
+// flashlight: one shadow-casting SpotLight following the player's aim (Medium: no shadow, Low: off)
+const spot=new THREE.SpotLight(0xfff0d8,0,760,.52,.55,1.6);spot.shadow.mapSize.set(1024,1024);spot.shadow.bias=-0.0008;spot.shadow.camera.near=20;spot.shadow.camera.far=800;scene.add(spot,spot.target);
+if(ADDONS){try{composer=new ADDONS.EffectComposer(renderer);composer.addPass(new ADDONS.RenderPass(scene,camera));bloomPass=new ADDONS.UnrealBloomPass(new THREE.Vector2(512,512),.8,.55,.78);composer.addPass(bloomPass);composer.addPass(new ADDONS.OutputPass());if(ADDONS.ShaderPass){gradePass=new ADDONS.ShaderPass(TDP_VIS.GradeShader);composer.addPass(gradePass)}resize()}catch(e){console.warn('bloom disabled',e);composer=null}}
 function applyQuality(){const q=CFG.quality;renderer.setPixelRatio(q==='low'?.85:q==='med'?1:Math.min(devicePixelRatio||1,1.5));
  const sh=q!=='low';if(renderer.shadowMap.enabled!==sh){renderer.shadowMap.enabled=sh;scene.traverse(o=>{if(o.material)(Array.isArray(o.material)?o.material:[o.material]).forEach(m=>m.needsUpdate=true)})}
- sun.castShadow=sh;const ms=q==='high'?2048:1024;if(sun.shadow.mapSize.x!==ms){sun.shadow.mapSize.set(ms,ms);if(sun.shadow.map){sun.shadow.map.dispose();sun.shadow.map=null}}resize()}
+ sun.castShadow=sh;spot.visible=q!=='low';spot.castShadow=q==='high';if(gradePass)gradePass.enabled=q!=='low';ground.material=q==='low'?floorMat:floorMatHQ;
+ decMesh.material.alphaMap=q==='low'?null:TDP_VIS.splat();decMesh.material.needsUpdate=true;if(applyQuality.q&&applyQuality.q!==q)builtFor=null;applyQuality.q=q;const ms=q==='high'?2048:1024;if(sun.shadow.mapSize.x!==ms){sun.shadow.mapSize.set(ms,ms);if(sun.shadow.map){sun.shadow.map.dispose();sun.shadow.map=null}}resize()}
 const camPos=new THREE.Vector3(),camLook=new THREE.Vector3();let lastShots=0,muzzleT=0;
 function render(dt){const snap=dt===undefined;dt=dt||1/60;const p=S.p,f=S.f;if(disposeQ.length&&builtFor===S.walls){disposeQ.forEach(disposeTree);disposeQ.length=0}if(builtFor!==S.walls)buildLevel();
  // camera: fixed angle, smooth follow
@@ -755,6 +763,8 @@ function render(dt){const snap=dt===undefined;dt=dt||1/60;const p=S.p,f=S.f;if(d
  const flick=f.dark&&Math.random()<.05?.35:1;pLight.position.set(p.x,110,p.y+30);pLight.intensity=(f.dark?26000:14000)*flick;
  if(S.stats.shots!==lastShots){lastShots=S.stats.shots;muzzleT=.06}muzzleT-=dt;
  const tip={x:p.x+Math.cos(aim)*34-Math.sin(aim)*9,y:p.y+Math.sin(aim)*34+Math.cos(aim)*9};
+ spot.position.set(p.x-Math.cos(aim)*6,64,p.y-Math.sin(aim)*6);spot.target.position.set(p.x+Math.cos(aim)*260,0,p.y+Math.sin(aim)*260);spot.intensity=S.state==='title'?0:(f.dark?3.2e5:1.3e5)*flick;
+ if(gradePass){gradePass.uniforms.time.value=S.t%10;gradePass.uniforms.dmg.value=Math.max(0,S.hurtT||0)/.35+(p.hp<p.maxHp*.25&&S.state==='play'?.25+.15*Math.sin(S.t*6):0)}
  muzzle.position.set(tip.x,32,tip.y);muzzle.intensity=muzzleT>0?16000:0;muzzle.color.set({flamethrower:0xff8840,grenade_launcher:0xffcc55,railgun:0xdd99ff,bio_harvester:0x66ff66}[p.weapon]||0xbfffff);
  flash.visible=muzzleT>0;flash.position.copy(muzzle.position);flash.scale.setScalar(rnd(.7,1.4));
  if(gunKey!==p.weapon){gunKey=p.weapon;const gh=player.userData.gun;gh.clear();gh.add(gunCache[p.weapon]||(gunCache[p.weapon]=makeGun(p.weapon)))}
