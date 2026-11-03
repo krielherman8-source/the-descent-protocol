@@ -84,5 +84,18 @@ const GradeShader={uniforms:{tDiffuse:{value:null},time:{value:0},dmg:{value:0},
   c=(c-.5)*1.08+.5;c=mix(vec3(l),c,1.08);
   c*=1.-vig*smoothstep(.12,.62,r2*1.55);c=mix(c,c*vec3(1.4,.5,.5),dmg*smoothstep(.08,.5,r2*2.)*.8);
   c+=(h(vUv*vec2(1280.,720.))-.5)*grain;gl_FragColor=vec4(max(c,0.),1.);}`};
-window.TDP_VIS={init(c){T=c.THREE},textures,wallUV,splat,props,GradeShader};
+// ---- creature helpers ----
+// merge geometries (non-indexed) after applying each one's matrix
+function mergeGeos(list){let n=0;const gs=list.map(([g,m])=>{const q=(g.index?g.toNonIndexed():g.clone()).applyMatrix4(m);n+=q.attributes.position.count;return q});
+ const pos=new Float32Array(n*3),nor=new Float32Array(n*3),uv=new Float32Array(n*2);let o=0;for(const q of gs){pos.set(q.attributes.position.array,o*3);nor.set(q.attributes.normal.array,o*3);if(q.attributes.uv)uv.set(q.attributes.uv.array,o*2);o+=q.attributes.position.count;q.dispose()}
+ const out=new T.BufferGeometry();out.setAttribute('position',new T.BufferAttribute(pos,3));out.setAttribute('normal',new T.BufferAttribute(nor,3));out.setAttribute('uv',new T.BufferAttribute(uv,2));out.computeBoundingSphere();return out}
+// a box "bone" from a to b with thickness th
+function seg(a,b,th,th2){const d=new T.Vector3().subVectors(b,a),L=d.length();const g=new T.CylinderGeometry(th2??th*.7,th,L,5);g.translate(0,L/2,0);const m=new T.Matrix4();const q=new T.Quaternion().setFromUnitVectors(new T.Vector3(0,1,0),d.normalize());m.compose(a,q,new T.Vector3(1,1,1));return [g,m]}
+// one leg pair (both sides) as a single geometry: hip -> raised knee -> foot on the ground; origin at the hip height h
+function legPair(r,L,h){const V=(x,y,z)=>new T.Vector3(x,y,z),parts=[];for(const s of[-1,1]){const hip=V(0,0,s*r*.3),knee=V(r*.08,r*.55,s*L*.36),foot=V(r*.15,-h,s*L*.62);parts.push(seg(hip,knee,r*.11,r*.08),seg(knee,foot,r*.08,r*.025))}return mergeGeos(parts)}
+let CH=null;function chitin(){if(CH)return CH;const n=128,[c,g]=cv(n);g.fillStyle='#b0b0b0';g.fillRect(0,0,n,n);
+ for(let i=0;i<n;i+=16){const gr=g.createLinearGradient(0,i,0,i+16);gr.addColorStop(0,'#e8e8e8');gr.addColorStop(.7,'#9a9a9a');gr.addColorStop(1,'#505050');g.fillStyle=gr;g.fillRect(0,i,n,16)}
+ grime(g,n,50,'rgba(30,30,30,A)');for(let i=0;i<120;i++){g.fillStyle=`rgba(255,255,255,${R(.05,.2)})`;g.beginPath();g.arc(R(0,n),R(0,n),R(.5,2),0,7);g.fill()}
+ CH=new T.CanvasTexture(c);CH.colorSpace=T.SRGBColorSpace;CH.wrapS=CH.wrapT=T.RepeatWrapping;return CH}
+window.TDP_VIS={mergeGeos,seg,legPair,chitin,init(c){T=c.THREE},textures,wallUV,splat,props,GradeShader};
 })();
