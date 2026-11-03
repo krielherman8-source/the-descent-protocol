@@ -334,7 +334,7 @@ function startFloor(){const f=floorAt(S.floor);S.f=f;S.dmgK=S.endless&&S.floor>=
  S.walls=f.walls.map(([cx,cy,cw,ch])=>({x:cx*CELL,y:cy*CELL,w:cw*CELL,h:ch*CELL}));
  S.grid=new Uint8Array(GW*GH);for(let y=0;y<GH;y++)for(let x=0;x<GW;x++)S.grid[x+y*GW]=S.walls.some(w=>cp(x)>w.x&&cp(x)<w.x+w.w&&cp(y)>w.y&&cp(y)<w.y+w.h)?1:0;
  S.flow=new Int16Array(GW*GH);S.flowT=0;
- Object.assign(S.p,P(...f.spawn));S.enemies=[];S.bullets=[];S.ebullets=[];S.parts=[];S.arcs=[];S.rings=[];S.beams=[];S.orbs=[];S.booms=[];S.decoy=null;S.pickups=[];S.p.hpos={x:S.p.x,y:S.p.y};S.exit=null;S.choices=null;S.texts=[];
+ Object.assign(S.p,P(...f.spawn));S.enemies=[];S.bullets=[];S.ebullets=[];S.parts=[];S.arcs=[];S.rings=[];S.dying=[];S.beams=[];S.orbs=[];S.booms=[];S.decoy=null;S.pickups=[];S.p.hpos={x:S.p.x,y:S.p.y};S.exit=null;S.choices=null;S.texts=[];
  S.winds=null;S.well=null;S.useLatch=false;S.hazards=[];S.carry=null;S.socket=null;S.floorT=0;S.eliteSpawned=false;fixSpawn(f);const fx=f.points||!f.n?f:Object.assign({},f,{points:autoPoints(f.n)});S.fx=fx;S.obj.setup(S,fx);makeHazards(f);S.waveT=2;S.wave=0;S.cleared=false;showBanner(`${floorLbl(S.floor)} — ${f.name.toUpperCase()}`,f.task,3.5);if(S.endless)recordEndless()}
 function showBanner(a,b,t){S.banner={a,b,life:t}}
 function floatText(x,y,t,col){S.texts.push({x,y,t,col:col||'#bff',life:1.6})}
@@ -428,7 +428,7 @@ function applyMods(e,amt,o){const p=S.p,ms=o.mods,rate=WEAPONS[o.wk||p.weapon].r
  if(ms.includes('emp')&&!boss&&Math.random()<Math.min(1,1.2/rate)){e.stun=.7;S.stats.procs++;burst(e.x,e.y,'#ff6',6)}
  if(ms.includes('explosive')&&S.t-(S._expT||-9)>.12&&Math.random()<Math.min(1,2/rate)){S._expT=S.t;S.stats.procs++;explodeAt(e.x,e.y,55,Math.max(12,amt*.6),'#fa5',o)}}
 function explodeAt(x,y,r,dmg,col,o){if(o&&o.mods)o={mods:o.mods.filter(m=>m!=='explosive'),wk:o.wk,splash:true};S.stats.booms++;sfx('explosion');S.events.push({t:'boom',x,y,r});S.shake=Math.min(18,S.shake+r/14);for(const t of hittables()){const d=dist(t,{x,y});if(d<r+t.r)damage(t,dmg*(1-.5*Math.min(1,d/r)),o)}
- S.rings.push({x,y,r:10,life:.3,col});S.booms.push({x,y,life:.18,col});burst(x,y,col,26);burst(x,y,'#fff',8)}
+ S.rings.push({x,y,r:10,life:.3,col});if(hq())S.rings.push({x,y,r:r*.2,life:.45,col:'#fff2d0',v:r*3.2});S.booms.push({x,y,life:.18,col});burst(x,y,col,26);burst(x,y,'#fff',8)}
 function railShot(p,a,dmg){S.stats.rails++;S.shake=Math.min(18,S.shake+2.5);const cx=Math.cos(a),cy=Math.sin(a);let L=0;while(L<1300&&!inWall(p.x+cx*L,p.y+cy*L))L+=8;
  const x2=p.x+cx*L,y2=p.y+cy*L,o={mods:p.mods[p.weapon],wk:p.weapon};
  for(const t of hittables()){const dx=t.x-p.x,dy=t.y-p.y,pr=dx*cx+dy*cy;if(pr<0||pr>L)continue;if(Math.abs(dx*cy-dy*cx)<t.r+6){damage(t,dmg*p.dmgMul,o);burst(t.x,t.y,'#e9f',8)}}
@@ -489,7 +489,7 @@ function tutTick(dt){if(S.floor!==0||!CFG.tut||S.demo)return;const t=S.tut||(S.t
  const st=TUT[t.i];if(st&&st.ok(t,S)){t.i++;t.t=0;t.s0=S.stats.shots;sfx('ui');if(t.i>=TUT.length){CFG.tut=false;saveCfg()}}}
 function update(dt){S.t+=dt;S._dt=dt;if(S.banner&&S.banner.life>0)S.banner.life-=dt;
  for(const t of S.texts){t.life-=dt;t.y-=20*dt}S.texts=S.texts.filter(t=>t.life>0);
- for(const a of S.arcs)a.life-=dt;S.arcs=S.arcs.filter(a=>a.life>0);for(const r of S.rings){r.life-=dt;r.r+=400*dt}S.rings=S.rings.filter(r=>r.life>0);for(const b of S.beams)b.life-=dt;S.beams=S.beams.filter(b=>b.life>0);for(const b of S.booms)b.life-=dt;S.booms=S.booms.filter(b=>b.life>0);
+ for(const a of S.arcs)a.life-=dt;S.arcs=S.arcs.filter(a=>a.life>0);for(const r of S.rings){r.life-=dt;r.r+=(r.v||400)*dt}if(S.dying){for(const d of S.dying)d.dt-=dt;S.dying=S.dying.filter(d=>d.dt>0)}S.rings=S.rings.filter(r=>r.life>0);for(const b of S.beams)b.life-=dt;S.beams=S.beams.filter(b=>b.life>0);for(const b of S.booms)b.life-=dt;S.booms=S.booms.filter(b=>b.life>0);
  if(S.state==='descent'){S.descT+=dt;if(!S.descDone&&S.descT>=.9){S.descDone=true;S.floor++;startFloor();saveGame()}if(S.descT>=1.8)S.state='play';return}
  if(S.state!=='play')return;const p=S.p,f=S.f;S.stats.time+=dt;if(S.endless&&S.floor>=TDP_ENDLESS.START)S.stats.etime=(S.stats.etime||0)+dt;TDP_STATS.tick(S,dt);tutTick(dt);
  S.floorT+=dt;p.slow=1;S.obj.update&&S.obj.update(dt,S,f);
@@ -528,7 +528,7 @@ function update(dt){S.t+=dt;S._dt=dt;if(S.banner&&S.banner.life>0)S.banner.life-
   e.x+=Math.cos(ang)*spd*dt;e.y+=Math.sin(ang)*spd*dt;
   {const ix=(e.x/48)|0,iy=(e.y/48)|0;for(let gy=iy-1;gy<=iy+1;gy++)for(let gx=ix-1;gx<=ix+1;gx++){const a=SH.get(gx+gy*64);if(!a)continue;for(const o of a){if(o===e||o.hp<=0)continue;const dx=e.x-o.x,dy=e.y-o.y,mn=(e.r+o.r)*1.15;if(Math.abs(dx)>mn||Math.abs(dy)>mn)continue;const dd=Math.hypot(dx,dy);if(dd<mn&&dd>0){const k=T.boss?.1:ENEMIES[o.type].boss?.9:.45;e.x+=dx/dd*(mn-dd)*k;e.y+=dy/dd*(mn-dd)*k}}}}
   resolve(e);if(T.ai!=='explode'&&dist(e,p)<e.r+p.r){const was=p.inv;hurtPlayer(e.dmg);if(T.boss&&was<=0&&p.inv>0){p.inv=1;const k=Math.max(dist(e,p),1);p.x+=(p.x-e.x)/k*46;p.y+=(p.y-e.y)/k*46;resolve(p)}}}
- for(const e of S.enemies)if(e.hp<=0){S.stats.kills++;TDP_STATS.kill(S,e.type);if(ENEMIES[e.type].split&&S.enemies.length<110)spawnNear(ENEMIES[e.type].split,e.x,e.y,4,20);if(p.drone==='harvestor'&&Math.random()<.4)S.orbs.push({x:e.x,y:e.y,life:12});burst(e.x,e.y,e.color,ENEMIES[e.type].boss?120:14);const bs=!!ENEMIES[e.type].boss;if(!S.demo){const ch=(.03+(p.hp<p.maxHp*.4?.03:0))*DF().heal;if(bs)for(let i=0;i<3;i++)S.pickups.push({x:e.x+rnd(-60,60),y:e.y+rnd(-60,60),life:30,heal:30,big:true});else if(Math.random()<ch&&S.pickups.length<6)S.pickups.push({x:e.x,y:e.y,life:14,heal:18})}sfx(bs?'roar':'death');if(bs)S.shake=20;S.events.push({t:'die',x:e.x,y:e.y,col:e.color,r:e.r,boss:bs})}if(S.events.length>300)S.events.splice(0,S.events.length-300);
+ for(const e of S.enemies)if(e.hp<=0){S.stats.kills++;TDP_STATS.kill(S,e.type);if(ENEMIES[e.type].split&&S.enemies.length<110)spawnNear(ENEMIES[e.type].split,e.x,e.y,4,20);if(p.drone==='harvestor'&&Math.random()<.4)S.orbs.push({x:e.x,y:e.y,life:12});burst(e.x,e.y,e.color,ENEMIES[e.type].boss?120:14);if(hq()&&!ENEMIES[e.type].boss&&S.dying&&S.dying.length<60)S.dying.push({type:e.type,x:e.x,y:e.y,_iu:e._iu,dying:1,dt:.45,flash:0});const bs=!!ENEMIES[e.type].boss;if(!S.demo){const ch=(.03+(p.hp<p.maxHp*.4?.03:0))*DF().heal;if(bs)for(let i=0;i<3;i++)S.pickups.push({x:e.x+rnd(-60,60),y:e.y+rnd(-60,60),life:30,heal:30,big:true});else if(Math.random()<ch&&S.pickups.length<6)S.pickups.push({x:e.x,y:e.y,life:14,heal:18})}sfx(bs?'roar':'death');if(bs)S.shake=20;S.events.push({t:'die',x:e.x,y:e.y,col:e.color,r:e.r,boss:bs})}if(S.events.length>300)S.events.splice(0,S.events.length-300);
  S.enemies=S.enemies.filter(e=>e.hp>0);
  // bullets
  const T=hittables();
@@ -807,7 +807,7 @@ function render(dt){const snap=dt===undefined;dt=dt||1/60;const p=S.p,f=S.f;if(d
   if(vx*vx+vy*vy>.01)u.h=Math.atan2(vy,vx);u.px=e.x;u.py=e.y;g.position.set(e.x,0,e.y);g.rotation.y=-(u.h||0);
   const t=S.t*18+(e.x+e.y)*.05;if(u.anim)u.anim(S.t,e);else u.legs.forEach((l,i)=>l.rotation.y=(i-1)*.45+Math.sin(t+i*2)*.3);g.scale.setScalar((ENEMIES[e.type].boss?1:1.4)*(e.flash>0?1.15:1));if(ENEMIES[e.type].cloak)g.visible=dist(e,p)<170||Math.random()<.25;if(e.type==='overmind'){g.rotation.y=0;u.legs.forEach((l,i)=>l.rotation.y=S.t*.3*(i%2?1:-1));u.abd.scale.setScalar(1+Math.sin(S.t*4)*.05+(e.inv>0?.15:0))}
   if(e.type==='exploder')u.abd.scale.set(1.35+Math.sin(S.t*12)*.15,.8,1.05);u.fr.visible=e.slowT>0;u.st.visible=e.stun>0;if(e.stun>0)u.st.rotation.z=S.t*10},e=>'e'+e.type);
- if(instOn)TDP_INST.update(S.enemies,S.t,p);TDP_INST.root.visible=instOn;
+ if(instOn)TDP_INST.update(S.dying&&S.dying.length?S.enemies.concat(S.dying):S.enemies,S.t,p);TDP_INST.root.visible=instOn;
  sync(S.pickups||[],pickMeshes,h=>{const g=new THREE.Group(),mt=emis(0x44ff77,1.6,0x0a3318);g.add(box(16,5,5,mt,0,0,0,false),box(5,5,16,mt,0,0,0,false));const r=new THREE.Mesh(new THREE.TorusGeometry(13,1.4,6,20),add(0x66ff99,.5));r.rotation.x=-Math.PI/2;r.position.y=-12;g.add(r);return g},(h,g)=>{g.position.set(h.x,22+Math.sin(S.t*4+h.x)*4,h.y);g.rotation.y=S.t*2;g.scale.setScalar((h.big?1.4:1)*(h.life<3?.6+.4*Math.abs(Math.sin(S.t*10)):1))},h=>'hp');
  sync(S.bullets,bulletMeshes,b=>{const m=new THREE.Mesh(geoB,b.flame?add(0xff7a30,.55):b.grenade?emis(0xffbb33,1.5,0x332200):basic(b.col));m.scale.setScalar(b.r*(b.flame?2:1.2));return m},(b,m)=>{
   if(b.grenade){const t=1-b.life/b.life0;m.position.set(b.x,28+Math.sin(t*Math.PI)*70,b.y);m.scale.setScalar(b.r);m.rotation.x+=.3;return}

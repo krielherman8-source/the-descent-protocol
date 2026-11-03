@@ -33,14 +33,14 @@ function set(part,i,m){if(i>=part.mesh.instanceMatrix.count)grow(part);part.mesh
 function update(list,t,p){for(const k in kinds){kinds[k].n=0}let nf=0,nr=0,ns=0;const lod=list.length>60;const M=tmp.m,L=tmp.l;
  for(const e of list){const E=ctx.ENEMIES[e.type];if(E.boss)continue;const k=kinds[e.type]||build(e.type);
   const u=e._iu||(e._iu={});const vx=e.x-(u.px??e.x),vy=e.y-(u.py??e.y);if(vx*vx+vy*vy>.01)u.h=Math.atan2(vy,vx);u.px=e.x;u.py=e.y;
-  if(E.cloak&&!(ctx.dist(e,p)<170||Math.random()<.25))continue;
-  const sc=1.4*(e.flash>0?1.15:1);tmp.q.setFromAxisAngle(Y,-(u.h||0));tmp.p.set(e.x,0,e.y);tmp.s.setScalar(sc);M.compose(tmp.p,tmp.q,tmp.s);
+  if(E.cloak&&!e.dying&&!(ctx.dist(e,p)<170||Math.random()<.25))continue;
+  const dk=e.dying?Math.max(e.dt/.45,.01):1;const sc=1.4*(e.flash>0?1.15:1)*(e.dying?.35+.65*dk:1);tmp.q.setFromAxisAngle(Y,-(u.h||0));tmp.p.set(e.x,e.dying?-(1-dk)*14:0,e.y);tmp.s.setScalar(sc);M.compose(tmp.p,tmp.q,tmp.s);
   const i=k.n++;for(const s of k.statics)set(s,i,M);
   const tt=t*18+(e.x+e.y)*.05;
   k.legs.forEach((l,j)=>{tmp.e.set(l.rot.x,l.ry+Math.sin(tt+j*2)*.3,l.rot.z);tmp.q.setFromEuler(tmp.e);L.compose(l.pos,tmp.q,l.scl);L.premultiply(M);set(k.legPart,i*3+j,L)});
   if(k.abd){const a=k.abd;tmp.q.setFromEuler(a.rot);if(e.type==='exploder')tmp.s.set(1.35+Math.sin(t*12)*.15,.8,1.05);else tmp.s.copy(a.scl);L.compose(a.pos,tmp.q,tmp.s);L.premultiply(M);set(k.abdPart,i,L)}
   const r=E.r;
-  if(e.flash>0){L.makeScale(r*1.05,r*1.05,r*1.05);L.setPosition(0,r*.7,0);L.premultiply(M);fxSet('hf',nf++,L)}
+  if(e.flash>0||e.dying){L.makeScale(r*1.05,r*1.05,r*1.05);L.setPosition(0,r*.7,0);L.premultiply(M);fxSet('hf',nf++,L)}
   if(e.slowT>0){L.makeScale(r*1.15,r*1.15,r*1.15);L.setPosition(0,r*.7,0);L.premultiply(M);fxSet('fr',nr++,L)}
   if(e.stun>0){tmp.e.set(Math.PI/2,0,t*10);tmp.q.setFromEuler(tmp.e);tmp.s.setScalar(r*.9);tmp.p.set(0,r*1.7,0);L.compose(tmp.p,tmp.q,tmp.s);L.premultiply(M);fxSet('st',ns++,L)}}
  for(const k in kinds){const K=kinds[k];for(const pt of K.parts){pt.mesh.count=pt===K.legPart?K.n*3:K.n;pt.mesh.instanceMatrix.needsUpdate=true;pt.mesh.castShadow=pt.cs&&!lod}}

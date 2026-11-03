@@ -17,6 +17,7 @@ const start=async(fl)=>{await ev(`document.getElementById('menu')?.classList.add
 const boss=async()=>{for(let i=0;i<80;i++){await sl(500);if(await ev('S.enemies.some(e=>ENEMIES[e.type].boss)'))break}await sl(3000)};
 if(on('room')){await start(5);await sl(5000);await shot('room')}
 if(on('swarm')){await start(13);await sl(3000);await ev(`S.banner=null;S.p.x=640;S.p.y=420;const ts=Object.keys(ENEMIES).filter(k=>!ENEMIES[k].boss);for(let i=0;i<70;i++){const a=Math.random()*6.28,r=170+Math.random()*260;spawnEnemy(ts[i%ts.length],640+Math.cos(a)*r,420+Math.sin(a)*r*.7)}CFG.auto=true;1`);await sl(2200);await ev('S.banner=null;1');await shot('swarm');await ev('CFG.auto=false;1')}
+if(on('deathfx')){await start(13);await sl(3000);await ev(`S.banner=null;S.p.x=640;S.p.y=420;const ts=Object.keys(ENEMIES).filter(k=>!ENEMIES[k].boss);for(let i=0;i<40;i++){const a=Math.random()*6.28,r=150+Math.random()*200;spawnEnemy(ts[i%ts.length],640+Math.cos(a)*r,420+Math.sin(a)*r*.7)}1`);await sl(1200);await ev(`S.enemies.forEach(e=>{if(!ENEMIES[e.type].boss)e.hp=0});explodeAt(760,420,120,0,'#ff9040');explodeAt(520,380,100,0,'#ff9040');1`);await sl(180);await ev('window.__pause=true;1');await sl(300);await shot('deathfx');await ev('window.__pause=false;1')}
 if(on('boss_warden')){await start(9);await boss();await shot('boss_warden')}
 if(on('boss_colossus')){await start(19);await boss();await shot('boss_colossus')}
 if(on('dark')){await start(1);await sl(6000);await shot('dark')}
