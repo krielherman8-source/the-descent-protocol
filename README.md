@@ -31,6 +31,7 @@ These are the defaults. Every keyboard key and gamepad button can be changed in 
   - Interact mode: Hold or Toggle. Auto-fire: on or off (fires all the time at the aim point).
   - Settings are versioned (`v: 2`). Older saves are upgraded on load, and missing or corrupt values fall back to the defaults.
   - Colourblind markers: shape glyphs (not just colour) on objectives, minimap and edge arrows.
+- **Health drops:** green +HP crosses pulse with a ground glow and fly to you within ~120 px when you're hurt. Each floor starts with 2 medkits near the spawn (1 from F11). Kill drop chance is 5% (10% under 50% HP), doubled for Brutes/Brood Carriers (which drop a big +35), scaled ×1.6 on F1–5 and ×1.3 on F6–15. A pity drop is guaranteed after 7/10/14 kills without one (early/mid/late) while under 50% HP. Bosses drop 4 big kits. Heal is about 22 HP (25 on F1–5); Easy gets more drops and slightly bigger heals, Hard fewer (difficulty heal ×1.6 / ×1 / ×0.55).
 - **Stats screen** on death and victory: run totals, kills by enemy type, time-per-floor chart (boss floors and deaths marked), probable cause of death.
 - **Save:** an automatic checkpoint each time you descend from an upgrade chamber stores the floor, loadout and stats. Continue resumes from it. Winning clears the save.
 - **Audio:** a compressor and a brick-wall limiter on the master bus. Everything is procedural Web Audio, with no sample files:

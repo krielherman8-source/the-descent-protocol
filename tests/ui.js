@@ -13,7 +13,7 @@ IN.mx=1;step(1.2);IN.mx=0;ok('tutorial advanced by move',S.tut.i===1);
 S.stats.shots+=10;step(.2);ok('tutorial advanced by shooting',S.tut.i===2);
 ok('minimap fn',typeof TDP_MINIMAP.draw==='function');
 // health pickup
-S.p.hp=50;S.pickups.push({x:S.p.x,y:S.p.y,heal:18,life:10});step(.2);ok('pickup heals',S.p.hp>=67&&S.pickups.length===0);
+S.p.hp=50;S.pickups.length=0;S.pickups.push({x:S.p.x,y:S.p.y,heal:18,life:10});step(.2);ok('pickup heals',S.p.hp>=67&&S.pickups.length===0);
 // pause/save
 key('escape');ok('paused',S.state==='paused');document.querySelector('#m-pause [data-a=quit]').click();ok('save&quit to title',S.state==='title'&&!!loadSave());
 document.getElementById('b-cont').click();await w(100);ok('continue',S.state==='play'&&S.floor===0);
