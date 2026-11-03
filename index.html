@@ -245,6 +245,7 @@ const DIFFS={easy:{name:'EASY',hp:.75,dmg:.6,count:.8,heal:1.6,boss:.8},normal:{
 // settings schema v2 (js/settings.js migrate): old/bad blobs are validated key-by-key and missing keys get defaults
 const CFG_DEF={vol:{master:.8,sfx:.8,music:.55},quality:'high',shake:true,diff:'normal',tut:true,cb:false,interact:'hold',autofire:false,endless:false,binds:{},pad:{}};
 const CFG=(()=>{let raw;try{raw=LS('tdp_cfg',{})}catch(e){raw={}}try{return TDP_SETTINGS.migrate(raw,CFG_DEF)}catch(e){console.warn('settings reset',e);return TDP_SETTINGS.migrate({},CFG_DEF)}})();
+{const gq=new URLSearchParams(location.search).get('gfx');if(gq==='low'||gq==='med'||gq==='high')CFG.quality=gq}// bench override (not persisted)
 const saveCfg=()=>LSset('tdp_cfg',CFG);
 // Endless Descent unlock (settings v3 flag); retroactive for players who already beat floor 30 before v3
 if(!CFG.endless&&(LS('tdp_best',{}).wins||0)>0)CFG.endless=true;

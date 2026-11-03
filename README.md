@@ -109,3 +109,22 @@ Cycle run (6 cycles): before, geometries went 364 → 1548, listeners 35 → 47 
 - Shared resources are now in a `KEEP` set so disposal never touches them. The old floor is disposed one frame after the new floor has rendered, so shared shader programs are not recompiled.
 
 **Run it:** `tests/leakrun.sh TAG` runs both scenarios in parallel. It takes about 4 min, so run it in the background. Output goes to `/tmp/leak/TAG_full.txt`, `TAG_cycle.txt` and `TAG_summary.txt`. A single run: `node --experimental-websocket tests/leak.mjs 'leak.html#sc=full&diff=normal&cap=300&deaths=3' out.txt 40`. Add `&snap=after-floor@5,after-floor@30` to write heap snapshots to `/tmp/leak/`, then compare them with `python3 tests/heapdiff.py a.heapsnapshot b.heapsnapshot`. Add `&pn=1` to log live shader programs. `python3 tests/leaksum.py file…` prints the table.
+
+## Graphics
+
+Settings → Graphics Quality: **Low / Medium / High** (default High; `?gfx=low|med|high` URL override for benchmarking, not saved).
+
+| | Low | Medium | High |
+|---|---|---|---|
+| Floor/wall/top textures | flat colour (original) | procedural PBR (colour + normal + roughness) | same |
+| Boundary props (pipes, consoles, crates, barrels — instanced) | – | yes | yes |
+| Player flashlight (SpotLight) | – | yes | yes, with 1024px shadow map |
+| Colour grade, vignette, film grain, chromatic aberration + red edge on damage | – | yes | yes |
+| Splat-shaped blood/acid decals | – | yes | yes |
+| Creature detail (bent jointed legs, carapace ridges, spines, mandibles, antennae, chitin texture, brute shell plates) and marine kit (pauldrons, backpack, antenna, knee pads) | – | yes* | yes* |
+
+\*Creature/marine models are built at start-up; changing quality applies to them after a reload.
+
+Measured draw calls with ~148 enemies (headless SwiftShader perf harness): Low 114, Medium see below, High 177 (shadow pass).
+
+Credits: every texture, model and effect is generated procedurally in code (`js/visuals.js`, `index.html`) on top of Three.js r160 (MIT, bundled in `vendor/`). No external art assets. Before/after screenshots: `screens_visual/`, regenerate with `node --experimental-websocket tests/vshots.mjs <prefix> screens_visual/`.
