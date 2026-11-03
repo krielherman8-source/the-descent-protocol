@@ -121,10 +121,16 @@ Settings → Graphics Quality: **Low / Medium / High** (default High; `?gfx=low|
 | Player flashlight (SpotLight) | – | yes | yes, with 1024px shadow map |
 | Colour grade, vignette, film grain, chromatic aberration + red edge on damage | – | yes | yes |
 | Splat-shaped blood/acid decals | – | yes | yes |
+| Brighter fill/sun/lamps (+30% exposure; dark-sector floors unchanged), textured pillar tops | – | yes | yes |
+| Enemy death dissolve (instanced shrink/sink with white glow, cap 60) and explosion shockwave ring | – | yes | yes |
 | Creature detail (bent jointed legs, carapace ridges, spines, mandibles, antennae, chitin texture, brute shell plates) and marine kit (pauldrons, backpack, antenna, knee pads) | – | yes* | yes* |
 
 \*Creature/marine models are built at start-up; changing quality applies to them after a reload.
 
-Measured draw calls with ~148 enemies (headless SwiftShader perf harness): Low 114, Medium see below, High 177 (shadow pass).
+All levels: ACES filmic tone mapping, muzzle-flash light, tracers, impact sparks, gibs, enemy hit flash. Point-light budget stays 6.
+
+Measured draw calls with ~145–148 enemies (headless SwiftShader perf harness, `?gfx=`): **Low 114, Medium 168, High 176** (High adds the flashlight shadow pass).
+
+Leak pass after the visual upgrade (Nov 2026, `tests/leakrun.sh`): geometries ~500 and textures 24 at steady state (was ~404 and 15; the difference is the fixed set of HQ textures/props/creature parts built once), flat across 6 cycles (c3–c5 502–505); heap F30 21.8 MB (was 21.7), title after run 21.8 MB; listeners flat.
 
 Credits: every texture, model and effect is generated procedurally in code (`js/visuals.js`, `index.html`) on top of Three.js r160 (MIT, bundled in `vendor/`). No external art assets. Before/after screenshots: `screens_visual/`, regenerate with `node --experimental-websocket tests/vshots.mjs <prefix> screens_visual/`.
