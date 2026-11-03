@@ -584,7 +584,7 @@ function floorTex(){const c=document.createElement('canvas');c.width=c.height=25
 const floorMat=keep(M({map:floorTex(),metalness:.45,roughness:.55}));Object.values(mat).forEach(keep);
 TDP_VIS.init({THREE});const VT=TDP_VIS.textures(W,H);// procedural PBR maps (Medium/High); Low keeps floorMat/mat.steel
 const floorMatHQ=keep(M({...VT.FM,metalness:.55,roughness:1,normalScale:new THREE.Vector2(1.2,1.2)})),wallMatHQ=keep(M({...VT.WM,metalness:.5,roughness:1,normalScale:new THREE.Vector2(1,1)}));
-const topMatHQ=keep(M({...VT.FM,metalness:.6,roughness:1}));
+const topMatHQ=keep(M({...VT.WM,metalness:.45,roughness:1,emissive:new THREE.Color(0x0c1a20),emissiveIntensity:1}));
 const hq=()=>CFG.quality!=='low';
 const ground=new THREE.Mesh(new THREE.PlaneGeometry(W,H),floorMat);ground.rotation.x=-Math.PI/2;ground.position.set(W/2,0,H/2);ground.receiveShadow=true;scene.add(ground);
 const outer=new THREE.Mesh(new THREE.PlaneGeometry(6000,6000),M({color:0x030506,roughness:1}));outer.rotation.x=-Math.PI/2;outer.position.set(W/2,-2,H/2);scene.add(outer);
@@ -690,12 +690,12 @@ function buildLevel(){if(level){scene.remove(level);disposeQ.push(level)}poolTri
  const HQ=hq(),wm=HQ?wallMatHQ:mat.steel;const wall=(x,y,w,h,ht,fade)=>{const m=box(w,ht,h,wm,x+w/2,ht/2,y+h/2);if(HQ)TDP_VIS.wallUV(m.geometry,w,ht,h,128);m.receiveShadow=true;const n0=level.children.length;const tp=box(w,2,h,HQ?topMatHQ:mat.top,x+w/2,ht+1,y+h/2,false);if(HQ)TDP_VIS.wallUV(tp.geometry,w,2,h,256);level.add(m,tp,box(w+1,2,2.5,trim,x+w/2,ht+2,y+h+.5,false),box(w+1,2,2.5,trim,x+w/2,ht+2,y-.5,false),box(2.5,2,h+1,trim,x-.5,ht+2,y+h/2,false),box(2.5,2,h+1,trim,x+w+.5,ht+2,y+h/2,false),box(w+1,2,h+1,trim,x+w/2,ht*.42,y+h/2,false));if(fade)wallFade.push({x,y,w,h,o:1,meshes:level.children.slice(n0),mats:[]})};
  wallFade.length=0;clearDecals();S.walls.forEach(w=>wall(w.x,w.y,w.w,w.h,72,true));wall(-26,-26,W+52,26,96);wall(-26,0,26,H,96);wall(W,0,26,H,96);wall(-26,H,W+52,26,22);
  for(const[x,y,w,h]of[[W/2,6,W-12,2],[W/2,H-6,W-12,2],[6,H/2,2,H-12],[W-6,H/2,2,H-12]])level.add(box(w,1,h,emis(tint,1.2),x,.6,y,false));
- const TH={facility:[0xffffff,0x1f2a31],industrial:[0xd0d8c8,0x26302a],hive:[0xd09aa8,0x2a1a22],core:[0xa8d8e0,0x1a2430]}[f.theme||'facility'];floorMat.color.set(TH[0]);mat.steel.color.set(TH[1]);floorMatHQ.color.set(TH[0]);wallMatHQ.color.set(TH[1]).multiplyScalar(4.5);topMatHQ.color.set(TH[1]).multiplyScalar(2.6);
+ const TH={facility:[0xffffff,0x1f2a31],industrial:[0xd0d8c8,0x26302a],hive:[0xd09aa8,0x2a1a22],core:[0xa8d8e0,0x1a2430]}[f.theme||'facility'];floorMat.color.set(TH[0]);mat.steel.color.set(TH[1]);floorMatHQ.color.set(TH[0]);wallMatHQ.color.set(TH[1]).multiplyScalar(4.5);topMatHQ.color.set(TH[1]).multiplyScalar(5.5);
  if(f.theme==='hive'||f.theme==='core'){const om=M({color:f.theme==='hive'?0x3a1020:0x102a30,emissive:new THREE.Color(f.theme==='hive'?0x701030:0x10a0a0),emissiveIntensity:.25,roughness:.4,flatShading:true});
   for(const w of S.walls)for(let k=0;k<4;k++){const b=new THREE.Mesh(new THREE.IcosahedronGeometry(rnd(10,22),0),om);b.position.set(w.x+rnd(0,w.w),rnd(0,30),w.y+(Math.random()<.5?0:w.h));b.castShadow=true;level.add(b)}
   for(let k=0;k<18;k++){const v=new THREE.Mesh(new THREE.CircleGeometry(rnd(20,60),7),add(f.theme==='hive'?0x8a1040:0x10a0a0,.12));v.rotation.x=-Math.PI/2;v.position.set(rnd(0,W),.8,rnd(0,H));level.add(v)}}
- const dark=!!f.dark;hemi.intensity=dark?.025:.7;sun.intensity=dark?0:1.3;pLight.distance=dark?430:520;pLight.intensity=dark?26000:14000;
- if(S.lamps)for(const[cx,cy]of S.lamps){const L=new THREE.PointLight(0x55e8ff,14000,300,2);L.position.set(cp(cx),60,cp(cy));level.add(L,cyl(3,4,56,mat.steel,cp(cx),28,cp(cy)),sph(6,emis(0x77ffff,3),cp(cx),60,cp(cy)));lamps.push(L)}
+ const dark=!!f.dark;hemi.intensity=dark?.025:(hq()?1.35:.7);sun.intensity=dark?0:(hq()?1.9:1.3);renderer.toneMappingExposure=hq()&&!dark?1.3:1.0;pLight.distance=dark?430:520;pLight.intensity=dark?26000:14000;
+ if(S.lamps)for(const[cx,cy]of S.lamps){const L=new THREE.PointLight(0x55e8ff,hq()?26000:14000,hq()?380:300,2);L.position.set(cp(cx),60,cp(cy));level.add(L,cyl(3,4,56,mat.steel,cp(cx),28,cp(cy)),sph(6,emis(0x77ffff,3),cp(cx),60,cp(cy)));lamps.push(L)}
  if(S.well){wellParts=[];const d=new THREE.Mesh(new THREE.CircleGeometry(48,40),basic(0x000000));d.rotation.x=-Math.PI/2;d.position.set(S.well.x,1.2,S.well.y);level.add(d);
   for(let i=0;i<4;i++){const t=new THREE.Mesh(new THREE.TorusGeometry(60+i*55,2,6,48),add(0xa880ff,.5-i*.1));t.rotation.x=Math.PI/2;t.position.set(S.well.x,6+i*3,S.well.y);level.add(t);wellParts.push(t)}
   const L=new THREE.PointLight(0x9a70ff,14000,380,2);L.position.set(S.well.x,40,S.well.y);level.add(L);wellParts.light=L}
