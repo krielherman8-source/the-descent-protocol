@@ -37,7 +37,7 @@ document.getElementById('load').remove();
 // ================= CONSTANTS / HELPERS =================
 const W=1280,H=720,CELL=32,GW=40,GH=23;
 const rnd=(a,b)=>a+Math.random()*(b-a),pickR=a=>a[Math.floor(Math.random()*a.length)],dist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
-const cp=c=>c*CELL+CELL/2,P=(cx,cy)=>({x:cp(cx),y:cp(cy)}),clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+const WELL_R=400,WELL_CORE=48,cp=c=>c*CELL+CELL/2,P=(cx,cy)=>({x:cp(cx),y:cp(cy)}),clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 const angDiff=(a,b)=>((a-b+Math.PI*3)%(Math.PI*2))-Math.PI;
 const shuffle=a=>{a=[...a];for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a};
 
@@ -131,10 +131,13 @@ const OBJECTIVES={
  generators:{label:'Restore power',setup:(S,f)=>{S.items=holdItems(f,f.label||'GENERATOR','#3ff',2)},progress:S=>`${S.f.label||'Generator'}s online ${nDone(S)}/${S.items.length}  (${useHint().toLowerCase()})`,done:allDone},
  lockers:{label:'Unlock heavy weapon lockers',setup:(S,f)=>{S.items=holdItems(f,'LOCKER','#6cf',1.4);const wi=Math.floor(rnd(0,S.items.length));
    S.items.forEach(it=>it.onDone=()=>lootLocker(it,it.idx===wi))},progress:S=>`Lockers opened ${nDone(S)}/${S.items.length}  (${useHint().toLowerCase()})`,done:allDone},
- maglocks:{label:'Disable magnetic locks',setup:(S,f)=>{S.items=holdItems(f,'MAG-LOCK','#a8f',2);S.well=P(20,11)},
-  update(dt,S){const rem=S.items.filter(i=>!i.done).length;if(!rem)return;const p=S.p,str=230*rem/S.items.length,d=dist(p,S.well);
-   if(d>4){const k=clamp(1-d/1000,.15,1);p.x+=(S.well.x-p.x)/d*str*k*dt;p.y+=(S.well.y-p.y)/d*str*k*dt}
-   if(d<45&&!S.god){const a=22*dt*DF().dmg;p.hp-=a;S.stats.taken+=a}for(const e of S.enemies){const de=dist(e,S.well);if(de>4){e.x+=(S.well.x-e.x)/de*str*.3*dt;e.y+=(S.well.y-e.y)/de*str*.3*dt}}},
+ maglocks:{label:'Disable magnetic locks',setup:(S,f)=>{S.items=holdItems(f,'MAG-LOCK','#a8f',2);S.well=P(20,11);S.wellWarnT=0;const p=S.p;if(dist(p,S.well)<WELL_R+60){let best=null,bd=0;for(const[cx,cy]of[[2,2],[GW-3,2],[2,GH-3],[GW-3,GH-3]]){if(S.grid[cx+cy*GW])continue;const q=P(cx,cy),d=dist(q,S.well);if(d>bd){bd=d;best=q}}if(best){p.x=best.x;p.y=best.y;p.hpos={x:p.x,y:p.y}}}},
+  update(dt,S){const rem=S.items.filter(i=>!i.done).length;if(!rem)return;const p=S.p,d=dist(p,S.well);
+   // pull: velocity (px/s * dt, frame-rate independent), 0 outside WELL_R, ~40% of move speed at the edge rising to 60% at the core; ramps in over the first 3 s
+   if(d>4&&d<WELL_R){const fr=1-d/WELL_R,ramp=clamp((S.floorT||0)/3,0,1),v=p.speed*(.4+.2*fr)*Math.max(.5,rem/S.items.length)*ramp*Math.min(1,d/30);p.x+=(S.well.x-p.x)/d*v*dt;p.y+=(S.well.y-p.y)/d*v*dt}
+   // core damage per second (time-based): 8 HP/s on Normal => ~12 s to die if you stand still in it
+   if(d<WELL_CORE&&!S.god){const a=8*dt*DF().dmg;p.hp-=a;S.stats.taken+=a;S.hurtT=Math.max(S.hurtT||0,.15)}
+   S.wellWarnT=(S.wellWarnT||0)-dt;if(d<WELL_R*.55&&S.wellWarnT<=0){S.wellWarnT=d<WELL_CORE?.6:1.2;floatText(p.x,p.y-34,d<WELL_CORE?'GRAVITY CORE! MOVE OUT':'GRAVITY WELL — move away','#c9f');sfx('warn')}},
   progress:S=>`Mag-locks disabled ${nDone(S)}/${S.items.length}  — resist the gravity well`,done:allDone},
  beacons:{label:'Navigate in darkness',setup:(S,f)=>{S.items=f.points.map(([cx,cy],i)=>mkItem({kind:'touch',...P(cx,cy),label:'BEACON '+(i+1),color:'#3ff',idx:i}))},
   update(dt,S){const n=S.items.findIndex(i=>!i.done);S.items.forEach((it,i)=>it.active=i===n)},
@@ -284,6 +287,7 @@ const SFX={
  pickup:()=>[660,880,1320].forEach((f,i)=>tone({type:'triangle',f,t:.12,v:.09,delay:i*.06})),
  heartbeat:()=>{tone({type:'sine',f:62,f2:40,t:.12,v:.3,lp:300});tone({type:'sine',f:55,f2:36,t:.14,v:.22,lp:300,delay:.17})},
  heal:()=>tone({type:'sine',f:900,f2:1400,t:.08,v:.04}),
+ warn:()=>tone({type:'square',f:520,f2:260,t:.18,v:.05}),
  progress:()=>tone({type:'sine',f:620+((AU.ctx.currentTime*8)%4)*60,t:.05,v:.04}),
  complete:()=>[523,659,784,1046].forEach((f,i)=>tone({type:'triangle',f,t:.26,v:.11,delay:i*.08})),
  roar:()=>{tone({type:'sawtooth',f:72,f2:36,t:1.5,v:.35,lp:520,a:.15});tone({type:'sawtooth',f:76,f2:34,t:1.5,v:.3,lp:420,a:.2});noise({t:1.3,v:.28,ft:'bandpass',f:320,f2:110,q:2})},
@@ -294,7 +298,7 @@ const SFX={
  descend:()=>{tone({type:'sawtooth',f:220,f2:35,t:1.7,v:.16,lp:900});noise({t:1.7,v:.14,f:500,f2:90})},
  gameover:()=>[392,330,262,196].forEach((f,i)=>tone({type:'sawtooth',f,t:.5,v:.1,lp:1200,delay:i*.22})),
 };
-const SFX_GAP={kinetic:.05,flamethrower:.1,hit:.035,death:.04,bio_harvester:.09,drone:.08,progress:.12,explosion:.07,hurt:.15,tesla:.05,heal:.1,slam:.3,roar:1};
+const SFX_GAP={kinetic:.05,flamethrower:.1,hit:.035,death:.04,bio_harvester:.09,drone:.08,progress:.12,explosion:.07,hurt:.15,tesla:.05,heal:.1,warn:.3,slam:.3,roar:1};
 function sfx(k){if(!AU.ctx||!SFX[k]||AU.ctx.state!=='running')return;const now=AU.ctx.currentTime;if(now-(AU.last[k]||-9)<(SFX_GAP[k]||.02))return;AU.last[k]=now;try{SFX[k]()}catch(e){}const dk=DUCK[k];if(dk&&!AU.duckOff){const g=AU.duck.gain;g.cancelScheduledValues(now);g.setTargetAtTime(dk[0],now,.015);g.setTargetAtTime(1,now+dk[1],.3);AU.duckLog&&AU.duckLog.push(now)}}
 // sidechain-style ducking: [music gain, hold seconds] while big SFX play
 const DUCK={explosion:[.35,.3],roar:[.25,1.1],slam:[.35,.4],railgun:[.5,.22],pulse_shotgun:[.75,.12],descend:[.5,1.2],gameover:[.4,1.5],hurt:[.8,.15]};
@@ -698,9 +702,9 @@ function buildLevel(){if(level){scene.remove(level);disposeQ.push(level)}poolTri
   for(let k=0;k<18;k++){const v=new THREE.Mesh(new THREE.CircleGeometry(rnd(20,60),7),add(f.theme==='hive'?0x8a1040:0x10a0a0,.12));v.rotation.x=-Math.PI/2;v.position.set(rnd(0,W),.8,rnd(0,H));level.add(v)}}
  const dark=!!f.dark;hemi.intensity=dark?.025:(hq()?1.35:.7);sun.intensity=dark?0:(hq()?1.9:1.3);renderer.toneMappingExposure=hq()&&!dark?1.3:1.0;pLight.distance=dark?430:520;pLight.intensity=dark?26000:14000;
  if(S.lamps)for(const[cx,cy]of S.lamps){const L=new THREE.PointLight(0x55e8ff,hq()?26000:14000,hq()?380:300,2);L.position.set(cp(cx),60,cp(cy));level.add(L,cyl(3,4,56,mat.steel,cp(cx),28,cp(cy)),sph(6,emis(0x77ffff,3),cp(cx),60,cp(cy)));lamps.push(L)}
- if(S.well){wellParts=[];const d=new THREE.Mesh(new THREE.CircleGeometry(48,40),basic(0x000000));d.rotation.x=-Math.PI/2;d.position.set(S.well.x,1.2,S.well.y);level.add(d);
-  for(let i=0;i<4;i++){const t=new THREE.Mesh(new THREE.TorusGeometry(60+i*55,2,6,48),add(0xa880ff,.5-i*.1));t.rotation.x=Math.PI/2;t.position.set(S.well.x,6+i*3,S.well.y);level.add(t);wellParts.push(t)}
-  const L=new THREE.PointLight(0x9a70ff,14000,380,2);L.position.set(S.well.x,40,S.well.y);level.add(L);wellParts.light=L}
+ if(S.well){wellParts=[];const d=new THREE.Mesh(new THREE.CircleGeometry(48,40),new THREE.MeshBasicMaterial({color:0}));d.rotation.x=-Math.PI/2;d.position.set(S.well.x,1.2,S.well.y);level.add(d);
+  const dz=d;for(let i=0;i<4;i++){const t=new THREE.Mesh(new THREE.TorusGeometry(60+i*55,2,6,48),add(0xa880ff,.5-i*.1));t.rotation.x=Math.PI/2;t.position.set(S.well.x,6+i*3,S.well.y);level.add(t);wellParts.push(t)}
+  const L=new THREE.PointLight(0x9a70ff,14000,380,2);L.position.set(S.well.x,40,S.well.y);level.add(L);wellParts.light=L;wellParts.disc=dz}
  if(S.winds)for(const z of S.winds){const set=[];for(let k=0;k<16;k++){const s=box(60,1.5,2.5,add(0x99e8ff,.35),0,20+(k%4)*12,z.y0+20+((k*53)%(z.y1-z.y0-40)),false);s.userData.o=k*97;level.add(s);set.push(s)}winds.push({z,set})}
  for(const w of wallFade)for(const m of w.meshes){const c=m.material.clone();c.transparent=true;c.userData.base=m.material.opacity??1;m.material=c;w.mats.push(c)}
  TDP_CONTENT.setPiece(f,{T:THREE,add:(...o)=>level.add(...o),walls:S.walls,trim,P,W,H});
@@ -793,7 +797,7 @@ function render(dt){const snap=dt===undefined;dt=dt||1/60;const p=S.p,f=S.f;if(d
  // level animation
  TDP_CONTENT.animate(S.t);
  lamps.forEach((L,i)=>{L.intensity=Math.sin(S.t*(2+i*.7)+i*3)>-.2&&Math.random()>.08?14000:0});
- if(wellParts){const on=S.items.some(i=>!i.done);wellParts.forEach((t,i)=>{t.visible=on;t.scale.setScalar(1-((S.t*.5+i*.25)%1)*.3);t.rotation.z=S.t*(i%2?1:-1)});wellParts.light.intensity=on?14000:0}
+ if(wellParts){const on=S.items.some(i=>!i.done);wellParts.forEach((t,i)=>{t.visible=on;t.scale.setScalar(1-((S.t*.5+i*.25)%1)*.3);t.rotation.z=S.t*(i%2?1:-1)});wellParts.light.intensity=on?14000:0;if(wellParts.disc){const dd=dist(S.p,S.well),hot=on&&dd<160;wellParts.disc.material.color.setRGB(hot?.5+.5*Math.abs(Math.sin(S.t*8)):0,0,hot?.15:0)}}
  for(const w of winds){const on=!S.items[w.z.valve].done;for(const s of w.set){s.visible=on;s.position.x=((S.t*w.z.vx*1.6+s.userData.o*7)%W+W)%W}}
  // items
  sync(S.items,itemMeshes,makeItem,(it,g)=>{const u=g.userData,c=u.core;g.visible=true;if(TDP_CONTENT.itemUpd(it,g))return;
