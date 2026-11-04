@@ -347,7 +347,7 @@ function startFloor(){const f=floorAt(S.floor);S.f=f;S.dmgK=S.endless&&S.floor>=
  S.winds=null;S.well=null;S.useLatch=false;S.hazards=[];S.carry=null;S.socket=null;S.floorT=0;S.eliteSpawned=false;fixSpawn(f);const fx=f.points||!f.n?f:Object.assign({},f,{points:autoPoints(f.n)});S.fx=fx;S.obj.setup(S,fx);makeHazards(f);S.waveT=2;S.wave=0;S.cleared=false;showBanner(`${floorLbl(S.floor)} — ${f.name.toUpperCase()}`,f.task,3.5);if(S.endless)recordEndless()}
 function showBanner(a,b,t){S.banner={a,b,life:t}}
 function floatText(x,y,t,col){S.texts.push({x,y,t,col:col||'#bff',life:1.6})}
-// Gentler per-floor scaling (30 floors); difficulty mostly comes from new enemy mixes, hazards and objectives.
+// Gentler per-floor scaling (30 floors, halved 2026-11-04); difficulty mostly comes from new enemy mixes, hazards and objectives.
 function reachable(){const st=clamp(Math.floor(S.p.x/CELL),0,GW-1)+clamp(Math.floor(S.p.y/CELL),0,GH-1)*GW,D=new Int16Array(GW*GH).fill(-1);D[st]=0;const q=[st];
  for(let h=0;h<q.length;h++){const i=q[h],x=i%GW,y=(i/GW)|0;for(const[dx,dy]of[[1,0],[-1,0],[0,1],[0,-1]]){const nx=x+dx,ny=y+dy;if(nx<0||ny<0||nx>=GW||ny>=GH-1)continue;const j=nx+ny*GW;if(S.grid[j]||D[j]>=0)continue;D[j]=D[i]+1;q.push(j)}}return D}
 function fixSpawn(f){let c=f.spawn;if(S.grid[c[0]+c[1]*GW]){outer:for(let r=1;r<10;r++)for(let dy=-r;dy<=r;dy++)for(let dx=-r;dx<=r;dx++){const x=c[0]+dx,y=c[1]+dy;if(x>0&&y>0&&x<GW-1&&y<GH-2&&!S.grid[x+y*GW]){c=[x,y];break outer}}Object.assign(S.p,P(...c))}}
@@ -366,7 +366,7 @@ function updateHazards(dt){const p=S.p;S.hazards=S.hazards.filter(h=>(!h.owner||
  else if(dist(h,p)<h.r){if(h.type==='acid'&&!S.god){const a=10*dt*DF().dmg;p.hp-=a;S.stats.taken+=a}if(h.type==='frost')p.slow=Math.min(p.slow,.5)}}}
 const DF=()=>DIFFS[S.diff]||DIFFS.normal;
 const ES=()=>S.endless&&S.floor>=TDP_ENDLESS.START?TDP_ENDLESS.scale(S.floor):null;// endless multipliers (null on floors 1-30)
-const scaleF=()=>{const d=DF(),e=ES();return{hp:(1+S.floor*.11)*d.hp*(e?e.hp:1),spd:1+Math.min(S.floor,20)*.018,count:(1+S.floor*.025)*d.count*(e?e.count:1),dmg:(1+S.floor*.02)*d.dmg}};
+const scaleF=()=>{const d=DF(),e=ES();return{hp:(1+S.floor*.055)*d.hp*(e?e.hp:1),spd:1+Math.min(S.floor,20)*.009,count:(1+S.floor*.0125)*d.count*(e?e.count:1),dmg:(1+S.floor*.01)*d.dmg}};
 // floor lookup: hand-made FLOORS for 1-30, generated (seeded per run) for Endless 31+
 const floorAt=i=>S&&S.endless&&i>=TDP_ENDLESS.START?TDP_ENDLESS.floorAt(i,S.endless.seed):FLOORS[i];
 const isFinal=()=>!(S&&S.endless)&&S.floor===FLOORS.length-1;
@@ -410,13 +410,13 @@ const BOSS_AI={
   if(ph>=2){if(tick(e,'t2',5))e.spiral=2.5;if(e.spiral>0){e.spiral-=dt;e.sa=(e.sa||0)+dt*(ph===3?5:3.5);if(tick(e,'sp',.11))for(let k=0;k<(ph===3?4:2);k++)ebullet(e.x,e.y,e.sa+k*6.283/(ph===3?4:2),240,11,'#ff7a9a')}}
   if(tick(e,'t3',ph===1?6:7))bossSummon(e,ph===1?['swarmer','runner','spitter']:ph===2?['stalker','leaper','spitter']:['carrier','leaper','exploder'],ph===3?6:4)},
 };
-function spawnEnemy(type,x,y){const T=ENEMIES[type],s=scaleF(),es=T.boss&&ES(),hp=T.hp*(T.boss?(1+S.floor*.03)*DF().boss*(es?es.boss*(S.f&&S.f.boss===type?TDP_ENDLESS.bossW(type):1):1):s.hp);
+function spawnEnemy(type,x,y){const T=ENEMIES[type],s=scaleF(),es=T.boss&&ES(),hp=T.hp*(T.boss?(1+S.floor*.015)*DF().boss*(es?es.boss*(S.f&&S.f.boss===type?TDP_ENDLESS.bossW(type):1):1):s.hp);
  const e={type,x,y,r:T.r,hp,max:hp,speed:T.speed*s.spd*(T.boss?1:rnd(.85,1.15)),dmg:T.dmg*s.dmg,color:T.color,burn:0,flash:0,cd:rnd(1,2.5),side:Math.random()<.5?1:-1,t1:3,t2:4};
  resolve(e);S.enemies.push(e);return e}
 function spawnNear(type,x,y,n,rad){for(let i=0;i<n;i++){const a=rnd(0,6.28),d=rnd(30,rad||60);spawnEnemy(type,x+Math.cos(a)*d,y+Math.sin(a)*d)}}
 function rollType(mix){let r=Math.random()*Object.values(mix).reduce((a,b)=>a+b,0);for(const[k,v]of Object.entries(mix)){r-=v;if(r<=0)return k}return 'swarmer'}
 function spawnWave(){const f=S.f,n=Math.round((f.wave[0]+Math.min(S.wave,f.objective==='survive'?3:6)*f.wave[1])*scaleF().count*(S.enemies.some(e=>ENEMIES[e.type].boss)?.5:1));// wave growth capped at 6 steps; halved while a boss is alive
- const cap=Math.round(TDP_ENDLESS.cap(S.floor,(24+S.floor*.7)*DF().count)*(S.enemies.some(e=>ENEMIES[e.type].boss)?.6:1));/* endless: hard ceiling of 56 live enemies on every difficulty */for(let i=0;i<n&&S.enemies.length<cap;i++){const pt=edgeSpawn();spawnEnemy(rollType(f.mix),pt.x+rnd(-8,8),pt.y+rnd(-8,8))}S.wave++}
+ const cap=Math.round(TDP_ENDLESS.cap(S.floor,(24+S.floor*.35)*DF().count)*(S.enemies.some(e=>ENEMIES[e.type].boss)?.6:1));/* endless: hard ceiling of 56 live enemies on every difficulty */for(let i=0;i<n&&S.enemies.length<cap;i++){const pt=edgeSpawn();spawnEnemy(rollType(f.mix),pt.x+rnd(-8,8),pt.y+rnd(-8,8))}S.wave++}
 function lootLocker(it,weapon){const p=S.p;const un=Object.keys(WEAPONS).filter(k=>WEAPONS[k].implemented&&!p.weapons.includes(k));
  if(weapon&&un.length){const k=pickR(un);p.weapons.push(k);p.weapon=k;floatText(it.x,it.y-30,`NEW WEAPON: ${WEAPONS[k].name} [${p.weapons.length}]`,'#ff5')}
  else if(it.idx%2){p.hp=Math.min(p.maxHp,p.hp+30);floatText(it.x,it.y-30,'+30 HP','#5f9')}
