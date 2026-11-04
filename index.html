@@ -508,7 +508,7 @@ function update(dt){S.t+=dt;S._dt=dt;if(S.banner&&S.banner.life>0)S.banner.life-
  p.x+=mx/m*p.speed*p.slow*dt;p.y+=my/m*p.speed*p.slow*dt;resolve(p);
  if(IN.aim!=null){mouse.x=p.x+Math.cos(IN.aim)*220;mouse.y=p.y+Math.sin(IN.aim)*220}
  const aim=Math.atan2(mouse.y-p.y,mouse.x-p.x),w=WEAPONS[p.weapon];p.cd-=dt;
- if((mouse.down||IN.fire||keys.fire||CFG.autofire)&&p.cd<=0){p.cd=(S.carry?1.25:1)/(w.rate*p.rateMul);S.stats.shots++;for(let i=0;i<p.multishot;i++)w.fire(p,aim+(i-(p.multishot-1)/2)*.12);sfx(p.weapon)}
+ if((mouse.down||IN.fire||keys.fire||CFG.autofire)&&p.cd<=0){p.cd=(S.carry?1.25:1)/(w.rate*p.rateMul*(1+Math.min(S.floor,29)*.02));/* +2% fire rate per floor, capped at F30 */S.stats.shots++;for(let i=0;i<p.multishot;i++)w.fire(p,aim+(i-(p.multishot-1)/2)*.12);sfx(p.weapon)}
  const D=DRONES[p.drone];p.da+=dt*D.spin;p.dpos={x:p.x+Math.cos(p.da)*D.orbit,y:p.y+Math.sin(p.da)*D.orbit};D.update(p,dt);
  // items
  S.holding=null;for(const it of S.items){if(it.done||!it.active)continue;const d=dist(it,p);
