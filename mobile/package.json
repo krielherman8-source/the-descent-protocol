@@ -1,0 +1,23 @@
+{
+  "name": "the-descent-protocol-mobile",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Capacitor WebView wrapper around the repository-root browser game. Does not replace index.html.",
+  "scripts": {
+    "sync-www": "node sync-www.mjs",
+    "audit": "node audit-externals.mjs",
+    "android": "bash build.sh android",
+    "ios": "bash build.sh ios",
+    "sync": "bash build.sh sync"
+  },
+  "dependencies": {
+    "@capacitor/android": "8.6.0",
+    "@capacitor/app": "8.1.2",
+    "@capacitor/core": "8.6.0",
+    "@capacitor/ios": "8.6.0",
+    "@capacitor/status-bar": "8.0.4"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "8.6.0"
+  }
+}
