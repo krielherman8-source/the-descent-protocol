@@ -1,8 +1,9 @@
-<!DOCTYPE html><html><head><meta charset="utf-8"><title>THE DESCENT PROTOCOL</title>
-<style>html,body{margin:0;background:#020507;overflow:hidden;font-family:monospace}#gl,#hud{position:fixed;left:0;top:0;display:block}#hud{pointer-events:none}
+<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"><title>THE DESCENT PROTOCOL</title>
+<style>html,body{margin:0;background:#020507;overflow:hidden;font-family:monospace;overscroll-behavior:none;touch-action:none}#gl,#hud{position:fixed;left:0;top:0;display:block}#hud{pointer-events:none}
 #load{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;color:#5ff;font:16px monospace}#tb-e.deemph{opacity:.35;transform:scale(.8)}
+#safeprobe{position:fixed;visibility:hidden;pointer-events:none;padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
 </style>
-<style>#menu{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:radial-gradient(ellipse at center,rgba(0,20,24,.35),rgba(0,0,0,.8));z-index:5}
+<style>#menu{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;box-sizing:border-box;padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);background:radial-gradient(ellipse at center,rgba(0,20,24,.35),rgba(0,0,0,.8));z-index:5}
 #menu.hide{display:none}#menu.title{background:radial-gradient(ellipse at center,rgba(0,15,18,.1),rgba(0,0,0,.75))}
 .panel{display:none;flex-direction:column;align-items:center;gap:12px;color:#bff;min-width:380px;padding:26px 34px;background:rgba(2,14,18,.72);border:1px solid #2aa;box-shadow:0 0 30px rgba(40,255,230,.18),inset 0 0 30px rgba(40,255,230,.06)}
 .panel.on{display:flex}.panel h2{margin:0 0 6px;color:#6ff;letter-spacing:6px;text-shadow:0 0 12px #3ff}
@@ -19,7 +20,7 @@
 <script>/* import map: vendored local copies when served over http(s); unpkg CDN when opened from file:// (module imports of local files are blocked there) */
 {const local=location.protocol!=='file:',cdn='https://unpkg.com/three@0.160.0/',s=document.createElement('script');s.type='importmap';
 s.textContent=JSON.stringify({imports:{three:local?'./vendor/three.module.js':cdn+'build/three.module.js','three/addons/':local?'./vendor/addons/':cdn+'examples/jsm/'}});document.currentScript.after(s)}</script></head>
-<body><div id="menu" class="hide"><div class="panel" id="m-title"><div class="logo"><div class="l1">THE DESCENT</div><div class="l2">P R O T O C O L</div><div class="bar"></div></div>
+<body><div id="safeprobe" aria-hidden="true"></div><div id="menu" class="hide"><div class="panel" id="m-title"><div class="logo"><div class="l1">THE DESCENT</div><div class="l2">P R O T O C O L</div><div class="bar"></div></div>
 <button data-a="start">START NEW DESCENT</button><button data-a="continue" id="b-cont">CONTINUE</button><button data-a="endless" id="b-endless">ENDLESS DESCENT</button><div id="endless-hint" class="small dim"></div><button data-a="diff" id="b-diff">DIFFICULTY: NORMAL</button><button data-a="settings">SETTINGS</button><button data-a="controls">CONTROLS</button><button data-a="credits">CREDITS</button><div id="best" class="small"></div><div class="small dim">Click anywhere to enable audio</div></div>
 <div class="panel" id="m-credits"><h2>CREDITS</h2><div id="credits-body"></div><button data-a="back">BACK</button></div>
 <div class="panel" id="m-pause"><h2>PAUSED</h2><button data-a="resume">RESUME</button><button data-a="settings">SETTINGS</button><button data-a="controls">CONTROLS</button><button data-a="quit">SAVE &amp; QUIT TO TITLE</button></div>
@@ -28,7 +29,7 @@ s.textContent=JSON.stringify({imports:{three:local?'./vendor/three.module.js':cd
 <label>GRAPHICS <select id="s-q"><option value="low">LOW (no bloom/shadows)</option><option value="med">MEDIUM (bloom)</option><option value="high">HIGH (bloom, hi-res shadows)</option></select></label>
 <label>SCREEN SHAKE <input type="checkbox" id="s-shake"></label><button data-a="controls">CONTROLS &amp; REBINDING</button><button data-a="back">BACK</button></div>
 <div class="panel" id="m-controls"><h2>CONTROLS</h2><button data-a="back">BACK</button></div></div>
-<link rel="stylesheet" href="css/ui.css"><script src="js/story.js"></script><script src="js/input.js"></script><script src="js/minimap.js"></script><script src="js/content.js"></script><script src="js/instancing.js"></script><script src="js/visuals.js"></script><script src="js/settings.js"></script><script src="js/stats.js"></script><script src="js/endless.js"></script>
+<link rel="stylesheet" href="css/ui.css"><script src="js/story.js"></script><script src="js/input.js"></script><script src="js/minimap.js"></script><script src="js/content.js"></script><script src="js/instancing.js"></script><script src="js/visuals.js"></script><script src="js/settings.js"></script><script src="js/stats.js"></script><script src="js/endless.js"></script><script src="js/shell.js"></script>
 <div id="load">LOADING THE DESCENT PROTOCOL…</div><script type="module">
 'use strict';
 let THREE;
@@ -330,7 +331,10 @@ const autoUse=()=>CFG.interact==='auto';
 const standVerb=l=>{l=String(l||'');return /TERMINAL|CORE NODE/.test(l)?'HACK':/LOCKER|DOOR/.test(l)?'OPEN':/MAG-LOCK/.test(l)?'DISABLE':/VALVE/.test(l)?'SEAL':/FROZEN/.test(l)?'DEFROST':/GENERATOR/.test(l)?'POWER UP':/PUMP/.test(l)?'START':'ACTIVATE'};
 const kL=a=>TDP_SETTINGS.keyLabel(a),pL=a=>TDP_SETTINGS.padLabel(a),useHint=it=>autoUse()?(it?`STAND HERE TO ${standVerb(it.label)}`:'stand on it'):`${TDP_SETTINGS.useVerb()} ${TDP_SETTINGS.useCtl(IN.src)}`;
 function cycleWeapon(d){if(!S||!S.p)return;const w=S.p.weapons;S.p.weapon=w[(w.indexOf(S.p.weapon)+d+w.length)%w.length]}
-const setM=e=>{IN.aim=null;IN.src='kbm';mouse.cx=e.clientX;mouse.cy=e.clientY;mouse.sx=e.clientX/hs;mouse.sy=e.clientY/hs;mouse.moved=true};
+function viewSize(){const probe=document.getElementById('safeprobe');let l=0,t=0,r=0,b=0;
+ if(probe){const s=getComputedStyle(probe);l=parseFloat(s.paddingLeft)||0;t=parseFloat(s.paddingTop)||0;r=parseFloat(s.paddingRight)||0;b=parseFloat(s.paddingBottom)||0}
+ return{l,t,r,b,w:Math.max(1,innerWidth-l-r),h:Math.max(1,innerHeight-t-b)}}
+const setM=e=>{IN.aim=null;IN.src='kbm';mouse.cx=e.clientX;mouse.cy=e.clientY;const v=viewSize();mouse.sx=(e.clientX-v.l)/hs;mouse.sy=(e.clientY-v.t)/hs;mouse.moved=true};
 addEventListener('mousemove',setM);addEventListener('mousedown',e=>{setM(e);mouse.down=true;onClick()});addEventListener('mouseup',()=>mouse.down=false);
 addEventListener('contextmenu',e=>e.preventDefault());
 let S;
@@ -568,9 +572,9 @@ const hud=document.createElement('canvas');hud.id='hud';document.body.appendChil
 const scene=new THREE.Scene();scene.background=new THREE.Color(0x020507);scene.fog=new THREE.Fog(0x020507,1000,2100);
 const camera=new THREE.PerspectiveCamera(46,1,10,5000);const CAM_OFF=new THREE.Vector3(0,600,400);// ~56deg tilt
 let hs=1,VW=W,VH=H;
-function resize(){renderer.setSize(innerWidth,innerHeight);hud.width=innerWidth;hud.height=innerHeight;camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();
- hs=Math.min(innerWidth/W,innerHeight/H);VW=innerWidth/hs;VH=innerHeight/hs;
- if(composer){composer.setPixelRatio(renderer.getPixelRatio());composer.setSize(innerWidth,innerHeight);if(bloomPass){const k=CFG.quality==='high'?.5:.33;bloomPass.resolution.set(innerWidth*k,innerHeight*k)}}}
+function resize(){const v=viewSize();renderer.setSize(v.w,v.h);hud.width=v.w;hud.height=v.h;renderer.domElement.style.left=v.l+'px';renderer.domElement.style.top=v.t+'px';hud.style.left=v.l+'px';hud.style.top=v.t+'px';camera.aspect=v.w/v.h;camera.updateProjectionMatrix();
+ hs=Math.min(v.w/W,v.h/H);VW=v.w/hs;VH=v.h/hs;
+ if(composer){composer.setPixelRatio(renderer.getPixelRatio());composer.setSize(v.w,v.h);if(bloomPass){const k=CFG.quality==='high'?.5:.33;bloomPass.resolution.set(v.w*k,v.h*k)}}}
 addEventListener('resize',resize);resize();
 const hemi=new THREE.HemisphereLight(0x7fb8c8,0x06090b,0.7);scene.add(hemi);
 const sun=new THREE.DirectionalLight(0xa8e0ee,1.3);sun.position.set(W/2-350,950,H/2+450);sun.target.position.set(W/2,0,H/2);sun.castShadow=true;sun.shadow.mapSize.set(2048,2048);
@@ -844,9 +848,9 @@ function render(dt){const snap=dt===undefined;dt=dt||1/60;const p=S.p,f=S.f;if(d
  fxUpdate(dt);TDP_INST.lightBudget(scene);if(needWarm){needWarm=false;prewarm()}if(composer&&CFG.quality!=='low')composer.render();else renderer.render(scene,camera);drawHUD()}
 // ---- aiming: raycast mouse onto the ground plane at gun height ----
 const ray=new THREE.Raycaster(),aimPlane=new THREE.Plane(new THREE.Vector3(0,1,0),-20),_hit=new THREE.Vector3();
-function aimRaycast(){ray.setFromCamera(new THREE.Vector2(mouse.cx/innerWidth*2-1,-(mouse.cy/innerHeight)*2+1),camera);if(ray.ray.intersectPlane(aimPlane,_hit)){mouse.x=_hit.x;mouse.y=_hit.z}}
+function aimRaycast(){const v=viewSize();ray.setFromCamera(new THREE.Vector2((mouse.cx-v.l)/v.w*2-1,-((mouse.cy-v.t)/v.h)*2+1),camera);if(ray.ray.intersectPlane(aimPlane,_hit)){mouse.x=_hit.x;mouse.y=_hit.z}}
 // ---- HUD overlay ----
-const _v=new THREE.Vector3();function toScreen(x,h,y){_v.set(x,h,y).project(camera);return{x:(_v.x+1)/2*innerWidth,y:(1-_v.y)/2*innerHeight,vis:_v.z<1}}
+const _v=new THREE.Vector3();function toScreen(x,h,y){_v.set(x,h,y).project(camera);return{x:(_v.x+1)/2*hud.width,y:(1-_v.y)/2*hud.height,vis:_v.z<1}}
 function text(t,x,y,c,sz,al){ctx.fillStyle=c;ctx.font=`${sz||14}px monospace`;ctx.textAlign=al||'left';ctx.fillText(t,x,y)}
 function hudPanel(x,y,w,h){const g=ctx.createLinearGradient(x,y,x,y+h);g.addColorStop(0,'rgba(4,26,32,.82)');g.addColorStop(1,'rgba(1,8,11,.7)');ctx.fillStyle=g;ctx.fillRect(x,y,w,h);
  ctx.strokeStyle='rgba(40,170,180,.45)';ctx.lineWidth=1;ctx.strokeRect(x+.5,y+.5,w-1,h-1);ctx.strokeStyle='#5ff';ctx.lineWidth=2;ctx.shadowColor='#3ff';ctx.shadowBlur=6;const c=10;ctx.beginPath();
@@ -864,7 +868,7 @@ function drawHUD(){const p=S.p,f=S.f;ctx.setTransform(1,0,0,1,0,0);ctx.clearRect
   if(it.kind==='shoot'){ctx.fillStyle='#300';ctx.fillRect(s.x-22,s.y+5,44,4);ctx.fillStyle=it.color;ctx.fillRect(s.x-22,s.y+5,44*it.hp/it.max,4)}}
  ctx.globalAlpha=1;if(S.exit){const s=toScreen(S.exit.x,120,S.exit.y);text(isFinal()?'EXTRACTION':'UPGRADE CHAMBER',s.x,s.y,'#7ff',fs+2,'center')}
  for(const t of S.texts){const s=toScreen(t.x,70,t.y);ctx.globalAlpha=Math.min(1,t.life);text(t.t,s.x,s.y,t.col,fs+2,'center')}ctx.globalAlpha=1;ctx.shadowBlur=0;
- if(S.state==='play')TDP_MINIMAP.arrows(ctx,S,toScreen,innerWidth,innerHeight,hs);
+ if(S.state==='play')TDP_MINIMAP.arrows(ctx,S,toScreen,hud.width,hud.height,hs);
  ctx.setTransform(hs,0,0,hs,0,0);
  hudPanel(10,10,500,150);
  hudBar(18,18,240,16,p.hp/p.maxHp,p.hp/p.maxHp<.3?['#f33','#f88']:['#0bb','#6ff'],10);
@@ -940,6 +944,6 @@ addEventListener('pointerdown',()=>{audioInit();if(AU.ctx&&AU.ctx.state==='suspe
 addEventListener('keydown',()=>{audioInit();if(AU.ctx&&AU.ctx.state==='suspended')AU.ctx.resume()},{capture:true});
 
 window.TDP_INPUT&&TDP_INPUT.init({IN,keys,onKey,state:()=>S&&S.state,menuOpen:()=>!menuEl.classList.contains('hide'),
- tap:(x,y)=>{mouse.sx=x/hs;mouse.sy=y/hs;onClick()},cycleWeapon,useEdge});
+ tap:(x,y)=>{const v=viewSize();mouse.sx=(x-v.l)/hs;mouse.sy=(y-v.t)/hs;onClick()},cycleWeapon,useEdge});
 applyQuality();goTitle();
 </script></body></html>
