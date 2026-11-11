@@ -422,14 +422,48 @@ function spawnNear(type,x,y,n,rad){for(let i=0;i<n;i++){const a=rnd(0,6.28),d=rn
 function rollType(mix){let r=Math.random()*Object.values(mix).reduce((a,b)=>a+b,0);for(const[k,v]of Object.entries(mix)){r-=v;if(r<=0)return k}return 'swarmer'}
 function spawnWave(){const f=S.f,n=Math.round((f.wave[0]+Math.min(S.wave,f.objective==='survive'?3:6)*f.wave[1])*scaleF().count*(S.enemies.some(e=>ENEMIES[e.type].boss)?.5:1));// wave growth capped at 6 steps; halved while a boss is alive
  const cap=Math.round(TDP_ENDLESS.cap(S.floor,(24+S.floor*.35)*DF().count)*(S.enemies.some(e=>ENEMIES[e.type].boss)?.6:1));/* endless: hard ceiling of 56 live enemies on every difficulty */for(let i=0;i<n&&S.enemies.length<cap;i++){const pt=edgeSpawn();spawnEnemy(rollType(f.mix),pt.x+rnd(-8,8),pt.y+rnd(-8,8))}S.wave++}
-function lootLocker(it,weapon){const p=S.p;const un=Object.keys(WEAPONS).filter(k=>WEAPONS[k].implemented&&!p.weapons.includes(k));
- if(weapon&&un.length){const k=pickR(un);p.weapons.push(k);p.weapon=k;floatText(it.x,it.y-30,`NEW WEAPON: ${WEAPONS[k].name} [${p.weapons.length}]`,'#ff5')}
+// ---- weapon tiers by depth: early floors mostly give basic guns, deeper floors shift to stronger ones and the weakest stop appearing.
+// Every weapon also has a grade (Mk = the floor it was found or refitted on): +2.5% damage per floor (cap +100%), so a late find is never weak.
+// Owned weapons are never removed; when no new weapon of an allowed tier is left, the weapon slot offers a REFIT of the lowest-grade owned gun.
+const WTIER={kinetic:1,pulse_shotgun:1,flamethrower:1,grenade_launcher:2,bio_harvester:2,tesla:3,railgun:3};
+const WBANDS=[{to:7,w:[70,30,0]},{to:15,w:[30,50,20]},{to:22,w:[0,45,55]},{to:1e9,w:[0,15,85]}];// floor number (1-based) -> tier 1/2/3 odds %
+const wBand=fl=>WBANDS.find(b=>fl<=b.to);
+const wGrade=(p,k)=>((p.wgrade||{})[k]||0),wDmgMul=(p,k)=>1+Math.min(40,wGrade(p,k))*.025;
+function giveWeapon(p,k,fl){p.wgrade=p.wgrade||{};p.wgrade[k]=Math.max(wGrade(p,k),fl-1);if(!p.weapons.includes(k))p.weapons.push(k);p.weapon=k}
+function weaponPool(p,fl){const w=wBand(fl).w,un=Object.keys(WEAPONS).filter(k=>WEAPONS[k].implemented&&!p.weapons.includes(k)&&w[(WTIER[k]||1)-1]>0);
+ const per={};for(const k of un){const t=WTIER[k]||1;per[t]=(per[t]||0)+1}return un.map(k=>({k,wt:w[(WTIER[k]||1)-1]/per[WTIER[k]||1]}))}
+// one weapon offer for floor number fl: {k,refit} or null
+function rollWeapon(p,fl){const pool=weaponPool(p,fl);if(pool.length){let r=Math.random()*pool.reduce((a,b)=>a+b.wt,0);for(const o of pool){r-=o.wt;if(r<=0)return{k:o.k,refit:false}}return{k:pool[pool.length-1].k,refit:false}}
+ const low=p.weapons.filter(k=>WEAPONS[k]&&wGrade(p,k)<fl-3).sort((a,b)=>wGrade(p,a)-wGrade(p,b)||(b===p.weapon)-(a===p.weapon));return low.length?{k:low[0],refit:true}:null}
+const wMk=fl=>`Mk ${fl}`;
+function weaponCard(p,fl){const o=rollWeapon(p,fl);if(!o)return null;const w=WEAPONS[o.k],k=o.k,pc=Math.round(Math.min(40,fl-1)*2.5);
+ return o.refit?{name:`Refit: ${w.name} ${wMk(fl)}`,desc:`Rebuild your ${w.name}: +${pc}% damage (floor ${fl} grade)`,gear:true,refit:true,wk:k,apply:p=>giveWeapon(p,k,fl),noUp:true}
+  :{name:`Weapon: ${w.name} ${wMk(fl)}`,desc:w.desc+(pc?` · +${pc}% damage`:''),gear:true,wk:k,tier:WTIER[k],apply:p=>giveWeapon(p,k,fl)}}
+// ---- struggle helper ("SUPPLY DROP"): after ~60 s on a floor without finishing the objective (sooner, from 35 s, when HP is under 35%),
+// the next regular bug killed drops a glowing upgrade crate. Contents come from the weapon slot (floor-scaled tiers/grades), mods for the
+// equipped weapon, or the chamber stat upgrades. 60 s cooldown after it is collected (20 s if it expires), max 3 per floor, reset each floor.
+const SUP={after:60,hurtAfter:35,cd:60,cdMiss:20,max:3,life:30};
+function supState(){if(!S.sup||S.sup.walls!==S.walls)S.sup={walls:S.walls,n:0,cd:0,armed:false,list:[]};return S.sup}
+function rollSupply(p,fl){const out=[],wc=weaponCard(p,fl),fm=freeMods(p,p.weapon);if(wc)out.push([wc,fl>=16?4:3]);
+ if(fm.length){const m=pickR(fm),wk=p.weapon;out.push([{name:'Mod: '+MODS[m].name,apply:p=>{addMod(p,wk,m);p.ups.push(`${MODS[m].name} (${WEAPONS[wk].name})`)},noUp:true},3])}
+ const u=pickR(UPGRADES);out.push([u,4]);let r=Math.random()*out.reduce((a,b)=>a+b[1],0);for(const[c,w]of out){r-=w;if(r<=0)return c}return u}
+function supplyTick(dt){if(S.demo||!S.obj)return;const u=supState(),p=S.p;u.cd-=dt;
+ const objDone=!!S.exit||S.obj.done(S),hurt=p.hp<p.maxHp*.35&&S.floorT>=SUP.hurtAfter;
+ u.armed=!objDone&&u.n<SUP.max&&u.cd<=0&&!u.list.length&&(S.floorT>=SUP.after||hurt);
+ for(const d of u.list){d.life-=dt;if(d.life>0&&dist(d,p)<p.r+22){d.life=0;d.got=true;const c=d.up;c.apply(p);if(!c.noUp)p.ups.push(c.name);u.cd=SUP.cd;S.stats.supply=(S.stats.supply||0)+1;sfx('choose');
+   floatText(p.x,p.y-30,'SUPPLY: '+c.name.replace(/^(Weapon|Mod): /,''),'#ffd35a');burst(d.x,d.y,'#ffd35a',26)}
+  else if(d.life<=0&&!d.got)u.cd=SUP.cdMiss}u.list=u.list.filter(d=>d.life>0)}
+function supplyKill(e){const u=S.sup;if(!u||!u.armed||ENEMIES[e.type].boss||S.demo)return;u.armed=false;u.n++;
+ const d={x:e.x,y:e.y,r:14,life:SUP.life,up:rollSupply(S.p,S.floor+1)};resolve(d);u.list.push(d);floatText(e.x,e.y-36,'SUPPLY DROP','#ffd35a');sfx('pickup');
+ if(window.TDP_LOOK)TDP_LOOK.toast('SUPPLY DROP — grab the glowing crate');burst(e.x,e.y,'#ffd35a',30)}
+function lootLocker(it,weapon){const p=S.p,fl=S.floor+1,o=weapon?rollWeapon(p,fl):null;
+ if(o){giveWeapon(p,o.k,fl);floatText(it.x,it.y-30,o.refit?`REFIT: ${WEAPONS[o.k].name} ${wMk(fl)} (+${Math.round((wDmgMul(p,o.k)-1)*100)}% DMG)`:`NEW WEAPON: ${WEAPONS[o.k].name} ${wMk(fl)} [${p.weapons.length}]`,'#ff5')}
  else if(it.idx%2){p.hp=Math.min(p.maxHp,p.hp+30);floatText(it.x,it.y-30,'+30 HP','#5f9')}
  else if(freeMods(p,p.weapon).length){const m=pickR(freeMods(p,p.weapon));addMod(p,p.weapon,m);p.ups.push(`${MODS[m].name} (${WEAPONS[p.weapon].name})`);floatText(it.x,it.y-30,`MOD: ${MODS[m].name} → ${WEAPONS[p.weapon].name}`,MODS[m].color)}else{p.dmgMul*=1.08;p.ups.push('+8% Damage (locker)');floatText(it.x,it.y-30,'+8% DAMAGE','#ff5')}}
 
 // ================= COMBAT =================
 function mkBullet(x,y,a,o){return{x,y,vx:Math.cos(a)*o.speed,vy:Math.sin(a)*o.speed,dmg:o.dmg,life:o.life,col:o.col,r:o.r||3,pierce:o.pierce,burn:o.burn,flame:o.flame,hit:o.pierce?new Set():null,mods:o.mods,grenade:o.grenade,wk:o.wk,life0:o.life}}
-function shoot(p,a,o){const ang=a+rnd(-o.spread,o.spread);S.bullets.push(mkBullet(p.x+Math.cos(a)*14,p.y+Math.sin(a)*14,ang,Object.assign({},o,{dmg:o.dmg*p.dmgMul,mods:p.mods[p.weapon],wk:p.weapon})))}
+function shoot(p,a,o){const ang=a+rnd(-o.spread,o.spread);S.bullets.push(mkBullet(p.x+Math.cos(a)*14,p.y+Math.sin(a)*14,ang,Object.assign({},o,{dmg:o.dmg*p.dmgMul*wDmgMul(p,p.weapon),mods:p.mods[p.weapon],wk:p.weapon})))}
 function hittables(){return S.enemies.filter(e=>e.hp>0).concat(S.items.filter(i=>i.kind==='shoot'&&!i.done&&i.active))}
 function damage(t,amt,o){o=o||{};if(t.kind==='shoot'){if(o.flame&&t.burnBonus)amt*=2;t.hp-=amt;S.stats.dmg+=amt;t.flash=.08;
   if(t.hp<=0&&!t.done){t.done=true;burst(t.x,t.y,t.color,30);t.onDone&&t.onDone(t)}return}
@@ -445,16 +479,16 @@ function explodeAt(x,y,r,dmg,col,o){if(o&&o.mods)o={mods:o.mods.filter(m=>m!=='e
  S.rings.push({x,y,r:10,life:.3,col});if(hq())S.rings.push({x,y,r:r*.2,life:.45,col:'#fff2d0',v:r*3.2});S.booms.push({x,y,life:.18,col});burst(x,y,col,26);burst(x,y,'#fff',8)}
 function railShot(p,a,dmg){S.stats.rails++;S.shake=Math.min(18,S.shake+2.5);const cx=Math.cos(a),cy=Math.sin(a);let L=0;while(L<1300&&!inWall(p.x+cx*L,p.y+cy*L))L+=8;
  const x2=p.x+cx*L,y2=p.y+cy*L,o={mods:p.mods[p.weapon],wk:p.weapon};
- for(const t of hittables()){const dx=t.x-p.x,dy=t.y-p.y,pr=dx*cx+dy*cy;if(pr<0||pr>L)continue;if(Math.abs(dx*cy-dy*cx)<t.r+6){damage(t,dmg*p.dmgMul,o);burst(t.x,t.y,'#e9f',8)}}
+ for(const t of hittables()){const dx=t.x-p.x,dy=t.y-p.y,pr=dx*cx+dy*cy;if(pr<0||pr>L)continue;if(Math.abs(dx*cy-dy*cx)<t.r+6){damage(t,dmg*p.dmgMul*wDmgMul(p,'railgun'),o);burst(t.x,t.y,'#e9f',8)}}
  S.beams.push({x1:p.x,y1:p.y,x2,y2,col:'#d9f',life:.3,w:7})}
 function leechBeam(p,a,dmg){let best=null,bs=1e9;for(const t of hittables()){const d=dist(t,p);if(d>290)continue;const da=Math.abs(angDiff(Math.atan2(t.y-p.y,t.x-p.x),a));if(da>.6)continue;const sc=d*(1+da*2);if(sc<bs&&los(p,t)){bs=sc;best=t}}
  if(!best){S.beams.push({x1:p.x,y1:p.y,x2:p.x+Math.cos(a)*60,y2:p.y+Math.sin(a)*60,col:'#6f6',life:.06,w:1.5});return}
- S.stats.leech++;const d=dmg*p.dmgMul;damage(best,d,{mods:p.mods[p.weapon],wk:p.weapon});if(!best.kind){const h=d*.3;p.hp=Math.min(p.maxHp,p.hp+h);S.stats.healed+=h}
+ S.stats.leech++;const d=dmg*p.dmgMul*wDmgMul(p,'bio_harvester');damage(best,d,{mods:p.mods[p.weapon],wk:p.weapon});if(!best.kind){const h=d*.3;p.hp=Math.min(p.maxHp,p.hp+h);S.stats.healed+=h}
  S.beams.push({x1:p.x,y1:p.y,x2:best.x,y2:best.y,col:'#6f6',life:.1,w:4});if(Math.random()<.5)S.parts.push({x:best.x,y:best.y,vx:(p.x-best.x)*2,vy:(p.y-best.y)*2,life:.4,col:'#7f7'})}
 function teslaArc(p,a,dmg){const T=hittables();let best=null,bs=1e9;
  for(const t of T){const d=dist(t,p);if(d>390)continue;const da=Math.abs(angDiff(Math.atan2(t.y-p.y,t.x-p.x),a));if(da>.5)continue;const s=d*(1+da*2);if(s<bs&&los(p,t)){bs=s;best=t}}
  const pts=[{x:p.x,y:p.y}];if(!best){pts.push({x:p.x+Math.cos(a)*110,y:p.y+Math.sin(a)*110});S.arcs.push({pts,life:.12});return}
- const hit=new Set();let cur=best,dm=dmg*p.dmgMul;for(let j=0;j<5&&cur;j++){hit.add(cur);pts.push({x:cur.x,y:cur.y});damage(cur,dm,{mods:p.mods[p.weapon],wk:p.weapon});dm*=.78;
+ const hit=new Set();let cur=best,dm=dmg*p.dmgMul*wDmgMul(p,'tesla');for(let j=0;j<5&&cur;j++){hit.add(cur);pts.push({x:cur.x,y:cur.y});damage(cur,dm,{mods:p.mods[p.weapon],wk:p.weapon});dm*=.78;
   let nx=null,nd=170;for(const t of T){if(hit.has(t))continue;const d=dist(t,cur);if(d<nd&&los(cur,t)){nd=d;nx=t}}cur=nx}
  S.arcs.push({pts,life:.15})}
 function hurtPlayer(amt){const p=S.p;if(p.inv>0||S.god)return;if(p.drone==='bastion'&&p.shield){p.shield=false;p.shieldT=4;p.inv=.3;floatText(p.x,p.y-25,'BLOCKED','#8af');sfx('shield');return}
@@ -470,7 +504,7 @@ function onKey(k,raw){if(!S)return;if(k==='escape'){if(S.state==='play')pauseGam
 function onClick(){if(!S)return;if(S.state==='victory'&&CFG.endless){const b=endlessBtnRect();if(mouse.sx>b.x&&mouse.sx<b.x+b.w&&mouse.sy>b.y&&mouse.sy<b.y+b.h){continueEndless();return}}if(S.state==='dead'||S.state==='victory')startGame();
  else if(S.state==='upgrade'&&S.choices)S.choices.forEach((c,i)=>{const b=cardRect(i);if(mouse.sx>b.x&&mouse.sx<b.x+b.w&&mouse.sy>b.y&&mouse.sy<b.y+b.h)pick(i)})}
 function rollChoices(){const p=S.p,Wc=[],Dc=[],Mc=[];S.offerN=(S.offerN||0)+1;
- for(const[k,w]of Object.entries(WEAPONS))if(w.implemented&&!p.weapons.includes(k))Wc.push({name:'Weapon: '+w.name,desc:w.desc,gear:true,apply:p=>{p.weapons.push(k);p.weapon=k}});
+ {const c=weaponCard(p,S.floor+1);if(c)Wc.push(c)}// floor-scaled weapon slot (tiers + grade)
  for(const[k,d]of Object.entries(DRONES))if(d.implemented&&!p.drones.includes(k))Dc.push({name:'Drone: '+d.name,desc:d.desc,gear:true,apply:p=>{p.drones.push(k);p.drone=k}});
  const wk=p.weapon;for(const m of freeMods(p,wk))Mc.push({name:'Mod: '+MODS[m].name,desc:`${MODS[m].desc} → ${WEAPONS[wk].name}`,gear:true,mod:true,apply:p=>{addMod(p,wk,m);p.ups.push(`${MODS[m].name} (${WEAPONS[wk].name})`)},noUp:true});
  // Weighted for variety: every chamber offers one new weapon AND one new drone while any remain (so a run sees all categories),
@@ -542,7 +576,7 @@ function update(dt){S.t+=dt;S._dt=dt;if(S.banner&&S.banner.life>0)S.banner.life-
   e.x+=Math.cos(ang)*spd*dt;e.y+=Math.sin(ang)*spd*dt;
   {const ix=(e.x/48)|0,iy=(e.y/48)|0;for(let gy=iy-1;gy<=iy+1;gy++)for(let gx=ix-1;gx<=ix+1;gx++){const a=SH.get(gx+gy*64);if(!a)continue;for(const o of a){if(o===e||o.hp<=0)continue;const dx=e.x-o.x,dy=e.y-o.y,mn=(e.r+o.r)*1.15;if(Math.abs(dx)>mn||Math.abs(dy)>mn)continue;const dd=Math.hypot(dx,dy);if(dd<mn&&dd>0){const k=T.boss?.1:ENEMIES[o.type].boss?.9:.45;e.x+=dx/dd*(mn-dd)*k;e.y+=dy/dd*(mn-dd)*k}}}}
   resolve(e);if(T.ai!=='explode'&&dist(e,p)<e.r+p.r){const was=p.inv;hurtPlayer(e.dmg);if(T.boss&&was<=0&&p.inv>0){p.inv=1;const k=Math.max(dist(e,p),1);p.x+=(p.x-e.x)/k*46;p.y+=(p.y-e.y)/k*46;resolve(p)}}}
- for(const e of S.enemies)if(e.hp<=0){S.stats.kills++;creditWeaponKill(p,e.lastWk,e.x,e.y);TDP_STATS.kill(S,e.type);if(ENEMIES[e.type].split&&S.enemies.length<110)spawnNear(ENEMIES[e.type].split,e.x,e.y,4,20);if(p.drone==='harvestor'&&Math.random()<.4)S.orbs.push({x:e.x,y:e.y,life:12});burst(e.x,e.y,e.color,ENEMIES[e.type].boss?120:14);if(hq()&&!ENEMIES[e.type].boss&&S.dying&&S.dying.length<60)S.dying.push({type:e.type,x:e.x,y:e.y,_iu:e._iu,dying:1,dt:.45,flash:0});const bs=!!ENEMIES[e.type].boss;if(!S.demo){const ef=hpEarly(),low=p.hp<p.maxHp*.5,tough=ENEMIES[e.type].hp>=80,ch=(.05+(low?.05:0))*(tough?2:1)*DF().heal*ef;S.hpPity=(S.hpPity||0)+1;const pity=low&&S.hpPity>=Math.round((S.floor<5?7:S.floor<15?10:14)/Math.min(DF().heal*ef,2));if(bs){for(let i=0;i<4;i++)S.pickups.push({x:e.x+rnd(-60,60),y:e.y+rnd(-60,60),life:30,heal:Math.round(hpHeal()*1.6),big:true});S.hpPity=0}else if((pity||Math.random()<ch)&&S.pickups.length<8){S.pickups.push({x:e.x,y:e.y,life:20,heal:tough?Math.round(hpHeal()*1.6):hpHeal(),big:tough});S.hpPity=0}}sfx(bs?'roar':'death');if(bs)S.shake=20;S.events.push({t:'die',x:e.x,y:e.y,col:e.color,r:e.r,boss:bs})}if(S.events.length>300)S.events.splice(0,S.events.length-300);
+ supplyTick(dt);for(const e of S.enemies)if(e.hp<=0){S.stats.kills++;creditWeaponKill(p,e.lastWk,e.x,e.y);supplyKill(e);TDP_STATS.kill(S,e.type);if(ENEMIES[e.type].split&&S.enemies.length<110)spawnNear(ENEMIES[e.type].split,e.x,e.y,4,20);if(p.drone==='harvestor'&&Math.random()<.4)S.orbs.push({x:e.x,y:e.y,life:12});burst(e.x,e.y,e.color,ENEMIES[e.type].boss?120:14);if(hq()&&!ENEMIES[e.type].boss&&S.dying&&S.dying.length<60)S.dying.push({type:e.type,x:e.x,y:e.y,_iu:e._iu,dying:1,dt:.45,flash:0});const bs=!!ENEMIES[e.type].boss;if(!S.demo){const ef=hpEarly(),low=p.hp<p.maxHp*.5,tough=ENEMIES[e.type].hp>=80,ch=(.05+(low?.05:0))*(tough?2:1)*DF().heal*ef;S.hpPity=(S.hpPity||0)+1;const pity=low&&S.hpPity>=Math.round((S.floor<5?7:S.floor<15?10:14)/Math.min(DF().heal*ef,2));if(bs){for(let i=0;i<4;i++)S.pickups.push({x:e.x+rnd(-60,60),y:e.y+rnd(-60,60),life:30,heal:Math.round(hpHeal()*1.6),big:true});S.hpPity=0}else if((pity||Math.random()<ch)&&S.pickups.length<8){S.pickups.push({x:e.x,y:e.y,life:20,heal:tough?Math.round(hpHeal()*1.6):hpHeal(),big:tough});S.hpPity=0}}sfx(bs?'roar':'death');if(bs)S.shake=20;S.events.push({t:'die',x:e.x,y:e.y,col:e.color,r:e.r,boss:bs})}if(S.events.length>300)S.events.splice(0,S.events.length-300);
  S.enemies=S.enemies.filter(e=>e.hp>0);
  // bullets
  const T=hittables();
@@ -550,7 +584,7 @@ function update(dt){S.t+=dt;S._dt=dt;if(S.banner&&S.banner.life>0)S.banner.life-
   for(const t of T){if(t.hp<=0||t.done)continue;if(Math.abs(t.x-b.x)>t.r+b.r||Math.abs(t.y-b.y)>t.r+b.r)continue;if(Math.hypot(t.x-b.x,t.y-b.y)<t.r+b.r){
    if(b.pierce){if(b.hit.has(t))continue;b.hit.add(t);damage(t,b.dmg,b)}else{damage(t,b.dmg,b);b.life=0;burst(b.x,b.y,'#9ff',3);break}}}}
  for(const h of S.pickups){h.life-=dt;if(p.hp<p.maxHp&&h.life>0){const dd=dist(h,p);if(dd<120&&dd>1){const k=Math.min(1,(320*dt)/dd);h.x+=(p.x-h.x)*k;h.y+=(p.y-h.y)*k}}if(h.life>0&&dist(h,p)<p.r+16&&p.hp<p.maxHp){const a=Math.min(h.heal,p.maxHp-p.hp);p.hp+=a;S.stats.healed+=a;h.life=0;sfx('pickup');floatText(p.x,p.y-26,'+'+Math.round(a)+' HP','#6f8');burst(h.x,h.y,'#6f8',12)}}S.pickups=S.pickups.filter(h=>h.life>0);
- for(const b of S.bullets)if(b.life<=0&&b.grenade)explodeAt(b.x,b.y,b.grenade.r,b.grenade.dmg*p.dmgMul,'#fb4',{mods:b.mods||[],wk:b.wk});
+ for(const b of S.bullets)if(b.life<=0&&b.grenade)explodeAt(b.x,b.y,b.grenade.r,b.grenade.dmg*p.dmgMul*wDmgMul(p,b.wk||'grenade_launcher'),'#fb4',{mods:b.mods||[],wk:b.wk});
  S.bullets=S.bullets.filter(b=>b.life>0);
  for(const o of S.orbs){o.life-=dt;if(dist(o,p)<22){o.life=0;sfx('heal');p.hp=Math.min(p.maxHp,p.hp+3);S.stats.healed+=3}}S.orbs=S.orbs.filter(o=>o.life>0);
  if(S.decoy){S.decoy.life-=dt;if(S.decoy.life<=0){explodeAt(S.decoy.x,S.decoy.y,120,30*p.dmgMul,'#9ef');S.decoy=null}}
@@ -739,7 +773,7 @@ const shield=new THREE.Mesh(new THREE.SphereGeometry(26,20,12),add(0x88aaff,.18)
 const flash=new THREE.Mesh(new THREE.SphereGeometry(6,8,6),add(0xddffff,.9));scene.add(flash);
 const exitG=new THREE.Group();{const r=new THREE.Mesh(new THREE.TorusGeometry(34,3,8,40),emis(0x33ffee,1.5));r.rotation.x=Math.PI/2;r.position.y=3;
  const b=new THREE.Mesh(new THREE.CylinderGeometry(30,34,220,24,1,true),add(0x33ffee,.15));b.position.y=110;exitG.add(r,b);const L=new THREE.PointLight(0x33ffee,12000,300,2);L.position.y=40;exitG.add(L)}scene.add(exitG);
-const geoDisc=keep(new THREE.CircleGeometry(1,28)),geoB=keep(new THREE.SphereGeometry(1,8,6)),geoRing=keep(new THREE.RingGeometry(.85,1,40)),geoBeam=keep(new THREE.BoxGeometry(1,1,1));const beamMeshes=new Map(),orbMeshes=new Map(),hazMeshes=new Map();
+const geoDisc=keep(new THREE.CircleGeometry(1,28)),geoB=keep(new THREE.SphereGeometry(1,8,6)),geoRing=keep(new THREE.RingGeometry(.85,1,40)),geoBeam=keep(new THREE.BoxGeometry(1,1,1));const supMeshes=new Map(),beamMeshes=new Map(),orbMeshes=new Map(),hazMeshes=new Map();
 const boomL=new THREE.PointLight(0xffaa44,0,340,2);scene.add(boomL);
 const decoyG=makeMarine();decoyG.traverse(o=>{if(o.isMesh){o.material=add(0x77eeff,.3);o.castShadow=false}});const decoyRing=new THREE.Mesh(new THREE.RingGeometry(26,30,32),add(0x99eeff,.5));decoyRing.rotation.x=-Math.PI/2;decoyRing.position.y=2;decoyG.add(decoyRing);scene.add(decoyG);
 const PMAX=2000,pGeo=new THREE.BufferGeometry(),pPos=new Float32Array(PMAX*3),pCol=new Float32Array(PMAX*3);
@@ -824,6 +858,9 @@ function render(dt){const snap=dt===undefined;dt=dt||1/60;const p=S.p,f=S.f;if(d
   if(e.type==='exploder')u.abd.scale.set(1.35+Math.sin(S.t*12)*.15,.8,1.05);u.fr.visible=e.slowT>0;u.st.visible=e.stun>0;if(e.stun>0)u.st.rotation.z=S.t*10},e=>'e'+e.type);
  if(instOn)TDP_INST.update(S.dying&&S.dying.length?S.enemies.concat(S.dying):S.enemies,S.t,p);TDP_INST.root.visible=instOn;
  sync(S.pickups||[],pickMeshes,h=>{const g=new THREE.Group(),mt=emis(0x44ff77,1.6,0x0a3318);g.add(box(16,5,5,mt,0,0,0,false),box(5,5,16,mt,0,0,0,false));const r=new THREE.Mesh(new THREE.TorusGeometry(13,1.4,6,20),add(0x66ff99,.5));r.rotation.x=-Math.PI/2;r.position.y=-12;g.add(r);const gd=new THREE.Mesh(geoRing,new THREE.MeshBasicMaterial({color:0x44ff77,transparent:true,opacity:.45,blending:THREE.AdditiveBlending,depthWrite:false}));gd.rotation.x=-Math.PI/2;gd.position.y=-17;gd.scale.setScalar(22);g.add(gd);return g},(h,g)=>{g.position.set(h.x,22+Math.sin(S.t*4+h.x)*4,h.y);g.rotation.y=S.t*2;const pu=1+.18*Math.sin(S.t*6+h.x);g.scale.setScalar((h.big?1.4:1)*pu*(h.life<3?.6+.4*Math.abs(Math.sin(S.t*10)):1));const gl=g.children[3];if(gl){gl.material.opacity=.35+.25*Math.sin(S.t*6+h.x)}},h=>'hp');
+ sync(S.sup&&S.sup.walls===S.walls?S.sup.list:[],supMeshes,()=>{const g=new THREE.Group(),gold=emis(0xffc83a,2.2,0x332200);g.add(box(20,14,20,mat.armor,0,10,0),box(21,3,21,gold,0,17.5,0,false),box(3,15,21,gold,0,10,0,false),box(21,15,3,gold,0,10,0,false));
+  const bm=new THREE.Mesh(new THREE.CylinderGeometry(9,15,320,16,1,true),add(0xffd35a,.22));bm.position.y=160;const rg=new THREE.Mesh(geoRing,add(0xffd35a,.6));rg.rotation.x=-Math.PI/2;rg.position.y=1.5;rg.scale.setScalar(30);g.add(bm,rg);return g},
+  (d,g)=>{g.position.set(d.x,4+Math.sin(S.t*4)*3,d.y);g.rotation.y=S.t*1.6;const k=1+.15*Math.sin(S.t*6);g.children[5].scale.setScalar(26*k+6);g.children[4].material.opacity=d.life<5?(.1+.15*Math.abs(Math.sin(S.t*10))):.22},()=>'sup');
  sync(S.bullets,bulletMeshes,b=>{const m=new THREE.Mesh(geoB,b.flame?add(0xff7a30,.55):b.grenade?emis(0xffbb33,1.5,0x332200):basic(b.col));m.scale.setScalar(b.r*(b.flame?2:1.2));return m},(b,m)=>{
   if(b.grenade){const t=1-b.life/b.life0;m.position.set(b.x,28+Math.sin(t*Math.PI)*70,b.y);m.scale.setScalar(b.r);m.rotation.x+=.3;return}
   m.position.set(b.x,b.flame?24:28,b.y);if(b.flame)m.scale.setScalar(b.r*(1+(0.38-b.life)*8));else{m.rotation.y=-Math.atan2(b.vy,b.vx);m.scale.set(b.r*2.6,b.r*.6,b.r*.6)}},b=>b.flame?'bf':b.grenade?'bg':'b'+b.col);
@@ -898,7 +935,7 @@ window.__TDP_DBG={wm:{wLevel:(p,k)=>wLevel(p,k),wMasteryMul:(p,k)=>wMasteryMul(p
 TDP_CONTENT.init({get S(){return S},P,dist,rnd,clamp,W,H,CELL,spawnEnemy,spawnNear,hurtPlayer,floatText,burst,sfx,showBanner,ebullet,bossRing,bossSummon,bossCharge,tick,resolve,inWall,edgeSpawn,mkItem,nDone,allDone,DF,ENEMIES,pickType:()=>rollType(S.f.mix),THREE,M,emis,add,basic,box,sph,cyl,mat,keep});
 Object.assign(OBJECTIVES,TDP_CONTENT.objectives());TDP_ENDLESS.init({FLOORS,mix:M6});
 TDP_INST.init({THREE,scene,makeBug,ENEMIES,dist,add,geoFx,geoTorus});TDP_INST.prewarm(Object.keys(ENEMIES));Object.assign(BOSS_AI,TDP_CONTENT.BOSS_AI);
-Object.assign(window,{saveCfg,onClick,spawnEnemy,DF,floorAt,isFinal,floorLbl,continueEndless,startEndless,recordEndless,endlessUps,ENDLESS_UPS,endlessBtnRect,scaleF,hurtPlayer,useOn,useEdge,cycleWeapon,TUT,setDifficulty:k=>setDifficulty(k),startIntro:()=>startIntro(),audioInit,hasBloom:()=>!!composer,CFG,saveGame,loadSave,recordBest,pauseGame,resumeGame,newRun,continueRun,goTitle,applyQuality,AU,sfx,menuDepth:()=>menuStack.length,musicTick,update,render,startGame,startFloor,spawnWave,onKey,damage,pick,inWall,P,cp,dist,keys,mouse,WEAPONS,DRONES,FLOORS,ENEMIES,OBJECTIVES,rollChoices,MODS,explodeAt,spawnNear,rnd,THREE,renderer,camera,aimRaycast,GAME_READY:true});
+Object.assign(window,{saveCfg,onClick,spawnEnemy,DF,floorAt,isFinal,floorLbl,continueEndless,startEndless,recordEndless,endlessUps,ENDLESS_UPS,endlessBtnRect,scaleF,hurtPlayer,useOn,useEdge,cycleWeapon,TUT,setDifficulty:k=>setDifficulty(k),startIntro:()=>startIntro(),audioInit,hasBloom:()=>!!composer,CFG,saveGame,loadSave,recordBest,pauseGame,resumeGame,newRun,continueRun,goTitle,applyQuality,AU,sfx,menuDepth:()=>menuStack.length,musicTick,update,render,startGame,startFloor,spawnWave,onKey,damage,pick,inWall,P,cp,dist,keys,mouse,WEAPONS,DRONES,FLOORS,ENEMIES,OBJECTIVES,rollChoices,MODS,WTIER,WBANDS,rollWeapon,weaponCard,wDmgMul,wGrade,giveWeapon,SUP,supplyTick,supplyKill,rollSupply,UPGRADES,explodeAt,spawnNear,rnd,THREE,renderer,camera,aimRaycast,GAME_READY:true});
 
 // ================= MENUS (title / pause / settings / controls) =================
 const menuEl=document.getElementById('menu');let menuStack=[];
