@@ -596,7 +596,8 @@ function floorTex(){const c=document.createElement('canvas');c.width=c.height=25
   if(i===j){g.strokeStyle='#10171b';g.lineWidth=3;for(let k=24;k<108;k+=10){g.beginPath();g.moveTo(x+22,y+k);g.lineTo(x+106,y+k);g.stroke()}}}
  const t=new THREE.CanvasTexture(c);t.wrapS=t.wrapT=THREE.RepeatWrapping;t.repeat.set(W/192,H/192);t.colorSpace=THREE.SRGBColorSpace;t.anisotropy=4;return t}
 const floorMat=keep(M({map:floorTex(),metalness:.45,roughness:.55}));Object.values(mat).forEach(keep);
-TDP_VIS.init({THREE});const VT=TDP_VIS.textures(W,H);// procedural PBR maps (Medium/High); Low keeps floorMat/mat.steel
+TDP_VIS.init({THREE});try{await import('./js/look.js');TDP_LOOK.init({THREE,scene,hemi,sun,CFG,saveCfg,W,H,getS:()=>S,setQuality:q=>{CFG.quality=q;applyQuality();saveCfg();syncSettingsUI()}})}catch(e){console.warn('intro look layer unavailable',e);window.TDP_LOOK=null}// js/look.js: intro-movie look (fog, beacons, sparks, biomass, carapace)
+const VT=TDP_VIS.textures(W,H);// procedural PBR maps (Medium/High); Low keeps floorMat/mat.steel
 const floorMatHQ=keep(M({...VT.FM,metalness:.55,roughness:1,normalScale:new THREE.Vector2(1.2,1.2)})),wallMatHQ=keep(M({...VT.WM,metalness:.5,roughness:1,normalScale:new THREE.Vector2(1,1)}));
 const topMatHQ=keep(M({...VT.WM,metalness:.45,roughness:1,emissive:new THREE.Color(0x0c1a20),emissiveIntensity:1}));
 const hq=()=>CFG.quality!=='low';
@@ -628,18 +629,18 @@ function makeGun(k){const g=new THREE.Group(),G=mat.gun,a=(...m)=>g.add(...m);
  else if(k==='bio_harvester'){const n=new THREE.Mesh(new THREE.ConeGeometry(3.5,9,8),T);n.rotation.z=-Math.PI/2;n.position.set(27,27,8);a(sph(6.5,emis(tc,.7,0x0a2a0a),6,29,8),box(16,4,4,G,16,27,8),n)}
  g.traverse(o=>{if(o.isMesh)o.castShadow=true});return g}
 function makeBug(type){const T=ENEMIES[type],r=T.r,g=new THREE.Group(),col=new THREE.Color(T.color);
- const HQ=CFG.quality!=='low',shell=M({color:col.clone().multiplyScalar(HQ?.6:.35),emissive:col,emissiveIntensity:.06,metalness:.3,roughness:HQ?.38:.5,map:HQ?TDP_VIS.chitin():null});
+ const HQ=CFG.quality!=='low',LK=window.TDP_LOOK,shell=LK?LK.carapace(col,HQ):M({color:col.clone().multiplyScalar(HQ?.6:.35),emissive:col,emissiveIntensity:.06,metalness:.3,roughness:HQ?.38:.5,map:HQ?TDP_VIS.chitin():null});
  if(type==='overmind')return makeOvermind();if(type==='colossus')return TDP_CONTENT.makeColossus(r);if(type==='matriarch')return TDP_CONTENT.makeMatriarch(r);
  const glowC={spitter:0xd070ff,exploder:0xffd040,warden:0xff3d7a,carrier:0xffd060,matriarch:0xff4fa0,colossus:0xb04aff,prime:0xff5533}[type];if(T.cloak){shell.transparent=true;shell.opacity=.55;shell.emissiveIntensity=.4}
- const abd=sph(r*.75,glowC?emis(glowC,type==='exploder'?1.1:.7,col.clone().multiplyScalar(.3)):shell,-r*.55,r*.75,0);abd.scale.set(1.35,.8,1.05);
+ const abd=sph(r*.75,glowC?(LK?LK.glowAbd(glowC,type==='exploder'?1.1:.7,type!=='exploder'):emis(glowC,type==='exploder'?1.1:.7,col.clone().multiplyScalar(.3))):LK&&!T.cloak?LK.abdomen(col,HQ):shell,-r*.55,r*.75,0);abd.scale.set(1.35,.8,1.05);
  const tho=sph(r*.55,shell,r*.35,r*.7,0),head=sph(r*.38,shell,r*.95,r*.62,0),eyes=box(r*.2,r*.18,r*.55,emis(type==='warden'?0xffee55:0xff2a2a,3),r*1.25,r*.7,0,false);
- const legM=M({color:col.clone().multiplyScalar(HQ?.28:.2),roughness:.45,metalness:.3});const legs=[];const LL=r*(type==='leaper'?4.2:3.0);
+ const legM=LK?LK.legMat(col,HQ):M({color:col.clone().multiplyScalar(HQ?.28:.2),roughness:.45,metalness:.3});const legs=[];const LL=r*(type==='leaper'?4.2:3.0);
  for(let i=0;i<3;i++){const l=HQ&&!T.boss?new THREE.Mesh(legGeo(type,r,LL),legM):box(r*.18,r*.18,LL,legM,0,0,0,false);l.position.set(r*(.5-i*.45),r*.35,0);l.rotation.y=(i-1)*.45;legs.push(l);g.add(l)}
  g.add(abd,tho,head,eyes);if(HQ&&!T.boss&&type!=='carrier'&&type!=='prime')bugDetail(g,type,r,shell,legM);
  if(type==='brute'){if(HQ){for(let i=0;i<3;i++){const pl=new THREE.Mesh(new THREE.SphereGeometry(r*.62,12,6,0,Math.PI*2,0,Math.PI/2),mat.armorDark);pl.scale.set(1.05,.55,1.15);pl.position.set(r*(.25-i*.42),r*(1.0-i*.06),0);pl.castShadow=true;g.add(pl)}}else g.add(box(r*1.4,r*.35,r*1.3,mat.armorDark,-r*.2,r*1.25,0))}
  if(type==='carrier'){ // bloated brood-sac on stubby legs: translucent amber dome with glowing larvae, a chitin band and dangling tendrils
-  abd.material=new THREE.MeshPhysicalMaterial({color:0x6a5410,emissive:0xffb030,emissiveIntensity:.5,transparent:true,opacity:.5,roughness:.15,depthWrite:false});abd.scale.set(2.0,1.75,1.8);abd.position.set(-r*.7,r*1.35,0);
-  const lm=emis(0xffe070,1.6,0x402000);for(let i=0;i<7;i++){const l=new THREE.Mesh(new THREE.CapsuleGeometry(r*.1,r*.28,3,6),lm);l.position.set(-r*.7+Math.cos(i*.9)*r*.55,r*1.3+Math.sin(i*1.7)*r*.35,Math.sin(i*.9)*r*.55);l.rotation.set(i,i*2,0);g.add(l)}
+  abd.material=new THREE.MeshPhysicalMaterial({color:0x6a5410,emissive:0xffb030,emissiveIntensity:LK?.28:.5,transparent:true,opacity:.5,roughness:.15,depthWrite:false});abd.scale.set(2.0,1.75,1.8);abd.position.set(-r*.7,r*1.35,0);
+  const lm=emis(0xffe070,LK?1.1:1.6,0x402000);for(let i=0;i<7;i++){const l=new THREE.Mesh(new THREE.CapsuleGeometry(r*.1,r*.28,3,6),lm);l.position.set(-r*.7+Math.cos(i*.9)*r*.55,r*1.3+Math.sin(i*1.7)*r*.35,Math.sin(i*.9)*r*.55);l.rotation.set(i,i*2,0);g.add(l)}
   const band=new THREE.Mesh(new THREE.TorusGeometry(r*.95,r*.12,6,18),mat.armorDark);band.rotation.x=Math.PI/2;band.position.set(-r*.7,r*1.05,0);g.add(band);
   for(let i=0;i<6;i++){const t=cyl(r*.05,r*.02,r*.8,emis(0xc89030,.6),-r*.7+Math.cos(i)*r*.8,r*.45,Math.sin(i)*r*.8,5);g.add(t)}
   head.scale.set(.8,.7,.9);head.position.y=r*.45;for(const sd of[-1,1]){const m=box(r*.45,r*.08,r*.08,mat.armorDark,r*1.25,r*.4,sd*r*.18,false);m.rotation.y=-sd*.5;g.add(m)}}
@@ -661,9 +662,9 @@ function bugDetail(g,type,r,shell,legM){const ad=(geo,m,x,y,z,rx,ry,rz,sx,sy,sz)
  for(const s of[-1,1]){ad(new THREE.ConeGeometry(r*.07,r*.55,4),legM,r*1.32,r*.48,s*r*.17,0,s*.45,-Math.PI/2);ad(new THREE.CylinderGeometry(r*.02,r*.03,r*.9,4),legM,r*1.15,r*.95,s*r*.16,s*-.35,0,-.9)}
  if(type==='spitter'){ad(new THREE.SphereGeometry(r*.22,8,6),shell,-r*1.05,r*1.05,0)}
  if(type==='exploder'){for(let i=0;i<4;i++)ad(new THREE.SphereGeometry(r*.14,6,5),legM,-r*.55+Math.cos(i*1.6)*r*.5,r*1.2,Math.sin(i*1.6)*r*.5)}}
-function makeOvermind(){const g=new THREE.Group(),col=new THREE.Color('#ff2050'),tm=M({color:0x2a0812,emissive:col,emissiveIntensity:.25,roughness:.5});const legs=[];
+function makeOvermind(){const g=new THREE.Group(),col=new THREE.Color('#ff2050'),OM=window.TDP_LOOK&&TDP_LOOK.overmindMats(),tm=OM?OM.flesh:M({color:0x2a0812,emissive:col,emissiveIntensity:.25,roughness:.5});const legs=[];
  for(let i=0;i<3;i++){const t=new THREE.Group();for(let j=0;j<3;j++){const c=cyl(5,9,70,tm,0,0,0,8);c.rotation.z=Math.PI/2;c.position.x=70;const a=new THREE.Group();a.rotation.y=(i*3+j)*0.698;a.add(c);t.add(a)}legs.push(t);g.add(t)}
- const brain=new THREE.Mesh(new THREE.IcosahedronGeometry(50,2),M({color:0x501020,emissive:col,emissiveIntensity:.6,roughness:.35,flatShading:true}));brain.position.y=60;brain.castShadow=true;g.add(brain);
+ const brain=OM?new THREE.Mesh(new THREE.SphereGeometry(50,40,28),OM.brain):new THREE.Mesh(new THREE.IcosahedronGeometry(50,2),M({color:0x501020,emissive:col,emissiveIntensity:.6,roughness:.35,flatShading:true}));brain.position.y=60;brain.castShadow=true;g.add(brain);
  g.add(sph(14,emis(0xffee88,2.5),38,62,0),cyl(40,55,30,mat.armorDark,0,15,0));g.userData={legs,abd:brain};return g}
 const bugTpl={};const bugClone=t=>{if(!bugTpl[t]){bugTpl[t]=makeBug(t);if(!bugTpl[t].userData.custom)keepTree(bugTpl[t])}// clones share the template's geometry/materials
  const custom=bugTpl[t].userData.custom,c=custom?makeBug(t):bugTpl[t].clone();const r=ENEMIES[t].r;const fr=new THREE.Mesh(geoFx,add(0x88ddff,.35));fr.scale.setScalar(r*1.15);fr.position.y=r*.7;
@@ -717,7 +718,7 @@ function buildLevel(){if(level){scene.remove(level);disposeQ.push(level)}poolTri
  for(const w of wallFade)for(const m of w.meshes){const c=m.material.clone();c.transparent=true;c.userData.base=m.material.opacity??1;m.material=c;w.mats.push(c)}
  TDP_CONTENT.setPiece(f,{T:THREE,add:(...o)=>level.add(...o),walls:S.walls,trim,P,W,H});
  if(HQ){const pg=new THREE.Group();level.add(pg);TDP_VIS.props({group:pg,W,H,dark:mat.dark,emis:emis(tint,1.6),inner:(x,y)=>S.walls.some(w=>x>w.x-40&&x<w.x+w.w+40&&y>w.y-40&&y<w.y+w.h+40)}).forEach(keep)}
- builtFor=S.walls;camPos.set(S.p.x,0,S.p.y).add(CAM_OFF);needWarm=true}
+ if(window.TDP_LOOK)TDP_LOOK.build({walls:S.walls,cp,level,keep});builtFor=S.walls;camPos.set(S.p.x,0,S.p.y).add(CAM_OFF);needWarm=true}
 // shader pre-warm: once per level build, draw one (microscopic, light-stripped) copy of every enemy/boss model plus fx
 // meshes next to the camera target so every program (incl. shadow-depth variants) is compiled before play starts.
 let needWarm=false,warmG=null;
@@ -755,7 +756,7 @@ function clearDecals(){_d.scale.setScalar(0);_d.updateMatrix();for(let i=0;i<DEC
 function addDecal(x,y,r,col){const i=decI++%DECMAX;_d.position.set(x,.35+(i%40)*.004,y);_d.rotation.set(0,Math.random()*6.3,0);_d.scale.set(r*rnd(.8,1.3),1,r*rnd(.8,1.3));_d.updateMatrix();decMesh.setMatrixAt(i,_d.matrix);decMesh.setColorAt(i,_c.set(col));decMesh.instanceMatrix.needsUpdate=true;decMesh.instanceColor.needsUpdate=true}
 function addGib(x,y,col,s,sp){const g={i:gibI++%GIBMAX,x,y:s+4,z:y,vx:rnd(-1,1)*sp,vy:rnd(150,380),vz:rnd(-1,1)*sp,life:rnd(1.2,2.2),s:s*rnd(.5,1.2),rx:rnd(0,6),ry:rnd(0,6),col};const o=gibs.findIndex(q=>q.i===g.i);if(o>=0)gibs.splice(o,1);gibs.push(g);gibMesh.setColorAt(g.i,_c.set(col).multiplyScalar(.6))}
 const wallFade=[];const arcMeshes=[];const arcMat2=new THREE.MeshBasicMaterial({color:0xe8ffff,transparent:true,opacity:.95,blending:THREE.AdditiveBlending,depthWrite:false}),arcMat3=new THREE.MeshBasicMaterial({color:0x55ccff,transparent:true,opacity:.35,blending:THREE.AdditiveBlending,depthWrite:false});
-function fxUpdate(dt){const p=S.p;
+function fxUpdate(dt){const p=S.p;if(window.TDP_LOOK)TDP_LOOK.update(dt);
  if(S.events&&S.events.length){for(const ev of S.events){
   if(ev.t==='die'){const n=ev.boss?60:Math.min(10,4+ev.r/4);for(let k=0;k<n;k++)addGib(ev.x,ev.y,ev.col,ev.boss?rnd(5,12):rnd(2,4.5),ev.boss?260:140);addDecal(ev.x,ev.y,ev.r*(ev.boss?2.4:1.5),_c.set(ev.col).multiplyScalar(.22).getHex())}
   else if(ev.t==='boom')addDecal(ev.x,ev.y,ev.r*.55,0x050505)}S.events.length=0}
@@ -776,7 +777,7 @@ if(ADDONS){try{composer=new ADDONS.EffectComposer(renderer);composer.addPass(new
 function applyQuality(){const q=CFG.quality;renderer.setPixelRatio(q==='low'?.85:q==='med'?1:Math.min(devicePixelRatio||1,1.5));
  const sh=q!=='low';if(renderer.shadowMap.enabled!==sh){renderer.shadowMap.enabled=sh;scene.traverse(o=>{if(o.material)(Array.isArray(o.material)?o.material:[o.material]).forEach(m=>m.needsUpdate=true)})}
  sun.castShadow=sh;spot.visible=q!=='low';spot.castShadow=q==='high';if(gradePass)gradePass.enabled=q!=='low';ground.material=q==='low'?floorMat:floorMatHQ;
- decMesh.material.alphaMap=q==='low'?null:TDP_VIS.splat();decMesh.material.needsUpdate=true;if(applyQuality.q&&applyQuality.q!==q)builtFor=null;applyQuality.q=q;const ms=q==='high'?2048:1024;if(sun.shadow.mapSize.x!==ms){sun.shadow.mapSize.set(ms,ms);if(sun.shadow.map){sun.shadow.map.dispose();sun.shadow.map=null}}resize()}
+ decMesh.material.alphaMap=q==='low'?null:TDP_VIS.splat();decMesh.material.needsUpdate=true;if(applyQuality.q&&applyQuality.q!==q)builtFor=null;applyQuality.q=q;const ms=q==='high'?2048:1024;if(sun.shadow.mapSize.x!==ms){sun.shadow.mapSize.set(ms,ms);if(sun.shadow.map){sun.shadow.map.dispose();sun.shadow.map=null}}if(window.TDP_LOOK)TDP_LOOK.quality(q,{bloom:bloomPass,grade:gradePass});resize()}
 const camPos=new THREE.Vector3(),camLook=new THREE.Vector3();let lastShots=0,muzzleT=0;
 function render(dt){const snap=dt===undefined;dt=dt||1/60;const p=S.p,f=S.f;if(disposeQ.length&&builtFor===S.walls){disposeQ.forEach(disposeTree);disposeQ.length=0}if(builtFor!==S.walls)buildLevel();
  // camera: fixed angle, smooth follow
