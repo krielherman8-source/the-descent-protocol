@@ -1,0 +1,18 @@
+# Native wrapper build outputs. The game source stays tracked.
+mobile/node_modules/
+mobile/www/
+mobile/android/.gradle/
+mobile/android/build/
+mobile/android/app/build/
+mobile/android/local.properties
+mobile/android/captures/
+mobile/ios/App/Pods/
+mobile/ios/App/build/
+mobile/ios/App/DerivedData/
+mobile/ios/App/App/public/
+*.apk
+*.aab
+*.ipa
+*.keystore
+*.jks
+.DS_Store
