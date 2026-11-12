@@ -129,10 +129,12 @@ const mkItem=o=>{const it=Object.assign({prog:0,done:false,active:true,r:18,time
 const holdItems=(f,label,color,time,extra)=>f.points.map(([cx,cy],i)=>mkItem(Object.assign({kind:'hold',...P(cx,cy),label,color,time,idx:i},extra||{})));
 const shootItems=(f,label,color,hp,extra)=>f.points.map(([cx,cy],i)=>mkItem(Object.assign({kind:'shoot',...P(cx,cy),label,color,hp,max:hp,r:20,idx:i},extra||{})));
 const nDone=S=>S.items.filter(i=>i.done).length,allDone=S=>S.items.every(i=>i.done);
+const gline=tail=>`${(S.f&&(S.f.goal||S.f.task))||'Objective'}: ${tail}`;
+const holdHint=()=>` (${useHint().toLowerCase()})`;
 const OBJECTIVES={
- generators:{label:'Restore power',setup:(S,f)=>{S.items=holdItems(f,f.label||'GENERATOR','#3ff',2)},progress:S=>`${S.f.label||'Generator'}s online ${nDone(S)}/${S.items.length}  (${useHint().toLowerCase()})`,done:allDone},
+ generators:{label:'Restore power',setup:(S,f)=>{S.items=holdItems(f,f.label||'GENERATOR','#3ff',2)},progress:S=>gline(`${nDone(S)}/${S.items.length} ${(S.f.label||'generator').toLowerCase()}s`)+holdHint(),done:allDone},
  lockers:{label:'Unlock heavy weapon lockers',setup:(S,f)=>{S.items=holdItems(f,'LOCKER','#6cf',1.4);const wi=Math.floor(rnd(0,S.items.length));
-   S.items.forEach(it=>it.onDone=()=>lootLocker(it,it.idx===wi))},progress:S=>`Lockers opened ${nDone(S)}/${S.items.length}  (${useHint().toLowerCase()})`,done:allDone},
+   S.items.forEach(it=>it.onDone=()=>lootLocker(it,it.idx===wi))},progress:S=>gline(`${nDone(S)}/${S.items.length} lockers`)+holdHint(),done:allDone},
  maglocks:{label:'Disable magnetic locks',setup:(S,f)=>{S.items=holdItems(f,'MAG-LOCK','#a8f',2);S.well=P(20,11);S.wellWarnT=0;const p=S.p;if(dist(p,S.well)<WELL_R+60){let best=null,bd=0;for(const[cx,cy]of[[2,2],[GW-3,2],[2,GH-3],[GW-3,GH-3]]){if(S.grid[cx+cy*GW])continue;const q=P(cx,cy),d=dist(q,S.well);if(d>bd){bd=d;best=q}}if(best){p.x=best.x;p.y=best.y;p.hpos={x:p.x,y:p.y}}}},
   update(dt,S){const rem=S.items.filter(i=>!i.done).length;if(!rem)return;const p=S.p,d=dist(p,S.well);
    // pull: velocity (px/s * dt, frame-rate independent), 0 outside WELL_R, ~40% of move speed at the edge rising to 60% at the core; ramps in over the first 3 s
@@ -140,45 +142,45 @@ const OBJECTIVES={
    // core damage per second (time-based): 8 HP/s on Normal => ~12 s to die if you stand still in it
    if(d<WELL_CORE&&!S.god){const a=8*dt*DF().dmg;p.hp-=a;S.stats.taken+=a;S.hurtT=Math.max(S.hurtT||0,.15)}
    S.wellWarnT=(S.wellWarnT||0)-dt;if(d<WELL_R*.55&&S.wellWarnT<=0){S.wellWarnT=d<WELL_CORE?.6:1.2;floatText(p.x,p.y-34,d<WELL_CORE?'GRAVITY CORE! MOVE OUT':'GRAVITY WELL — move away','#c9f');sfx('warn')}},
-  progress:S=>`Mag-locks disabled ${nDone(S)}/${S.items.length}  — resist the gravity well`,done:allDone},
+  progress:S=>gline(`${nDone(S)}/${S.items.length} mag-locks`)+holdHint()+' — stay out of the well',done:allDone},
  beacons:{label:'Navigate in darkness',setup:(S,f)=>{S.items=f.points.map(([cx,cy],i)=>mkItem({kind:'touch',...P(cx,cy),label:'BEACON '+(i+1),color:'#3ff',idx:i}))},
   update(dt,S){const n=S.items.findIndex(i=>!i.done);S.items.forEach((it,i)=>it.active=i===n)},
-  progress:S=>`Relay beacons in order ${nDone(S)}/${S.items.length}`,done:allDone},
+  progress:S=>gline(`${nDone(S)}/${S.items.length} beacons, in order`),done:allDone},
  biomass:{label:'Burn alien biomass',setup:(S,f)=>{S.items=shootItems(f,'BIOMASS','#9f3',200*(1+S.floor*.05),{burnBonus:true,r:24,spawnT:rnd(3,6)})},
   update(dt,S){for(const it of S.items){if(it.done)continue;it.spawnT-=dt;if(it.spawnT<=0){it.spawnT=6.5;spawnNear('swarmer',it.x,it.y,2)}}},
-  progress:S=>`Biomass burned ${nDone(S)}/${S.items.length}  (shoot it — flames x2)`,done:allDone},
+  progress:S=>gline(`${nDone(S)}/${S.items.length} growths`)+' (shoot — flames x2)',done:allDone},
  hack:{label:'Hack reactor terminals',setup:(S,f)=>{S.items=holdItems(f,'TERMINAL','#3fc',3.5,{decay:.2})},
   update(dt,S){for(const it of S.items)if(it.prog>0&&!it.alarm){it.alarm=true;floatText(it.x,it.y-30,'ALARM!','#f66');spawnNear('swarmer',it.x,it.y,3,180)}},
-  progress:S=>`Terminals hacked ${nDone(S)}/${S.items.length}  (stay close, progress decays)`,done:allDone},
+  progress:S=>gline(`${nDone(S)}/${S.items.length} terminals`)+holdHint()+' — stay close, or it decays',done:allDone},
  vents:{label:'Redirect airflow safely',setup:(S,f)=>{S.items=holdItems(f,'VALVE','#7df',2);S.winds=f.winds},
   update(dt,S){const p=S.p;for(const z of S.winds){if(S.items[z.valve].done)continue;if(p.y>z.y0&&p.y<z.y1)p.x+=z.vx*dt*(S.holding&&useOn()?.45:1);
    for(const e of S.enemies)if(e.y>z.y0&&e.y<z.y1)e.x+=z.vx*.5*dt}},
-  progress:S=>`Valves sealed ${nDone(S)}/${S.items.length}  — each stops one air current`,done:allDone},
+  progress:S=>gline(`${nDone(S)}/${S.items.length} valves`)+holdHint()+' — each stops one current',done:allDone},
  purge:{label:'Purge infestation',setup:(S,f)=>{S.items=shootItems(f,'SPORE NODE','#bf4',140*(1+S.floor*.05),{burnBonus:true,muck:95})},
   update(dt,S){const p=S.p;for(const it of S.items)if(!it.done&&dist(it,p)<it.muck){if(!S.god){const a=7*dt*DF().dmg;p.hp-=a;S.stats.taken+=a}p.slow=.55}},
-  progress:S=>`Spore nodes purged ${nDone(S)}/${S.items.length}  (avoid the muck)`,done:allDone},
+  progress:S=>gline(`${nDone(S)}/${S.items.length} nodes`)+' — avoid the muck',done:allDone},
  reboot:{label:'Reboot core systems',setup:(S,f)=>{S.items=holdItems(f,'CORE NODE','#5ff',1.5);S.rebootT=0},
   update(dt,S){const n=nDone(S);if(n>0&&n<S.items.length){S.rebootT-=dt;if(S.rebootT<=0){S.items.forEach(i=>{i.done=false;i.prog=0});floatText(S.p.x,S.p.y-30,'REBOOT FAILED — NODES RESET','#f66')}}
    else if(n===0)S.rebootT=S.f.window||30},
-  progress:S=>{const n=nDone(S);return `Core nodes ${n}/${S.items.length}`+(n>0&&n<S.items.length?`  — ${Math.ceil(S.rebootT)}s left before reset!`:`  (all within ${S.f.window||30}s)`)},done:allDone},
+  progress:S=>{const n=nDone(S);return gline(`${n}/${S.items.length} nodes`)+(n>0&&n<S.items.length?` — ${Math.ceil(S.rebootT)}s left`:``)+holdHint()},done:allDone},
  reactor:{label:'Stabilize the reactor',setup:(S,f)=>{S.items=[mkItem({kind:'zone',...P(20,11),r:110,label:'REACTOR CORE',color:'#ffb040',time:f.zoneTime||25})];S.pulseT=7},
   update(dt,S){const z=S.items[0];if(z.done)return;S.pulseT-=dt;if(S.pulseT<=0){S.pulseT=7;S.rings.push({x:z.x,y:z.y,r:10,life:.5,col:'#ffb040'});if(dist(S.p,z)<z.r)hurtPlayer(10);floatText(z.x,z.y-40,'REACTOR PULSE','#fb4')}},
-  progress:S=>`Reactor stabilized ${Math.floor(S.items[0].prog*100)}%  (stand inside the core ring, dodge pulses)`,done:allDone},
+  progress:S=>gline(`${Math.floor(S.items[0].prog*100)}%`)+' — stand in the ring, dodge pulses',done:allDone},
  eggs:{label:'Destroy the sacs before they hatch',setup:(S,f)=>{S.hatched=0;S.items=shootItems(f,'EGG SAC','#ff7ad0',90,{r:16,burnBonus:true});S.items.forEach(it=>it.hatchT=rnd(...f.hatch))},
   update(dt,S){for(const it of S.items){if(it.done)continue;it.hatchT-=dt;if(it.hatchT<=0){it.done=true;it.hatched=true;S.hatched++;floatText(it.x,it.y-30,'HATCHED!','#f66');spawnNear('swarmer',it.x,it.y,5,40);spawnNear('runner',it.x,it.y,2,40)}}},
-  progress:S=>`Sacs destroyed ${S.items.filter(i=>i.done&&!i.hatched).length}/${S.items.length}  hatched ${S.hatched}`+(S.items.some(i=>!i.done)?`  next hatch ${Math.ceil(Math.min(...S.items.filter(i=>!i.done).map(i=>i.hatchT)))}s`:''),done:allDone},
+  progress:S=>gline(`${S.items.filter(i=>i.done&&!i.hatched).length}/${S.items.length} sacs`)+` — hatched ${S.hatched}`+(S.items.some(i=>!i.done)?`, next ${Math.ceil(Math.min(...S.items.filter(i=>!i.done).map(i=>i.hatchT)))}s`:''),done:allDone},
  survive:{label:'Survive',setup:(S,f)=>{S.items=[];S.surviveT=f.survive||60},update(dt,S){S.surviveT-=dt},
-  progress:S=>`Survive the swarm: ${Math.max(0,Math.ceil(S.surviveT))}s`,done:S=>S.surviveT<=0},
- defrost:{label:'Defrost frozen systems',setup:(S,f)=>{S.items=holdItems(f,'FROZEN SYSTEM','#aef',3)},progress:S=>`Systems defrosted ${nDone(S)}/${S.items.length}  (${useHint().toLowerCase()}, avoid frost)`,done:allDone},
+  progress:S=>gline(`${Math.max(0,Math.ceil(S.surviveT))}s left`),done:S=>S.surviveT<=0},
+ defrost:{label:'Defrost frozen systems',setup:(S,f)=>{S.items=holdItems(f,'FROZEN SYSTEM','#aef',3)},progress:S=>gline(`${nDone(S)}/${S.items.length} systems`)+holdHint()+' — avoid the frost',done:allDone},
  boss:{label:'Kill the boss',setup:(S,f)=>{S.items=[];S.bossT=2.5;S.bossSpawned=false},
   update(dt,S,f){if(S.bossSpawned)return;S.bossT-=dt;if(S.bossT<=0){S.bossSpawned=true;const b=P(...(f.bossAt||[20,5]));spawnEnemy(f.boss,b.x,b.y);sfx('roar');S.shake=16;showBanner(ENEMIES[f.boss].name.toUpperCase(),f.bossLine||'',3)}},
-  progress:S=>S.bossSpawned?`Kill ${ENEMIES[S.f.boss].name}`:'Something is coming...',done:S=>S.bossSpawned&&!S.enemies.some(e=>ENEMIES[e.type].boss)},
+  progress:S=>S.bossSpawned?gline(`0/1 ${ENEMIES[S.f.boss].name}`):gline('0/1 — incoming'),done:S=>S.bossSpawned&&!S.enemies.some(e=>ENEMIES[e.type].boss)},
  keycards:{label:'Find keycards under swarm pressure',setup:(S,f)=>{const cards=shuffle(f.points.map((_,i)=>i)).slice(0,3);S.cards=0;S.bossSpawned=false;
    S.items=shootItems(f,'COCOON','#d9a',70,{});S.items.forEach(it=>{it.hasCard=cards.includes(it.idx);it.onDone=()=>{if(it.hasCard){S.items.push(mkItem({kind:'pickup',x:it.x,y:it.y,label:'KEYCARD',color:'#ff5',onDone:()=>{S.cards++;floatText(it.x,it.y-25,'KEYCARD '+S.cards+'/3','#ff5')}}))}else spawnNear('swarmer',it.x,it.y,4)}});
    S.door=mkItem({kind:'hold',...P(...f.door),label:'SECURITY DOOR',color:'#f5a',time:2,active:false,onDone:()=>{S.bossSpawned=true;const b=spawnEnemy('warden',cp(20),cp(4));
     showBanner('BROOD WARDEN AWAKENS','Final wave incoming',3);sfx('roar');S.shake=16;for(let i=0;i<8;i++){const pt=edgeSpawn();spawnEnemy(pickR(['swarmer','runner','brute','exploder']),pt.x,pt.y)}}});S.items.push(S.door)},
   update(dt,S){S.door.active=S.cards>=3},
-  progress:S=>!S.door.done?`Keycards ${S.cards}/3`+(S.cards>=3?`  — open the SECURITY DOOR (${useHint().toLowerCase()})`:'  (shoot cocoons)'):S.enemies.some(e=>ENEMIES[e.type].boss)?'Kill the Brood Warden!':'Done',
+  progress:S=>!S.door.done?(S.cards<3?gline(`${S.cards}/3 keycards`)+' — shoot cocoons':gline('3/3 keycards — open the door')+holdHint()):S.enemies.some(e=>ENEMIES[e.type].boss)?gline('0/1 Brood Warden'):gline('warden down'),
   done:S=>S.door.done&&S.bossSpawned&&!S.enemies.some(e=>ENEMIES[e.type].boss)},
 };
 
@@ -242,6 +244,7 @@ const FLOORS=[
  Fx('The Heart','Burn out the hive heart','biomass','#9a1d1d','core',[[10,3,2,6],[28,3,2,6],[10,14,2,6],[28,14,2,6],[17,5,6,1],[17,17,6,1]],{n:6,hz:{acid:3,lasers:[[20,11,240,.6]]},exit:[20,20],set:'heart',mix:M6}),
  Fx('The Overmind','Destroy the Overmind','boss','#ff2050','core',[[8,4,2,2],[30,4,2,2],[8,17,2,2],[30,17,2,2]],{boss:'overmind',bossAt:[20,9],bossLine:'Final boss — three phases.',spawn:[20,19],mix:M6,interval:14,set:'tendrils'}),
 ];
+if(window.TDP_STORY&&TDP_STORY.BRIEFS)FLOORS.forEach((f,i)=>Object.assign(f,TDP_STORY.BRIEFS[i]||{}));
 
 // ================= INPUT =================
 // ================= SETTINGS / SAVE =================
@@ -353,8 +356,9 @@ function startFloor(){const f=floorAt(S.floor);S.f=f;S.dmgK=S.endless&&S.floor>=
  S.grid=new Uint8Array(GW*GH);for(let y=0;y<GH;y++)for(let x=0;x<GW;x++)S.grid[x+y*GW]=S.walls.some(w=>cp(x)>w.x&&cp(x)<w.x+w.w&&cp(y)>w.y&&cp(y)<w.y+w.h)?1:0;
  S.flow=new Int16Array(GW*GH);S.flowT=0;
  Object.assign(S.p,P(...f.spawn));S.enemies=[];S.bullets=[];S.ebullets=[];S.parts=[];S.arcs=[];S.rings=[];S.dying=[];S.beams=[];S.orbs=[];S.booms=[];S.decoy=null;S.pickups=[];S.hpPity=0;if(!S.demo){const nk=S.floor<10?2:1;for(let i=0;i<nk;i++){const q={x:S.p.x+(i?-70:70),y:S.p.y+40,r:12};resolve(q);S.pickups.push({x:q.x,y:q.y,life:1e9,heal:hpHeal(),start:true})}}S.p.hpos={x:S.p.x,y:S.p.y};S.exit=null;S.exitDwell=0;S.choices=null;S.texts=[];
- S.winds=null;S.well=null;S.useLatch=false;S.hazards=[];S.carry=null;S.socket=null;S.floorT=0;S.eliteSpawned=false;fixSpawn(f);const fx=f.points||!f.n?f:Object.assign({},f,{points:autoPoints(f.n)});S.fx=fx;S.obj.setup(S,fx);makeHazards(f);S.waveT=2;S.wave=0;S.cleared=false;showBanner(`${floorLbl(S.floor)} — ${f.name.toUpperCase()}`,f.task,3.5);if(S.endless)recordEndless()}
+ S.winds=null;S.well=null;S.useLatch=false;S.hazards=[];S.carry=null;S.socket=null;S.floorT=0;S.eliteSpawned=false;S.told=false;fixSpawn(f);const fx=f.points||!f.n?f:Object.assign({},f,{points:autoPoints(f.n)});S.fx=fx;S.obj.setup(S,fx);makeHazards(f);S.waveT=2;S.wave=0;S.cleared=false;S.brief={name:f.name,why:f.why||f.task,goal:f.goal||f.task,life:8,arm:.45};if(S.endless)recordEndless()}
 function showBanner(a,b,t){S.banner={a,b,life:t}}
+function dismissBrief(){if(!S||!S.brief||S.state!=='play'||S.brief.arm>0)return;if(S.brief.life>.75)S.brief.life=.75}
 function floatText(x,y,t,col){S.texts.push({x,y,t,col:col||'#bff',life:1.6})}
 // Gentler per-floor scaling (30 floors, halved 2026-11-04); difficulty mostly comes from new enemy mixes, hazards and objectives.
 function reachable(){const st=clamp(Math.floor(S.p.x/CELL),0,GW-1)+clamp(Math.floor(S.p.y/CELL),0,GH-1)*GW,D=new Int16Array(GW*GH).fill(-1);D[st]=0;const q=[st];
@@ -509,7 +513,7 @@ function update(dt){S.t+=dt;S._dt=dt;if(S.banner&&S.banner.life>0)S.banner.life-
  for(const t of S.texts){t.life-=dt;t.y-=20*dt}S.texts=S.texts.filter(t=>t.life>0);
  for(const a of S.arcs)a.life-=dt;S.arcs=S.arcs.filter(a=>a.life>0);for(const r of S.rings){r.life-=dt;r.r+=(r.v||400)*dt}if(S.dying){for(const d of S.dying)d.dt-=dt;S.dying=S.dying.filter(d=>d.dt>0)}S.rings=S.rings.filter(r=>r.life>0);for(const b of S.beams)b.life-=dt;S.beams=S.beams.filter(b=>b.life>0);for(const b of S.booms)b.life-=dt;S.booms=S.booms.filter(b=>b.life>0);
  if(S.state==='descent'){S.descT+=dt;if(!S.descDone&&S.descT>=.9){S.descDone=true;S.floor++;startFloor();saveGame()}if(S.descT>=1.8)S.state='play';return}
- if(S.state!=='play')return;const p=S.p,f=S.f;S.stats.time+=dt;if(S.endless&&S.floor>=TDP_ENDLESS.START)S.stats.etime=(S.stats.etime||0)+dt;TDP_STATS.tick(S,dt);tutTick(dt);
+ if(S.state!=='play')return;const p=S.p,f=S.f;if(S.brief&&S.brief.life>0){S.brief.life-=dt;if(S.brief.arm>0)S.brief.arm-=dt}S.stats.time+=dt;if(S.endless&&S.floor>=TDP_ENDLESS.START)S.stats.etime=(S.stats.etime||0)+dt;TDP_STATS.tick(S,dt);tutTick(dt);
  S.floorT+=dt;p.slow=1;S.obj.update&&S.obj.update(dt,S,f);
  if(p.hp>0&&p.hp<p.maxHp*.3){S.lowT=(S.lowT||0)+dt;if(S.lowT>=(p.hp<p.maxHp*.15?.75:1.05)){S.lowT=0;sfx('heartbeat')}}else S.lowT=.9;
  if(f.elite&&!S.eliteSpawned&&S.floorT>=f.elite.at){S.eliteSpawned=true;const pt=edgeSpawn(),e=spawnEnemy(f.elite.type,pt.x,pt.y);e.hp=e.max=e.max*(f.elite.hp||.55);e.elite=true;sfx('roar');S.shake=12;showBanner('ELITE: '+ENEMIES[f.elite.type].name.toUpperCase(),f.elite.line||'A champion of the hive joins the fight',2.5)}updateHazards(dt);resolve(p);
@@ -527,9 +531,10 @@ function update(dt){S.t+=dt;S._dt=dt;if(S.banner&&S.banner.life>0)S.banner.life-
   else if((it.kind==='touch'||it.kind==='pickup')&&d<it.r+p.r+8){it.done=true;burst(it.x,it.y,it.color,25);sfx('pickup');if(it.kind==='touch')floatText(it.x,it.y-30,it.label+' RELAYED',it.color);it.onDone&&it.onDone(it)}
   if(it.flash>0)it.flash-=dt}
  // waves / exit
- const objDone=S.obj.done(S);
+ const objDone=S.obj.done(S),fresh=objDone&&!S.told;if(fresh)S.told=true;
  if(!objDone){S.waveT-=dt;if(S.waveT<=0){spawnWave();S.waveT=Math.max(f.interval*.75,f.interval-S.floor*.1)}}
- else if(!S.exit&&S.enemies.length===0){S.exit=P(...(f.exit||[20,11]));showBanner('FLOOR CLEAR',isFinal()?'Reach the extraction chamber':'Enter the upgrade chamber',2.5)}
+ else if(!S.exit&&S.enemies.length===0){S.exit=P(...(f.exit||[20,11]));showBanner(isFinal()?'EXTRACTION':'FLOOR CLEAR',(fresh&&f.clear)?f.clear:(isFinal()?'Reach the extraction chamber':'Enter the upgrade chamber'),3.2)}
+ else if(fresh&&f.clear)showBanner('OBJECTIVE COMPLETE',f.clear,3.4)
  if(S.exit){S.exitDwell=dist(S.exit,p)<40?(S.exitDwell||0)+dt:0}if(S.exit&&dist(S.exit,p)<40&&(!autoUse()||S.exitDwell>=.4)){if(isFinal()){S.state='ending';recordBest(true);if(!CFG.endless){CFG.endless=true;saveCfg()}try{localStorage.removeItem('tdp_save')}catch(e){}sfx('complete');playEnding();return}S.state='upgrade';S.choices=rollChoices();sfx('complete');return}
  // enemies
  S.flowT-=dt;if(S.flowT<=0){buildFlow();S.flowT=.2}
@@ -857,6 +862,23 @@ function hudPanel(x,y,w,h){const g=ctx.createLinearGradient(x,y,x,y+h);g.addColo
  for(const[px,py,dx,dy]of[[x,y,1,1],[x+w,y,-1,1],[x,y+h,1,-1],[x+w,y+h,-1,-1]]){ctx.moveTo(px+dx*c,py);ctx.lineTo(px,py);ctx.lineTo(px,py+dy*c)}ctx.stroke();ctx.shadowBlur=0;ctx.lineWidth=1}
 function hudBar(x,y,w,h,f,cols,seg){f=Math.max(0,Math.min(1,f));ctx.fillStyle='#061418';ctx.fillRect(x,y,w,h);const g=ctx.createLinearGradient(x,0,x+w,0);g.addColorStop(0,cols[0]);g.addColorStop(1,cols[1]);ctx.fillStyle=g;ctx.shadowColor=cols[1];ctx.shadowBlur=8;ctx.fillRect(x,y,w*f,h);ctx.shadowBlur=0;
  ctx.fillStyle='rgba(255,255,255,.18)';ctx.fillRect(x,y,w*f,h*.35);ctx.fillStyle='rgba(0,0,0,.35)';for(let i=1;i<seg;i++)ctx.fillRect(x+w*i/seg,y,1,h);ctx.strokeStyle='rgba(120,255,250,.5)';ctx.strokeRect(x+.5,y+.5,w-1,h-1)}
+function wrapLines(str,maxW,font){ctx.font=font;const out=[];let cur='';for(const w of String(str).split(' ')){const t=cur?cur+' '+w:w;if(cur&&ctx.measureText(t).width>maxW){out.push(cur);cur=w}else cur=t}if(cur)out.push(cur);return out}
+function drawBriefCard(){const b=S.brief;if(!b||b.life<=0)return;const dw=hud.width,dh=hud.height,a=Math.min(1,b.life/.8);
+ ctx.save();ctx.setTransform(1,0,0,1,0,0);ctx.globalAlpha=a;
+ const titlePx=Math.max(16,Math.min(22,Math.round(dw/42))),bodyPx=Math.max(14,Math.min(17,Math.round(dw/50)));
+ const maxW=Math.min(dw-28,640),pad=14;
+ const head=`${floorLbl(S.floor)}  ·  ${b.name.toUpperCase()}`;
+ const bits=[...(S.endless?['The hive rebuilt this deck.']:[]),b.why,'Goal: '+b.goal];
+ const bodyFont=`${bodyPx}px monospace`,titleFont=`bold ${titlePx}px monospace`;
+ const lines=bits.flatMap(s=>wrapLines(s,maxW-pad*2,bodyFont));
+ const lh=bodyPx+6,cardH=pad+titlePx+10+lines.length*lh+pad+16,cardW=maxW;
+ const x=(dw-cardW)/2,y=Math.max(8,Math.min(dh*.08,36));
+ ctx.fillStyle='rgba(2,12,16,.92)';ctx.fillRect(x,y,cardW,cardH);
+ ctx.strokeStyle='#3ff';ctx.lineWidth=2;ctx.strokeRect(x+.5,y+.5,cardW-1,cardH-1);
+ ctx.font=titleFont;ctx.fillStyle='#dff';ctx.textAlign='center';ctx.fillText(head,dw/2,y+pad+titlePx-4);
+ ctx.font=bodyFont;ctx.fillStyle='#cfe';lines.forEach((ln,i)=>ctx.fillText(ln,dw/2,y+pad+titlePx+12+i*lh));
+ ctx.fillStyle='#6aa';ctx.font=`${Math.max(12,bodyPx-2)}px monospace`;ctx.fillText(b.arm>0?'':'Tap, click, or wait',dw/2,y+cardH-10);
+ ctx.restore()}
 function drawHUD(){const p=S.p,f=S.f;ctx.setTransform(1,0,0,1,0,0);ctx.clearRect(0,0,hud.width,hud.height);if(S.state==='title')return;
  if(S.hurtT>0){const g=ctx.createRadialGradient(hud.width/2,hud.height/2,hud.height*.3,hud.width/2,hud.height/2,hud.height*.8);g.addColorStop(0,'rgba(255,0,0,0)');g.addColorStop(1,`rgba(255,20,20,${S.hurtT*1.2})`);ctx.fillStyle=g;ctx.fillRect(0,0,hud.width,hud.height)}
  if(S.state==='play'&&p.hp>0&&p.hp<p.maxHp*.3){const k=.2+.12*Math.sin(S.t*7),g=ctx.createRadialGradient(hud.width/2,hud.height/2,hud.height*.38,hud.width/2,hud.height/2,hud.height*.85);g.addColorStop(0,'rgba(255,0,0,0)');g.addColorStop(1,`rgba(200,0,0,${k})`);ctx.fillStyle=g;ctx.fillRect(0,0,hud.width,hud.height);const sc=hud.height/VH;ctx.save();ctx.font='bold '+Math.round(15*sc)+'px monospace';ctx.textAlign='center';const lt='LOW HEALTH — back off and grab green +HP drops',lw=ctx.measureText(lt).width+28*sc,ly=hud.height-46*sc;ctx.fillStyle='rgba(20,0,0,.7)';ctx.fillRect(hud.width/2-lw/2,ly-17*sc,lw,24*sc);ctx.strokeStyle='rgba(255,70,70,.6)';ctx.strokeRect(hud.width/2-lw/2+.5,ly-17*sc+.5,lw-1,24*sc-1);ctx.fillStyle=`rgba(255,110,110,${.8+.2*Math.sin(S.t*7)})`;ctx.fillText(lt,hud.width/2,ly);ctx.restore()}
@@ -874,7 +896,8 @@ function drawHUD(){const p=S.p,f=S.f;ctx.setTransform(1,0,0,1,0,0);ctx.clearRect
  hudBar(18,18,240,16,p.hp/p.maxHp,p.hp/p.maxHp<.3?['#f33','#f88']:['#0bb','#6ff'],10);
  text(`HP ${Math.ceil(p.hp)}/${p.maxHp}`+(p.drone==='bastion'?(p.shield?'  [SHIELD]':'  [shield charging]'):''),24,31,'#012',12);
  text(S.floor>=TDP_ENDLESS.START?`ENDLESS F${S.floor+1}: ${f.name.toUpperCase()}`:`FLOOR ${S.floor+1}/${FLOORS.length}: ${f.name.toUpperCase()}`,18,54,S.floor>=TDP_ENDLESS.START?'#fc6':'#7ff',16);
- text('OBJECTIVE: '+(S.exit?(isFinal()?'Reach extraction':'Enter the upgrade chamber'):S.obj.done(S)?`Clear remaining swarm (${S.enemies.length})`:S.obj.progress(S)),18,74,'#bff',12);
+ const objLine=S.exit?(isFinal()?'Reach extraction':'Get to the exit: upgrade chamber'):S.obj.done(S)?`Clear the swarm: ${S.enemies.length} left`:S.obj.progress(S);
+ ctx.font='12px monospace';text(objLine,18,74,'#bff',ctx.measureText(objLine).width>470?10:12);
  ctx.font='11px monospace';let x=18,y=94;p.weapons.forEach((k,i)=>{const s=`[${IN.src==='pad'?i+1:kL(String(i+1))}] ${WEAPONS[k].name}`,w=ctx.measureText(s).width;if(x+w>500){x=18;y+=15}text(s,x,y,k===p.weapon?'#fff':'#477',11);x+=w+12;if(k===p.weapon){const l=`Lv ${wLevel(p,k)}`;text(l,x-8,y,'#9df',10);x+=ctx.measureText(l).width+8}});
  const cm=p.mods[p.weapon]||[];text('Mods: '+(cm.length?cm.map(m=>MODS[m].name).join(', '):'none'),18,y+18,cm.length?'#fc8':'#466',11);
  text(`Drone [${IN.src==='pad'?pL('drone'):IN.src==='touch'?'DRN':kL('q')}]: ${p.drones.map(k=>k===p.drone?'>'+DRONES[k].name+'<':DRONES[k].name).join('  ')}`,18,y+36,'#4fc',11);
@@ -885,6 +908,7 @@ function drawHUD(){const p=S.p,f=S.f;ctx.setTransform(1,0,0,1,0,0);ctx.clearRect
   text(`TUTORIAL ${S.tut.i+1}/${TUT.length}`,VW/2,VH-136,'#6ff',11,'center');text(msg,VW/2,VH-102,'#eff',16,'center')}
  const boss=S.enemies.find(e=>ENEMIES[e.type].boss);if(boss){hudPanel(VW/2-260,VH-58,520,46);hudBar(VW/2-250,VH-34,500,14,boss.hp/boss.max,['#a02','#f5a'],20);text(ENEMIES[boss.type].name.toUpperCase()+(boss.type==='overmind'?`  — PHASE ${boss.phase||1}`:''),VW/2,VH-40,'#f9c',13,'center')}
  if(S.banner&&S.banner.life>0&&S.state==='play'){ctx.globalAlpha=Math.min(1,S.banner.life);ctx.shadowColor='#000';ctx.shadowBlur=8;text(S.banner.a,VW/2,VH/3,'#7ff',34,'center');text(S.banner.b,VW/2,VH/3+30,'#9cc',15,'center');ctx.globalAlpha=1;ctx.shadowBlur=0}
+ if(S.brief&&S.brief.life>0&&S.state==='play')drawBriefCard();
  if(S.state==='upgrade'){ctx.fillStyle='rgba(0,8,12,.85)';ctx.fillRect(0,0,VW,VH);text((S.draft?`ENDLESS LOADOUT DRAFT ${S.draft.n+1}/${S.draft.of} — CHOOSE ONE  `:'UPGRADE CHAMBER — CHOOSE ONE  ')+({pad:'[X / A / B]',touch:'[tap a card]'}[IN.src]||'[1/2/3 or click]'),VW/2,VH/2-110,'#7ff',22,'center');
   S.choices.forEach((c,i)=>{const b=cardRect(i),col=c.endless?'#f8a':c.gear?'#ff5':'#3ff';ctx.fillStyle='rgba(10,30,36,.8)';ctx.fillRect(b.x,b.y,b.w,b.h);ctx.shadowColor=col;ctx.shadowBlur=15;ctx.strokeStyle=col;ctx.lineWidth=2;ctx.strokeRect(b.x,b.y,b.w,b.h);ctx.shadowBlur=0;
    text(IN.src==='pad'?['X','A','B'][i]:IN.src==='touch'?'TAP':`[${i+1}]`,b.x+b.w/2,b.y+36,'#5aa',16,'center');text(c.name,b.x+b.w/2,b.y+75,'#eff',15,'center');text(c.desc||'',b.x+b.w/2,b.y+105,'#7aa',10,'center')})}
@@ -940,8 +964,8 @@ function playEnding(){TDP_STORY.crawl(TDP_STORY.ENDING,{onDone:()=>{if(S.state==
 const MENU_ACT={start:startIntro,endless:startEndless,diff:cycleDiff,credits:()=>{document.getElementById('credits-body').innerHTML=TDP_STORY.creditsHTML();openMenu('m-credits')},continue:continueRun,settings:()=>openMenu('m-settings'),controls:()=>openMenu('m-controls'),back:backMenu,resume:resumeGame,quit:()=>{saveGame();goTitle()}};
 menuEl.addEventListener('mousedown',e=>{e.stopPropagation();audioInit();if(AU.ctx&&AU.ctx.state==='suspended')AU.ctx.resume()});
 menuEl.addEventListener('click',e=>{const b=e.target.closest('button');if(!b||b.disabled)return;const a=b.dataset.a;if(a!=='back')sfx(a==='start'||a==='continue'?'choose':'ui');MENU_ACT[a]&&MENU_ACT[a]()});
-addEventListener('pointerdown',()=>{audioInit();if(AU.ctx&&AU.ctx.state==='suspended')AU.ctx.resume()},{capture:true});
-addEventListener('keydown',()=>{audioInit();if(AU.ctx&&AU.ctx.state==='suspended')AU.ctx.resume()},{capture:true});
+addEventListener('pointerdown',()=>{audioInit();if(AU.ctx&&AU.ctx.state==='suspended')AU.ctx.resume();dismissBrief()},{capture:true});
+addEventListener('keydown',()=>{audioInit();if(AU.ctx&&AU.ctx.state==='suspended')AU.ctx.resume();dismissBrief()},{capture:true});
 
 window.TDP_INPUT&&TDP_INPUT.init({IN,keys,onKey,state:()=>S&&S.state,menuOpen:()=>!menuEl.classList.contains('hide'),
  tap:(x,y)=>{const v=viewSize();mouse.sx=(x-v.l)/hs;mouse.sy=(y-v.t)/hs;onClick()},cycleWeapon,useEdge});

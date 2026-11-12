@@ -32,20 +32,40 @@ Drone Variants:
 - Harvestor
 - Specter
 Level Progression and Floor Tasks
-Each floor presents a unique objective or hazard before allowing the player to proceed.
-1. Breaching – Restore power systems
-2. The Armory – Unlock heavy weapon lockers
-3. Gravity Well – Disable magnetic locks
-4. Dark Sector – Navigate in darkness
-5. Nesting Grounds – Burn alien biomass
-6. Security Network – Hack reactor terminals
-7. Ventilation – Redirect airflow safely
-8. Biomass Overgrowth – Purge infestation
-9. System Purge – Reboot core systems
-10. Cocooned Outpost – Find keycards under swarm pressure
-11. Fusion Complex – Stabilize the central reactor
-12. Egg Chamber – Destroy glowing sacs before hatching
-13. Lockdown – Neutralize elite Swarmer Prime
-14. Swarm Nest – Survive endless waves until objective clears
-15. Cryo Vault – Defrost frozen systems while under siege
+Each floor has a reason (why the job matters), a concrete goal, and a line shown when the job is done. The briefing card at floor start shows the name, the reason and the goal. It fades, or dismisses on a tap or key, without pausing the fight. The HUD repeats the goal with a progress count. Endless mode reuses these same reasons on rebuilt decks. An endless boss uses the boss reason below, not the keycard errand (the Warden's Return is a boss fight).
+
+Floor | Name | Goal | Why | When it is done
+1 | Breaching | Restore power to the lift | The lift is dead. Restart the generators to power it and descend. | Lift powered. Clear a path, then take the exit.
+2 | The Armory | Search the lockers | Security lockers hold a weapon and the key for the next lift. Search them. | Locker opened. The way down is unlocked.
+3 | Gravity Well | Disable the mag-locks | Mag-locks are pinning the lift. Cut them, and stay out of the gravity well. | Locks released. The lift can drop. Leave the well.
+4 | Dark Sector | Light the beacon relay | The lights are dead. Relay the beacons in order so the next shaft can see you. | Relay lit. The dark sector is mapped. Head for the exit.
+5 | Nesting Grounds | Burn the biomass | Biomass is clogging the descent shaft. Burn it out or the lift cannot pass. | Shaft cleared. The biomass is ash. Reach the exit.
+6 | Security Network | Hack the reactor terminals | Reactor terminals still hold the security bypass. Hack them before the floor seals. | Bypass accepted. Security is open. Move to the exit.
+7 | Ventilation | Seal the vent valves | The air currents blow you off the catwalks. Seal each valve to stop one current. | Airflow stopped. The catwalks are safe. Descend.
+8 | Biomass Overgrowth | Purge the spore nodes | Spore muck is eating the deck. Purge the nodes or the floor collapses under you. | Spores burned out. The deck will hold. Find the exit.
+9 | System Purge | Reboot every core node | The core nodes must come up together, or the reboot aborts and the lift stays dark. | Systems back online. The floor accepts the descent.
+10 | Cocooned Outpost | Recover the keycards | Three keycards are sealed in cocoons. They open the security door, and whatever waits behind it. | The warden is down. The outpost door is yours.
+11 | Fusion Complex | Stabilize the reactor | The central reactor is climbing. Hold the core ring until it stabilizes, or the shaft melts. | Reactor stable. The heat drops. Take the exit.
+12 | Egg Chamber | Destroy the egg sacs | These sacs hatch swarmers. Destroy them before they break open. | Brood destroyed. Nothing left to hatch. Move on.
+13 | Lockdown | Kill the Swarmer Prime | An elite Swarmer Prime has sealed this deck. Kill it or the lockdown never lifts. | Prime is down. Lockdown released. Reach the exit.
+14 | Swarm Nest | Survive the nest | The nest will not open the next hatch until you outlast the swarm. | The swarm breaks. The hatch unlocks. Go.
+15 | Cryo Vault | Defrost the vault systems | Frozen systems are locking the vault doors. Thaw them, and stay out of the frost. | Vault thawed. The doors cycle open. Descend.
+16 | Pumpworks | Restart the flood pumps | The lower decks are flooding. Restart the pumps or the lift drowns. | Pumps online. The water drops. Head down.
+17 | Relay Spire | Escort the relay to the spire | The relay core has to reach the spire, or the floors below stay deaf to your signal. | Relay seated. The spire is transmitting. Move out.
+18 | Quarantine Labs | Deliver the power cells | The containment grid is dark. Carry the power cells to the socket before the labs spill. | Grid powered. Containment holds. Leave the labs.
+19 | Data Core | Reboot the data core | The data core only boots if every node is live before the timer dies. Do it in the dark. | Core online. The archive answers. Continue down.
+20 | Hive Threshold | Slay the Hive Colossus | The Colossus is the hive's gate. It has to fall before the tunnels let you through. | The gate-beast is dead. The hive opens. Go deeper.
+21 | Brood Tunnels | Burn the brood sacs | These tunnels breed the next wave. Burn the sacs before they hatch behind you. | Tunnels are quiet. The brood is ash. Press on.
+22 | Spore Fields | Purge the spore field | The spore field is seeding every deck above. Purge the nodes so the infection cannot climb. | Field sterilized. The spores stop rising. Descend.
+23 | Neural Lattice | Relay the neural beacons | The lattice is the Overmind's nerves. Relay the beacons in order to blind the floors below. | Lattice blinded. It cannot see the next shaft. Move.
+24 | Acid Cisterns | Seal the acid valves | Acid vents are eating the cistern lifts. Seal each valve to stop one flood current. | Vents sealed. The acid settles. Take the lift.
+25 | Brood Throne | Kill the Hive Matriarch | The Matriarch lays every sac you have burned. Kill her or the hive replaces itself. | The mother is dead. The laying stops. Go to the core.
+26 | Core Breach | Defend the coolant core | Sappers are cracking the last coolant core. Hold them off until the seal finishes. | Core sealed. Coolant holds. The breach is shut.
+27 | Gravity Collapse | Disable the collapse locks | The collapse locks are all that keep this deck from crushing the shaft. | Locks open. The deck holds long enough. Get to the exit.
+28 | Dead Sector | Hold out in the dark | Something hunts in the dead dark. Live through it and the core airlock will cycle. | You outlasted it. The airlock cycles. Go.
+29 | The Heart | Burn out the hive heart | The hive heart feeds the Overmind. Burn it out or the last floor never weakens. | The heart is cinders. The Overmind is alone. Descend.
+30 | The Overmind | Destroy the Overmind | This is the mind that took Kestrel-9. Destroy it and the swarm above you dies with it. | The Overmind is silent. Reach extraction.
+
+Endless boss — Warden's Return | Kill the Brood Warden | The Brood Warden is the hive's first gate. It will not let the shaft open while it lives. | Warden down. This gate is open. Go deeper.
+Endless bosses Prime, Colossus, Matriarch and Overmind use the same reason as floors 13, 20, 25 and 30.
 Concept Art

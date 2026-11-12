@@ -56,7 +56,7 @@ These are the defaults. Every keyboard key and gamepad button can be changed in 
 - **Weapons:** Kinetic Rifle, Pulse Shotgun, Flamethrower, Tesla Arc Cannon, Grenade Launcher, Needle Railgun, Bio-Harvester.
 - **Mods:** Explosive Tips, Cryo Chamber, Vampiric Coil, EMP Converter. Each attaches to the equipped weapon.
 - **Drones:** Aegis, Torchlet, Bastion, Needler, Harvestor, Specter.
-- **Floors:** 30 in total, with bosses on 10 (Warden), 13 (Swarmer Prime), 20 (Colossus), 25 (Matriarch) and 30 (The Overmind, three phases).
+- **Floors:** 30 in total, with bosses on 10 (Warden), 13 (Swarmer Prime), 20 (Colossus), 25 (Matriarch) and 30 (The Overmind, three phases). Each floor opens with a briefing card (name, why you are here, the concrete goal). It fades on its own, or on a tap or key, and play is not paused. The HUD states that goal with a count. When the job is done, a line ties it back to the reason. Endless regular floors reuse the template's reason. An endless boss uses that boss's reason (the returning Warden is not the keycard errand). The full list is in `game_concept.txt`.
 
 ## Balance (final pass)
 Tuned with a killable scripted bot that also plays every objective (skill 1 and 0.6 = slower reactions, noisier aim, misses dodges).
@@ -84,7 +84,7 @@ Tuned with a killable scripted bot that also plays every objective (skill 1 and 
 
 ## Tests (`tests/`)
 Headless Chrome harness pages. `mk.py X.js X.html` inlines a test into a copy of index.html, and `run.sh page#hash budget` runs it with virtual time and prints the log. `node tests/realtime.mjs page out.txt seconds` drives the same page in real time (needed for Web Audio; virtual time does not run it).
-- `sm.js` smoke-tests floors 16-30. `ui.js` covers menus, tutorial, touch, pad and ending. `st.js` covers keyboard and gamepad rebinding, hold/toggle/auto interact, auto-fire, binding-aware prompts, settings migration, colourblind and Endless. `mob.js` covers weapon mastery, the checkpoint round-trip, and background/resume for the browser and the native shell. `ex.js` checks exit reachability.
+- `sm.js` smoke-tests floors 16-30. `ui.js` covers menus, tutorial, touch, pad and ending. `st.js` covers keyboard and gamepad rebinding, hold/toggle/auto interact, auto-fire, binding-aware prompts, settings migration, colourblind and Endless. `mob.js` covers weapon mastery, the checkpoint round-trip, and background/resume for the browser and the native shell. `brief.js` checks that every floor has a reason, a goal and a completion line, and that the briefing and HUD say them. `ex.js` checks exit reachability.
 - `perf.js` reports draw calls and hitches. `hc.js` probes shader compiles. `bot.js` is the full-run bot (`#runs=1&diff=hard`).
 - `au.js` + `aurun.sh` do the offline audio level render (real-time CDP via `cdp2.mjs`, because OfflineAudioContext cannot run under virtual time).
 - `suite.sh` runs the whole suite. `leak.js` + `leak.mjs` + `leakrun.sh` are the long-session leak harness (see Stability).
