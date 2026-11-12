@@ -74,16 +74,24 @@ function props(ctx){const {group,W,H,dark,emis,inner}=ctx;if(!PR)PR={box:new T.B
  return [box,cyl,PR.crate,PR.barrel,PR.pipe]}
 function crateTex(){const n=64,[c,g]=cv(n);g.fillStyle='#8a8a7a';g.fillRect(0,0,n,n);g.strokeStyle='#3a3a30';g.lineWidth=5;g.strokeRect(3,3,58,58);g.beginPath();g.moveTo(3,3);g.lineTo(61,61);g.stroke();g.fillStyle='#c09020';g.fillRect(8,26,48,6);const t=new T.CanvasTexture(c);t.colorSpace=T.SRGBColorSpace;return t}
 // ---- post: grade + vignette + grain + chromatic aberration ----
-const GradeShader={uniforms:{tDiffuse:{value:null},time:{value:0},dmg:{value:0},grain:{value:.035},vig:{value:.9}},
+// intro look (v2): teal shadows / warm highlights split-tone, reds protected from the desaturation, soft S-curve,
+// teal-lifted blacks, wider cinematic vignette and luma-weighted animated grain ('look' 0..1 blends it in)
+const GradeShader={uniforms:{tDiffuse:{value:null},time:{value:0},dmg:{value:0},grain:{value:.04},vig:{value:.9},look:{value:1}},
  vertexShader:'varying vec2 vUv;void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}',
- fragmentShader:`uniform sampler2D tDiffuse;uniform float time,dmg,grain,vig;varying vec2 vUv;
+ fragmentShader:`uniform sampler2D tDiffuse;uniform float time,dmg,grain,vig,look;varying vec2 vUv;
  float h(vec2 p){return fract(sin(dot(p,vec2(12.9898,78.233))+time)*43758.5453);}
  void main(){vec2 d=vUv-.5;float r2=dot(d,d);float ca=(.0012+dmg*.012)*r2*4.;
   vec3 c=vec3(texture2D(tDiffuse,vUv+d*ca).r,texture2D(tDiffuse,vUv).g,texture2D(tDiffuse,vUv-d*ca).b);
-  float l=dot(c,vec3(.299,.587,.114));c=mix(c,c*vec3(.86,1.02,1.08),smoothstep(.5,0.,l)*.6);c=mix(c,c*vec3(1.08,1.,.9),smoothstep(.45,1.,l)*.5);
-  c=(c-.5)*1.08+.5;c=mix(vec3(l),c,1.08);
-  c*=1.-vig*smoothstep(.12,.62,r2*1.55);c=mix(c,c*vec3(1.4,.5,.5),dmg*smoothstep(.08,.5,r2*2.)*.8);
-  c+=(h(vUv*vec2(1280.,720.))-.5)*grain;gl_FragColor=vec4(max(c,0.),1.);}`};
+  float l=dot(c,vec3(.299,.587,.114));vec3 o=c;
+  float red=smoothstep(.04,.3,c.r-max(c.g,c.b));
+  c=mix(vec3(l),c,mix(.86,1.12,red));
+  c*=mix(vec3(.78,.98,1.1),vec3(1.),smoothstep(.0,.5,l));
+  c=mix(c,c*vec3(1.07,1.,.9),smoothstep(.5,1.,l)*.55);
+  vec3 sc=c*c*(3.-2.*clamp(c,0.,1.));c=mix(c,sc,.28);
+  c+=vec3(.002,.011,.016)*(1.-smoothstep(0.,.25,l));
+  c=mix(o,c,look);
+  c*=1.-vig*smoothstep(.1,.6,r2*1.5)*mix(.85,1.08,look);c=mix(c,c*vec3(1.4,.5,.5),dmg*smoothstep(.08,.5,r2*2.)*.8);
+  c+=(h(vUv*vec2(1280.,720.))-.5)*grain*(.55+.9*l*(1.-l)*2.);gl_FragColor=vec4(max(c,0.),1.);}`};
 // ---- creature helpers ----
 // merge geometries (non-indexed) after applying each one's matrix
 function mergeGeos(list){let n=0;const gs=list.map(([g,m])=>{const q=(g.index?g.toNonIndexed():g.clone()).applyMatrix4(m);n+=q.attributes.position.count;return q});
