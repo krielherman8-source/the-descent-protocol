@@ -1,0 +1,22 @@
+{
+  "appId": "app.provisional.thedescentprotocol",
+  "appName": "The Descent Protocol",
+  "webDir": "www",
+  "backgroundColor": "#020507",
+  "android": {
+    "backgroundColor": "#020507",
+    "allowMixedContent": false,
+    "captureInput": true
+  },
+  "ios": {
+    "backgroundColor": "#020507",
+    "contentInset": "never",
+    "scrollEnabled": false,
+    "allowsLinkPreview": false
+  },
+  "server": {
+    "androidScheme": "https",
+    "iosScheme": "capacitor"
+  },
+  "cordova": {}
+}
