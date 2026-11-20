@@ -807,7 +807,7 @@ function buildLevel(){if(level){scene.remove(level);disposeQ.push(level)}poolTri
  for(const w of wallFade)for(const m of w.meshes){const c=m.material.clone();c.transparent=true;c.userData.base=m.material.opacity??1;m.material=c;w.mats.push(c)}
  TDP_CONTENT.setPiece(f,{T:THREE,add:(...o)=>level.add(...o),walls:S.walls,trim,P,W,H});
  if(HQ){const pg=new THREE.Group();level.add(pg);TDP_VIS.props({group:pg,W,H,dark:mat.dark,emis:emis(tint,1.6),inner:(x,y)=>S.walls.some(w=>x>w.x-40&&x<w.x+w.w+40&&y>w.y-40&&y<w.y+w.h+40)}).forEach(keep)}
- if(window.TDP_LOOK)TDP_LOOK.build({walls:S.walls,cp,level,keep});builtFor=S.walls;camPos.set(S.p.x,0,S.p.y).add(CAM_OFF);needWarm=true}
+ if(window.TDP_LOOK)TDP_LOOK.build({walls:S.walls,cp,level,keep,lights:{pLight,spot},mats:{floorHQ:floorMatHQ,floor:floorMat,wallHQ:wallMatHQ,topHQ:topMatHQ,steel:mat.steel}});builtFor=S.walls;camPos.set(S.p.x,0,S.p.y).add(CAM_OFF);needWarm=true}
 // shader pre-warm: once per level build, draw one (microscopic, light-stripped) copy of every enemy/boss model plus fx
 // meshes next to the camera target so every program (incl. shadow-depth variants) is compiled before play starts.
 let needWarm=false,warmG=null;
@@ -881,7 +881,7 @@ function render(dt){const snap=dt===undefined;dt=dt||1/60;const p=S.p,f=S.f;if(d
  const flick=f.dark&&Math.random()<.05?.35:1;pLight.position.set(p.x,110,p.y+30);pLight.intensity=(f.dark?26000:14000)*flick;
  if(S.stats.shots!==lastShots){lastShots=S.stats.shots;muzzleT=.06}muzzleT-=dt;
  const tip={x:p.x+Math.cos(aim)*34-Math.sin(aim)*9,y:p.y+Math.sin(aim)*34+Math.cos(aim)*9};
- spot.position.set(p.x-Math.cos(aim)*6,64,p.y-Math.sin(aim)*6);spot.target.position.set(p.x+Math.cos(aim)*260,0,p.y+Math.sin(aim)*260);spot.intensity=S.state==='title'?0:(f.dark?3.2e5:1.3e5)*flick;
+ spot.position.set(p.x-Math.cos(aim)*6,64,p.y-Math.sin(aim)*6);spot.target.position.set(p.x+Math.cos(aim)*260,0,p.y+Math.sin(aim)*260);spot.intensity=S.state==='title'?0:(f.dark?3.2e5:1.3e5)*flick*(window.TDP_LOOK&&TDP_LOOK.spotK?TDP_LOOK.spotK():1);
  if(gradePass){gradePass.uniforms.time.value=S.t%10;gradePass.uniforms.dmg.value=Math.max(0,S.hurtT||0)/.35+(p.hp<p.maxHp*.25&&S.state==='play'?.25+.15*Math.sin(S.t*6):0)}
  muzzle.position.set(tip.x,32,tip.y);muzzle.intensity=muzzleT>0?16000:0;muzzle.color.set({flamethrower:0xff8840,grenade_launcher:0xffcc55,railgun:0xdd99ff,bio_harvester:0x66ff66}[p.weapon]||0xbfffff);
  flash.visible=muzzleT>0;flash.position.copy(muzzle.position);flash.scale.setScalar(rnd(.7,1.4));
