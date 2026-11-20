@@ -909,12 +909,13 @@ function drawBriefCard(){const b=S.brief;if(!b||b.life<=0)return;const dw=hud.wi
  const bits=[...(S.endless?['The hive rebuilt this deck.']:[]),b.why,'Goal: '+b.goal];
  const bodyFont=`${bodyPx}px monospace`,titleFont=`bold ${titlePx}px monospace`;
  const lines=bits.flatMap(s=>wrapLines(s,maxW-pad*2,bodyFont));
- const lh=bodyPx+6,cardH=pad+titlePx+10+lines.length*lh+pad+16,cardW=maxW;
- const x=(dw-cardW)/2,y=Math.max(8,Math.min(dh*.08,36));
+ const lh=bodyPx+6,cardH=pad+titlePx+16+lines.length*lh+pad+16,cardW=maxW;
+ const x=(dw-cardW)/2;let y=Math.max(8,Math.min(dh*.08,36));if(x<510*hs)y=Math.max(y,160*hs+8); /* keep the card clear of the top-left HP/goal panel on narrow screens */
+ if(y+cardH>dh-8)y=Math.max(8,dh-8-cardH);
  ctx.fillStyle='rgba(2,12,16,.92)';ctx.fillRect(x,y,cardW,cardH);
  ctx.strokeStyle='#3ff';ctx.lineWidth=2;ctx.strokeRect(x+.5,y+.5,cardW-1,cardH-1);
  ctx.font=titleFont;ctx.fillStyle='#dff';ctx.textAlign='center';ctx.fillText(head,dw/2,y+pad+titlePx-4);
- ctx.font=bodyFont;ctx.fillStyle='#cfe';lines.forEach((ln,i)=>ctx.fillText(ln,dw/2,y+pad+titlePx+12+i*lh));
+ ctx.font=bodyFont;ctx.fillStyle='#cfe';lines.forEach((ln,i)=>ctx.fillText(ln,dw/2,y+pad+titlePx+18+i*lh));
  ctx.fillStyle='#6aa';ctx.font=`${Math.max(12,bodyPx-2)}px monospace`;ctx.fillText(b.arm>0?'':'Tap, click, or wait',dw/2,y+cardH-10);
  ctx.restore()}
 function drawHUD(){const p=S.p,f=S.f;ctx.setTransform(1,0,0,1,0,0);ctx.clearRect(0,0,hud.width,hud.height);if(S.state==='title')return;
