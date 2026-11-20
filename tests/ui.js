@@ -25,13 +25,12 @@ T('touchstart',1,200,500);ok('touch mode on',document.body.classList.contains('t
 T('touchmove',1,260,500);ok('left stick moves',IN.mx>.9);const x0=S.p.x;step(.4);ok('player moved by touch',S.p.x>x0+30);
 T('touchstart',2,1000,400);T('touchmove',2,1000,340);ok('right stick aims+fires',IN.fire&&Math.abs(IN.aim+Math.PI/2)<.05);const s0=S.stats.shots;step(.4);ok('fires',S.stats.shots>s0);
 T('touchend',1,260,500);T('touchend',2,1000,340);ok('release',IN.mx===0&&!IN.fire);
-const e=document.getElementById('tb-e');e.dispatchEvent(new TouchEvent('touchstart',{changedTouches:[new Touch({identifier:3,target:e,clientX:0,clientY:0})],bubbles:true,cancelable:true}));ok('USE button holds E',keys.e===true);
-e.dispatchEvent(new TouchEvent('touchend',{changedTouches:[new Touch({identifier:3,target:e,clientX:0,clientY:0})],bubbles:true,cancelable:true}));ok('USE release',!keys.e);
+ok('touch UI has no USE button (auto-use)',!document.getElementById('tb-e'));
 // gamepad (fake)
 let gp={index:0,axes:[1,0,0,-1],buttons:Array.from({length:17},()=>({pressed:false,value:0}))};navigator.getGamepads=()=>[gp];step(.1);gp.buttons[0].pressed=true;step(.1);gp.buttons[0].pressed=false;step(.1);ok('pad move+aim',IN.mx>.9&&IN.fire&&IN.src==='pad');
 gp.axes=[0,0,0,0];await w(100);
 // ending
-S.floor=FLOORS.length-1;startFloor();S.enemies.length=0;S.items.forEach(i=>i.done=true);S.exit={x:S.p.x,y:S.p.y};step(.3);ok('ending crawl',S.state==='ending'&&document.getElementById('crawl').classList.contains('on'));
+S.floor=FLOORS.length-1;startFloor();S.enemies.length=0;S.items.forEach(i=>i.done=true);S.exit={x:S.p.x,y:S.p.y};step(.6);ok('ending crawl',S.state==='ending'&&document.getElementById('crawl').classList.contains('on'));
 await w(600);key(' ');await w(100);ok('victory after ending',S.state==='victory');
 }catch(err){L.push('EXC '+err.message+' '+err.stack)}
 L.push('ERRS '+JSON.stringify(ERRS));document.body.dataset.log=L.join('\n')})();

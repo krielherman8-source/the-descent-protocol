@@ -62,3 +62,12 @@ body.compact #gear .grow{min-height:44px;padding:5px 8px}
 #gear .gb{flex:1;min-width:0}
 body.compact #gear .gi{width:66px;height:44px}
 .gchip .ci{height:22px;width:33px;vertical-align:middle;margin:-4px 6px -4px -4px;border-radius:2px}
+
+/* touch: weapon/drone are small thumbnail icon buttons (tap = loadout panel, hold = quick-swap); no USE button (auto-use) */
+#gchips.ic{gap:6px;flex-wrap:nowrap}
+#gchips.ic .gchip{position:relative;width:46px;height:46px;min-height:46px;padding:0;overflow:hidden;border-radius:6px;border:1.5px solid rgba(80,255,240,.7);background:rgba(4,26,32,.8);-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent;user-select:none}
+#gchips.ic .gchip img{display:block;width:100%;height:100%;object-fit:cover;pointer-events:none}
+#gchips.ic .gchip u{position:absolute;right:0;bottom:0;padding:0 4px;text-decoration:none;font:bold 10px/14px monospace;color:#012;background:#7ff;border-top-left-radius:4px;pointer-events:none}
+#gchips.ic .gchip b{font-size:18px}
+body.tiny #gchips.ic .gchip{width:42px;height:42px;min-height:42px}
+body.touch #s-interact{display:none}
