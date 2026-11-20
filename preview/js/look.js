@@ -118,7 +118,7 @@ function build(ctx){// called at the end of buildLevel (level group already buil
  if(hv>=0){pal=palAt(hv);const M=ctx.mats;if(M){const cs=(m,c)=>m&&m.color.setRGB(c[0],c[1],c[2]);cs(M.floorHQ,pal.fl);cs(M.floor,pal.fl.map(v=>v*.9));cs(M.wallHQ,pal.wl);cs(M.topHQ,pal.tp);if(M.steel)M.steel.color.setRGB(pal.wl[0]*.16,pal.wl[1]*.17,pal.wl[2]*.18);
    for(const m of[M.floorHQ,M.floor]){if(!m)continue;m.emissive.copy(pal.em);m.emissiveIntensity=pal.ek;m.roughness=m===M.floor?lerp(.55,.3,hv):m.roughness}
    {const lw=clamp01(1-hv/.42);for(const m of[M.wallHQ,M.topHQ]){if(m&&m!==M.topHQ){m.emissive.setHex(0xa8bac8);m.emissiveIntensity=lw*.22}}if(ctx.level)ctx.level.traverse(o=>{if(o.isPointLight)o.intensity*=lerp(1,.28,lw)});if(bioMats().shaft.uniforms)bioMats().shaft.uniforms.op.value=lerp(.22,.05,lw);bioMats().pool.opacity=lerp(.11,.035,lw);
-   if(ctx.lights){const L=ctx.lights;if(L.pLight)L.pLight.intensity*=lerp(1,.4,lw);if(L.spot)L.spot.intensity*=lerp(1,.5,lw)}
+   if(ctx.lights){const L=ctx.lights;if(L.pLight)L.pLight.intensity*=lerp(1,.3,lw);if(L.spot)L.spot.intensity*=lerp(1,.5,lw)}
    const k=clamp01(hv*1.6);if(M.wallHQ)M.wallHQ.metalness=lerp(.08,.5,k);if(M.topHQ)M.topHQ.metalness=lerp(.08,.45,k);if(M.floorHQ)M.floorHQ.metalness=lerp(.18,.55,clamp01(hv*2))}
    const sm=stageMaps(M,hv);if(sm){const sw=(m,mp,em)=>{if(!m)return;if(m.map!==mp||m.emissiveMap!==em){m.map=mp;m.emissiveMap=em;m.needsUpdate=true}};sw(M.floorHQ,sm.fm,sm.fe);sw(M.wallHQ,sm.wm,null);sw(M.topHQ,sm.wm,null)}}
   C.hemi.color.copy(pal.hemi);C.hemi.groundColor.copy(pal.gnd);C.sun.color.copy(pal.sun);if(!dark){C.hemi.intensity*=pal.hk;C.sun.intensity*=pal.sk}
@@ -244,5 +244,5 @@ function quality(q,ctx){const m=MB();if(ctx.bloom){ctx.bloom.strength=(q==='high
 function init(c){C=c;T=c.THREE;S=c.getS;textures();mkDust();mkSparks();mkFog();
  // phones/tablets start on Medium once (bloom + grade, cheaper shadows); the player can still pick High in Settings
  try{const mob=matchMedia('(pointer:coarse)').matches||/Android|iPhone|iPad|Mobile/i.test(navigator.userAgent);if(mob&&!localStorage.getItem('tdp_look_mob')){localStorage.setItem('tdp_look_mob','1');if(Q()==='high'&&autoOK()){c.CFG.quality='med';c.saveCfg&&c.saveCfg()}}}catch(e){}}
-window.TDP_LOOK={init,build,update,quality,spotK(){return S_H<0?1:lerp(.35,1,clamp01(S_H/.42))},carapace,legMat,abdomen,glowAbd,overmindMats,rim,depthK,toast,get stats(){return{sparks:SP.length,beacons:beacons.length,shafts:shafts.length,bio:pulseMats.length,level:lvl}}};
+window.TDP_LOOK={init,build,update,quality,spotK(){return S_H<0?1:lerp(.18,1,clamp01(S_H/.42))},carapace,legMat,abdomen,glowAbd,overmindMats,rim,depthK,toast,get stats(){return{sparks:SP.length,beacons:beacons.length,shafts:shafts.length,bio:pulseMats.length,level:lvl}}};
 })();

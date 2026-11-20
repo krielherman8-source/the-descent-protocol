@@ -112,7 +112,7 @@ function refresh(){const cbI=document.getElementById('s-cb');if(cbI&&CFG)cbI.che
  const R=[['MOUSE','Aim · hold left button to fire'+(CFG.autofire?' (auto-fire is ON: fires at the aim point)':'')],
   ['ESC','Pause / back (always) · '+keyLabel('escape')+' also pauses'],['1/2/3 · click','Choose upgrade in chamber'],
   ['GAMEPAD',`L-stick/d-pad move · R-stick aim+fire · ${padLabel('fire')} fire · ${padLabel('use')} use · ${padLabel('wprev')}/${padLabel('wnext')} weapon · ${padLabel('drone')} drone · ${padLabel('pause')} pause · ${padLabel('back')} back`],
-  ['TOUCH','Left thumb move · right thumb aim+fire · USE / WPN / DRN buttons']];
+  ['TOUCH','Left thumb move · right thumb aim+fire · stand on things to use them · tap weapon/drone icon for loadout, hold it to swap']];
  ui.fx.innerHTML=R.map(([a,b])=>`<tr><td>${a}</td><td>${b}</td></tr>`).join('')}
 // HUD helpers: the verb + control for the current input source
 const useVerb=()=>CFG&&CFG.interact==='toggle'?'PRESS':CFG&&CFG.interact==='auto'?'STAND HERE':'HOLD';

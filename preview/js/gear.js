@@ -5,6 +5,8 @@
 let A=null,root=null,box=null,chips=null,cw=null,cd=null,lastW='',lastD='',chipBottom=0,last={};
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const compact=()=>!!(window.TDP_MOB||innerWidth<900||innerHeight<430);
+const touchy=()=>!!(window.TDP_MOB||document.body.classList.contains('touch'));
+const tiny=()=>compact()&&innerHeight<=560;
 function el(tag,cls,html){const e=document.createElement(tag);if(cls)e.className=cls;if(html!=null)e.innerHTML=html;return e}
 function stop(e){e.stopPropagation()}
 function init(api){A=api;
@@ -12,7 +14,13 @@ function init(api){A=api;
  cw=el('button','gchip');cw.id='gc-w';cw.type='button';cd=el('button','gchip');cd.id='gc-d';cd.type='button';
  chips.append(cw,cd);document.body.appendChild(chips);
  for(const b of[cw,cd]){for(const ev of['mousedown','mouseup','touchstart','touchend','pointerdown'])b.addEventListener(ev,stop,{passive:true});
-  b.addEventListener('click',e=>{e.stopPropagation();e.preventDefault();toggle()})}
+  // tap = open loadout panel; long-press (0.45s) = quick-swap to the next weapon / drone
+  let tm=0,lp=false;const swap=()=>{lp=true;if(b===cw)A.cycleWeapon();else A.cycleDrone();last.w=null;if(navigator.vibrate)try{navigator.vibrate(18)}catch(e){}};
+  const cancel=()=>{clearTimeout(tm)};
+  b.addEventListener('touchstart',()=>{lp=false;clearTimeout(tm);tm=setTimeout(swap,450)},{passive:true});
+  b.addEventListener('touchend',cancel,{passive:true});b.addEventListener('touchcancel',cancel,{passive:true});b.addEventListener('touchmove',cancel,{passive:true});
+  b.addEventListener('contextmenu',e=>e.preventDefault());
+  b.addEventListener('click',e=>{e.stopPropagation();e.preventDefault();if(lp){lp=false;return}toggle()})}
  root=el('div');root.id='gear';box=el('div','gbox');root.appendChild(box);document.body.appendChild(root);
  for(const ev of['mousedown','mouseup','touchstart','touchend','pointerdown'])root.addEventListener(ev,stop,{passive:true});
  root.addEventListener('click',e=>{if(e.target===root)A.close()});
@@ -38,11 +46,14 @@ function hud(o){if(!chips)return 0;const s=A.S();const vis=!!o.show;
  if(last.vis!==vis){chips.style.display=vis?'flex':'none';last.vis=vis}
  if(!vis)return 0;
  const cm=compact();if(last.cm!==cm){document.body.classList.toggle('compact',cm);last.cm=cm;last.lt=null}
+ const ic=touchy();if(last.ic!==ic){chips.classList.toggle('ic',ic);last.ic=ic;last.lt=null;lastW=lastD=''}
+ const tn=tiny();if(last.tn!==tn){document.body.classList.toggle('tiny',tn);last.tn=tn;last.lt=null}
  if(last.l!==o.left||last.t!==o.top){chips.style.left=o.left+'px';chips.style.top=o.top+'px';last.l=o.left;last.t=o.top;last.lt=null}
  const p=s.p,w=A.WEAPONS[p.weapon],d=A.DRONES[p.drone],i=p.weapons.indexOf(p.weapon);
- const tw=`<b>${i+1}</b> ${esc(w.name)} <i>Mk ${A.wGrade(p,p.weapon)+1} · Lv ${A.wLevel(p,p.weapon)}</i>`,td=`<b>◎</b> ${esc(d?d.name:'-')}`;
+ const tw=ic?`<img alt="" src="${A.icon('weapon',p.weapon)}"><u>${A.wGrade(p,p.weapon)+1}</u>`:`<b>${i+1}</b> ${esc(w.name)} <i>Mk ${A.wGrade(p,p.weapon)+1} · Lv ${A.wLevel(p,p.weapon)}</i>`,td=ic?(d?`<img alt="" src="${A.icon('drone',p.drone)}">`:'<b>◎</b>'):`<b>◎</b> ${esc(d?d.name:'-')}`;
+ cw.setAttribute('aria-label','Weapon: '+w.name+' (tap: loadout, hold: next weapon)');cd.setAttribute('aria-label','Drone: '+(d?d.name:'none')+' (tap: loadout, hold: next drone)');cd.style.display=(ic&&!d)?'none':'';
  if(tw!==lastW){cw.innerHTML=tw;lastW=tw;last.lt=null}if(td!==lastD){cd.innerHTML=td;lastD=td;last.lt=null}
  if(last.lt==null){last.lt=1;chipBottom=chips.offsetHeight}
  return chipBottom}
-window.TDP_GEAR={init,show,hide,hud,toggle,render,isOpen:()=>!!root&&root.classList.contains('on'),get compact(){return compact()}};
+window.TDP_GEAR={init,show,hide,hud,toggle,render,isOpen:()=>!!root&&root.classList.contains('on'),get compact(){return compact()},get tiny(){return tiny()}};
 })();

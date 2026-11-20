@@ -544,7 +544,7 @@ function cardRect(i){const k=cardK(),w=CARD.w*k,h=CARD.h*k,g=CARD.g*k,x0=VW/2-(w
 // ---- floor-1 tutorial: data-driven steps; each advances when its condition holds ----
 const TUT=[{kbm:()=>'MOVE with '+['w','a','s','d'].map(kL).join(' '),pad:'MOVE with the LEFT STICK',touch:'MOVE: drag with your LEFT thumb',ok:(t,S)=>dist(S.p,t.o)>140},
  {kbm:()=>CFG.autofire?'AIM with the mouse · AUTO-FIRE is on, you fire at the aim point':`AIM with the mouse · HOLD LEFT BUTTON (or ${kL('fire')}) to fire`,pad:()=>CFG.autofire?'AIM with the RIGHT STICK · AUTO-FIRE is on':`AIM with the RIGHT STICK (pushing it fires) · ${pL('fire')} fires`,touch:'AIM + FIRE: drag with your RIGHT thumb',ok:(t,S)=>S.stats.shots-t.s0>=8},
- {kbm:()=>`Generators are marked on the MINIMAP and by edge ARROWS · stand at one and ${TDP_SETTINGS.useVerb()} ${kL('e')}`,pad:()=>`Follow the edge ARROWS to a generator · ${TDP_SETTINGS.useVerb()} ${pL('use')} to power it`,touch:()=>`Follow the edge ARROWS to a generator · ${TDP_SETTINGS.useVerb()} the USE button`,ok:(t,S)=>S.items.some(i=>i.done)},
+ {kbm:()=>`Generators are marked on the MINIMAP and by edge ARROWS · stand at one and ${TDP_SETTINGS.useVerb()} ${kL('e')}`,pad:()=>`Follow the edge ARROWS to a generator · ${TDP_SETTINGS.useVerb()} ${pL('use')} to power it`,touch:()=>`Follow the edge ARROWS to a generator · just stand on it, it powers up by itself`,ok:(t,S)=>S.items.some(i=>i.done)},
  {kbm:()=>`Green crosses heal you · ${kL('q')} cycles drones · ${TDP_SETTINGS.slotsLabel()} or ${kL('wprev')}/${kL('wnext')} switch weapons`,pad:()=>`Green crosses heal you · ${pL('drone')} cycles drones · ${pL('wprev')}/${pL('wnext')} switch weapons`,touch:'Green crosses heal you · DRN cycles drones · WPN switches weapons',ok:t=>t.t>7},
  {kbm:'Finish the objective, clear the swarm, then enter the UPGRADE CHAMBER',ok:t=>t.t>7}];
 function tutTick(dt){if(S.floor!==0||!CFG.tut||S.demo)return;const t=S.tut||(S.tut={i:0,t:0,o:{x:S.p.x,y:S.p.y},s0:S.stats.shots});t.t+=dt;
@@ -983,13 +983,13 @@ function drawHUD(){const p=S.p,f=S.f;ctx.setTransform(1,0,0,1,0,0);ctx.clearRect
  for(const t of S.texts){const s=toScreen(t.x,70,t.y);ctx.globalAlpha=Math.min(1,t.life);text(t.t,s.x,s.y,t.col,fs+2,'center')}ctx.globalAlpha=1;ctx.shadowBlur=0;
  if(S.state==='play')TDP_MINIMAP.arrows(ctx,S,toScreen,hud.width,hud.height,hs);
  ctx.setTransform(hs,0,0,hs,0,0);
- {const cm=TDP_GEAR.compact,hh=cm?Math.max(hs,.9):hs,pw=cm?300:500,ph=cm?86:88;ctx.setTransform(hh,0,0,hh,0,0);
+ {const cm=TDP_GEAR.compact,tn=TDP_GEAR.tiny,hh=cm?Math.max(hs,tn?.82:.9):hs,pw=tn?230:cm?300:500,ph=tn?66:cm?86:88;ctx.setTransform(hh,0,0,hh,0,0);
  hudPanel(10,10,pw,ph);
- hudBar(18,18,cm?190:240,16,p.hp/p.maxHp,p.hp/p.maxHp<.3?['#f33','#f88']:['#0bb','#6ff'],10);
- text(`HP ${Math.ceil(p.hp)}/${p.maxHp}`+(p.drone==='bastion'?(p.shield?'  [SHIELD]':'  [shield charging]'):''),24,31,'#012',12);
- text(S.floor>=TDP_ENDLESS.START?`ENDLESS F${S.floor+1}: ${f.name.toUpperCase()}`:`FLOOR ${S.floor+1}/${FLOORS.length}: ${f.name.toUpperCase()}`,18,54,S.floor>=TDP_ENDLESS.START?'#fc6':'#7ff',cm?14:16);
+ hudBar(18,tn?16:18,tn?150:cm?190:240,tn?13:16,p.hp/p.maxHp,p.hp/p.maxHp<.3?['#f33','#f88']:['#0bb','#6ff'],10);
+ text(`HP ${Math.ceil(p.hp)}/${p.maxHp}`+(p.drone==='bastion'?(p.shield?'  [SHIELD]':'  [shield charging]'):''),24,tn?26:31,'#012',tn?10:12);
+ text(S.floor>=TDP_ENDLESS.START?`ENDLESS F${S.floor+1}: ${f.name.toUpperCase()}`:`FLOOR ${S.floor+1}/${FLOORS.length}: ${f.name.toUpperCase()}`,18,tn?44:54,S.floor>=TDP_ENDLESS.START?'#fc6':'#7ff',tn?12:cm?14:16);
  const objLine=S.exit?(isFinal()?'Reach extraction':'Get to the exit: upgrade chamber'):S.obj.done(S)?`Clear the swarm: ${S.enemies.length} left`:S.obj.progress(S);
- ctx.font='12px monospace';const ow=ctx.measureText(objLine).width,om=pw-28;text(objLine,18,74,'#bff',ow>om?Math.max(8.5,Math.floor(12*om/ow*10)/10):12);
+ const ofs=tn?10:12;ctx.font=ofs+'px monospace';const ow=ctx.measureText(objLine).width,om=tn?pw-44:pw-28;text(objLine,18,tn?59:74,'#bff',ow>om?Math.max(7.5,Math.floor(ofs*om/ow*10)/10):ofs);
  const v0=viewSize();const gh=TDP_GEAR.hud({show:(S.state==='play'||S.state==='gear')&&S.p.hp>0,left:v0.l+10*hh,top:v0.t+(10+ph+4)*hh,scale:hh});S.hudBottom=gh?(10+ph+4)*hh+gh:(10+ph)*hh;S.hudRight=(10+pw)*hh;ctx.setTransform(hs,0,0,hs,0,0)}
  text('UPGRADES',VW-16,24,'#7ff',13,'right');p.ups.slice(-14).forEach((u,i)=>text(u,VW-16,42+i*15,'#5cc',11,'right'));
  if(S.state==='play'||S.state==='paused'||S.state==='gear')TDP_MINIMAP.draw(ctx,S,{W,H,size:220,x:12,y:VH-12-124,isBoss:e=>ENEMIES[e.type].boss,aim:Math.atan2(mouse.y-p.y,mouse.x-p.x)});
@@ -1074,7 +1074,7 @@ addEventListener('keydown',()=>{audioInit();if(AU.ctx&&AU.ctx.state==='suspended
 
 window.TDP_INPUT&&TDP_INPUT.init({IN,keys,onKey,state:()=>S&&S.state,menuOpen:()=>!menuEl.classList.contains('hide'),
  tap:(x,y)=>{const v=viewSize();mouse.sx=(x-v.l)/hs;mouse.sy=(y-v.t)/hs;onClick()},cycleWeapon,useEdge});
-TDP_GEAR.init({icon:picURL,S:()=>S,WEAPONS,DRONES,MODS,wLevel,wGrade,KPL:KILLS_PER_LEVEL,kL,setWeapon:k=>{if(S&&S.p&&S.p.weapons.includes(k))S.p.weapon=k},setDrone:k=>{if(S&&S.p&&S.p.drones.includes(k))S.p.drone=k},open:openGear,close:closeGear});
+TDP_GEAR.init({icon:picURL,S:()=>S,WEAPONS,DRONES,MODS,wLevel,wGrade,KPL:KILLS_PER_LEVEL,kL,setWeapon:k=>{if(S&&S.p&&S.p.weapons.includes(k))S.p.weapon=k},setDrone:k=>{if(S&&S.p&&S.p.drones.includes(k))S.p.drone=k},open:openGear,close:closeGear,cycleWeapon:()=>cycleWeapon(1),cycleDrone:()=>{if(S&&S.p&&S.p.drones.length>1)cycleDrone()}});
 prewarmPics();window.TDP_PICS={cardPic,picURL,modelThumb,pic};window.TDP_OPEN_GEAR=openGear;window.TDP_CLOSE_GEAR=closeGear;
 applyQuality();goTitle();
 </script></body></html>
