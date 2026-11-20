@@ -33,7 +33,8 @@ const BNAME={warden:'Brood Warden',prime:'Hive Prime',colossus:'Colossus',matria
 function floorAt(i,seed){if(!isEndless(i))return FL[i];const key=seed+':'+i;if(cache.has(key))return cache.get(key);let f;
  if(isBossFloor(i)){const b=bossFor(i,seed),ti=BOSSIDX[b],t=FL[ti];
   f=Object.assign({},t,{objective:'boss',boss:b,task:'Kill the '+BNAME[b],name:b==='warden'?"Warden's Return":t.name,
-   bossLine:'Endless depth '+(i+1)+' — it remembers you',spawn:b==='warden'?[20,17]:t.spawn,elite:undefined,src:ti})}
+   bossLine:'Endless depth '+(i+1)+' — it remembers you',spawn:b==='warden'?[20,17]:t.spawn,elite:undefined,src:ti});
+  const br=window.TDP_STORY&&TDP_STORY.BOSS&&TDP_STORY.BOSS[b];if(br)Object.assign(f,{why:br.why,goal:br.goal,clear:br.clear})}
  else{const ti=regularFor(i,seed);f=Object.assign({},FL[ti],{src:ti})}
  f.mix=MIX;f.endless=true;cache.set(key,f);return f}
 function scale(i){const d=depth(i);return{hp:Math.pow(K.hp,d),dmg:Math.pow(K.dmg,d),count:Math.pow(K.count,d),boss:Math.pow(K.boss,d)}}

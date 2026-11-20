@@ -1,8 +1,9 @@
-<!DOCTYPE html><html><head><meta charset="utf-8"><title>THE DESCENT PROTOCOL</title>
-<style>html,body{margin:0;background:#020507;overflow:hidden;font-family:monospace}#gl,#hud{position:fixed;left:0;top:0;display:block}#hud{pointer-events:none}
+<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"><title>THE DESCENT PROTOCOL</title>
+<style>html,body{margin:0;background:#020507;overflow:hidden;font-family:monospace;overscroll-behavior:none;touch-action:none}#gl,#hud{position:fixed;left:0;top:0;display:block}#hud{pointer-events:none}
 #load{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;color:#5ff;font:16px monospace}#tb-e.deemph{opacity:.35;transform:scale(.8)}
+#safeprobe{position:fixed;visibility:hidden;pointer-events:none;padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
 </style>
-<style>#menu{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:radial-gradient(ellipse at center,rgba(0,20,24,.35),rgba(0,0,0,.8));z-index:5}
+<style>#menu{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;box-sizing:border-box;padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);background:radial-gradient(ellipse at center,rgba(0,20,24,.35),rgba(0,0,0,.8));z-index:5}
 #menu.hide{display:none}#menu.title{background:radial-gradient(ellipse at center,rgba(0,15,18,.1),rgba(0,0,0,.75))}
 .panel{display:none;flex-direction:column;align-items:center;gap:12px;color:#bff;min-width:380px;padding:26px 34px;background:rgba(2,14,18,.72);border:1px solid #2aa;box-shadow:0 0 30px rgba(40,255,230,.18),inset 0 0 30px rgba(40,255,230,.06)}
 .panel.on{display:flex}.panel h2{margin:0 0 6px;color:#6ff;letter-spacing:6px;text-shadow:0 0 12px #3ff}
@@ -19,16 +20,16 @@
 <script>/* import map: vendored local copies when served over http(s); unpkg CDN when opened from file:// (module imports of local files are blocked there) */
 {const local=location.protocol!=='file:',cdn='https://unpkg.com/three@0.160.0/',s=document.createElement('script');s.type='importmap';
 s.textContent=JSON.stringify({imports:{three:local?'./vendor/three.module.js':cdn+'build/three.module.js','three/addons/':local?'./vendor/addons/':cdn+'examples/jsm/'}});document.currentScript.after(s)}</script></head>
-<body><div id="menu" class="hide"><div class="panel" id="m-title"><div class="logo"><div class="l1">THE DESCENT</div><div class="l2">P R O T O C O L</div><div class="bar"></div></div>
+<body><div id="safeprobe" aria-hidden="true"></div><div id="menu" class="hide"><div class="panel" id="m-title"><div class="logo"><div class="l1">THE DESCENT</div><div class="l2">P R O T O C O L</div><div class="bar"></div></div>
 <button data-a="start">START NEW DESCENT</button><button data-a="continue" id="b-cont">CONTINUE</button><button data-a="endless" id="b-endless">ENDLESS DESCENT</button><div id="endless-hint" class="small dim"></div><button data-a="diff" id="b-diff">DIFFICULTY: NORMAL</button><button data-a="settings">SETTINGS</button><button data-a="controls">CONTROLS</button><button data-a="credits">CREDITS</button><div id="best" class="small"></div><div class="small dim">Click anywhere to enable audio</div></div>
 <div class="panel" id="m-credits"><h2>CREDITS</h2><div id="credits-body"></div><button data-a="back">BACK</button></div>
 <div class="panel" id="m-pause"><h2>PAUSED</h2><button data-a="resume">RESUME</button><button data-a="settings">SETTINGS</button><button data-a="controls">CONTROLS</button><button data-a="quit">SAVE &amp; QUIT TO TITLE</button></div>
 <div class="panel" id="m-settings"><h2>SETTINGS</h2>
 <label>MASTER <input type="range" min="0" max="100" data-v="master"></label><label>SFX <input type="range" min="0" max="100" data-v="sfx"></label><label>MUSIC <input type="range" min="0" max="100" data-v="music"></label>
-<label>GRAPHICS <select id="s-q"><option value="low">LOW (no bloom/shadows)</option><option value="med">MEDIUM (bloom)</option><option value="high">HIGH (bloom, hi-res shadows)</option></select></label>
+<label>GRAPHICS <select id="s-q"><option value="low">LOW (fastest, best for phones)</option><option value="med">MEDIUM (balanced)</option><option value="high">HIGH (best look, needs a strong device)</option></select></label>
 <label>SCREEN SHAKE <input type="checkbox" id="s-shake"></label><button data-a="controls">CONTROLS &amp; REBINDING</button><button data-a="back">BACK</button></div>
 <div class="panel" id="m-controls"><h2>CONTROLS</h2><button data-a="back">BACK</button></div></div>
-<link rel="stylesheet" href="css/ui.css"><script src="js/story.js"></script><script src="js/input.js"></script><script src="js/minimap.js"></script><script src="js/content.js"></script><script src="js/instancing.js"></script><script src="js/visuals.js"></script><script src="js/settings.js"></script><script src="js/stats.js"></script><script src="js/endless.js"></script>
+<link rel="stylesheet" href="css/ui.css"><script src="js/story.js"></script><script src="js/input.js"></script><script src="js/gear.js"></script><script src="js/icons.js"></script><script src="js/minimap.js"></script><script src="js/content.js"></script><script src="js/instancing.js"></script><script src="js/visuals.js"></script><script src="js/settings.js"></script><script src="js/stats.js"></script><script src="js/endless.js"></script><script src="js/shell.js"></script>
 <div id="load">LOADING THE DESCENT PROTOCOL…</div><script type="module">
 'use strict';
 let THREE;
@@ -128,10 +129,12 @@ const mkItem=o=>{const it=Object.assign({prog:0,done:false,active:true,r:18,time
 const holdItems=(f,label,color,time,extra)=>f.points.map(([cx,cy],i)=>mkItem(Object.assign({kind:'hold',...P(cx,cy),label,color,time,idx:i},extra||{})));
 const shootItems=(f,label,color,hp,extra)=>f.points.map(([cx,cy],i)=>mkItem(Object.assign({kind:'shoot',...P(cx,cy),label,color,hp,max:hp,r:20,idx:i},extra||{})));
 const nDone=S=>S.items.filter(i=>i.done).length,allDone=S=>S.items.every(i=>i.done);
+const gline=tail=>`${(S.f&&(S.f.goal||S.f.task))||'Objective'}: ${tail}`;
+const holdHint=()=>` (${useHint().toLowerCase()})`;
 const OBJECTIVES={
- generators:{label:'Restore power',setup:(S,f)=>{S.items=holdItems(f,f.label||'GENERATOR','#3ff',2)},progress:S=>`${S.f.label||'Generator'}s online ${nDone(S)}/${S.items.length}  (${useHint().toLowerCase()})`,done:allDone},
+ generators:{label:'Restore power',setup:(S,f)=>{S.items=holdItems(f,f.label||'GENERATOR','#3ff',2)},progress:S=>gline(`${nDone(S)}/${S.items.length} ${(S.f.label||'generator').toLowerCase()}s`)+holdHint(),done:allDone},
  lockers:{label:'Unlock heavy weapon lockers',setup:(S,f)=>{S.items=holdItems(f,'LOCKER','#6cf',1.4);const wi=Math.floor(rnd(0,S.items.length));
-   S.items.forEach(it=>it.onDone=()=>lootLocker(it,it.idx===wi))},progress:S=>`Lockers opened ${nDone(S)}/${S.items.length}  (${useHint().toLowerCase()})`,done:allDone},
+   S.items.forEach(it=>it.onDone=()=>lootLocker(it,it.idx===wi))},progress:S=>gline(`${nDone(S)}/${S.items.length} lockers`)+holdHint(),done:allDone},
  maglocks:{label:'Disable magnetic locks',setup:(S,f)=>{S.items=holdItems(f,'MAG-LOCK','#a8f',2);S.well=P(20,11);S.wellWarnT=0;const p=S.p;if(dist(p,S.well)<WELL_R+60){let best=null,bd=0;for(const[cx,cy]of[[2,2],[GW-3,2],[2,GH-3],[GW-3,GH-3]]){if(S.grid[cx+cy*GW])continue;const q=P(cx,cy),d=dist(q,S.well);if(d>bd){bd=d;best=q}}if(best){p.x=best.x;p.y=best.y;p.hpos={x:p.x,y:p.y}}}},
   update(dt,S){const rem=S.items.filter(i=>!i.done).length;if(!rem)return;const p=S.p,d=dist(p,S.well);
    // pull: velocity (px/s * dt, frame-rate independent), 0 outside WELL_R, ~40% of move speed at the edge rising to 60% at the core; ramps in over the first 3 s
@@ -139,45 +142,45 @@ const OBJECTIVES={
    // core damage per second (time-based): 8 HP/s on Normal => ~12 s to die if you stand still in it
    if(d<WELL_CORE&&!S.god){const a=8*dt*DF().dmg;p.hp-=a;S.stats.taken+=a;S.hurtT=Math.max(S.hurtT||0,.15)}
    S.wellWarnT=(S.wellWarnT||0)-dt;if(d<WELL_R*.55&&S.wellWarnT<=0){S.wellWarnT=d<WELL_CORE?.6:1.2;floatText(p.x,p.y-34,d<WELL_CORE?'GRAVITY CORE! MOVE OUT':'GRAVITY WELL — move away','#c9f');sfx('warn')}},
-  progress:S=>`Mag-locks disabled ${nDone(S)}/${S.items.length}  — resist the gravity well`,done:allDone},
+  progress:S=>gline(`${nDone(S)}/${S.items.length} mag-locks`)+holdHint()+' — stay out of the well',done:allDone},
  beacons:{label:'Navigate in darkness',setup:(S,f)=>{S.items=f.points.map(([cx,cy],i)=>mkItem({kind:'touch',...P(cx,cy),label:'BEACON '+(i+1),color:'#3ff',idx:i}))},
   update(dt,S){const n=S.items.findIndex(i=>!i.done);S.items.forEach((it,i)=>it.active=i===n)},
-  progress:S=>`Relay beacons in order ${nDone(S)}/${S.items.length}`,done:allDone},
+  progress:S=>gline(`${nDone(S)}/${S.items.length} beacons, in order`),done:allDone},
  biomass:{label:'Burn alien biomass',setup:(S,f)=>{S.items=shootItems(f,'BIOMASS','#9f3',200*(1+S.floor*.05),{burnBonus:true,r:24,spawnT:rnd(3,6)})},
   update(dt,S){for(const it of S.items){if(it.done)continue;it.spawnT-=dt;if(it.spawnT<=0){it.spawnT=6.5;spawnNear('swarmer',it.x,it.y,2)}}},
-  progress:S=>`Biomass burned ${nDone(S)}/${S.items.length}  (shoot it — flames x2)`,done:allDone},
+  progress:S=>gline(`${nDone(S)}/${S.items.length} growths`)+' (shoot — flames x2)',done:allDone},
  hack:{label:'Hack reactor terminals',setup:(S,f)=>{S.items=holdItems(f,'TERMINAL','#3fc',3.5,{decay:.2})},
   update(dt,S){for(const it of S.items)if(it.prog>0&&!it.alarm){it.alarm=true;floatText(it.x,it.y-30,'ALARM!','#f66');spawnNear('swarmer',it.x,it.y,3,180)}},
-  progress:S=>`Terminals hacked ${nDone(S)}/${S.items.length}  (stay close, progress decays)`,done:allDone},
+  progress:S=>gline(`${nDone(S)}/${S.items.length} terminals`)+holdHint()+' — stay close, or it decays',done:allDone},
  vents:{label:'Redirect airflow safely',setup:(S,f)=>{S.items=holdItems(f,'VALVE','#7df',2);S.winds=f.winds},
   update(dt,S){const p=S.p;for(const z of S.winds){if(S.items[z.valve].done)continue;if(p.y>z.y0&&p.y<z.y1)p.x+=z.vx*dt*(S.holding&&useOn()?.45:1);
    for(const e of S.enemies)if(e.y>z.y0&&e.y<z.y1)e.x+=z.vx*.5*dt}},
-  progress:S=>`Valves sealed ${nDone(S)}/${S.items.length}  — each stops one air current`,done:allDone},
+  progress:S=>gline(`${nDone(S)}/${S.items.length} valves`)+holdHint()+' — each stops one current',done:allDone},
  purge:{label:'Purge infestation',setup:(S,f)=>{S.items=shootItems(f,'SPORE NODE','#bf4',140*(1+S.floor*.05),{burnBonus:true,muck:95})},
   update(dt,S){const p=S.p;for(const it of S.items)if(!it.done&&dist(it,p)<it.muck){if(!S.god){const a=7*dt*DF().dmg;p.hp-=a;S.stats.taken+=a}p.slow=.55}},
-  progress:S=>`Spore nodes purged ${nDone(S)}/${S.items.length}  (avoid the muck)`,done:allDone},
+  progress:S=>gline(`${nDone(S)}/${S.items.length} nodes`)+' — avoid the muck',done:allDone},
  reboot:{label:'Reboot core systems',setup:(S,f)=>{S.items=holdItems(f,'CORE NODE','#5ff',1.5);S.rebootT=0},
   update(dt,S){const n=nDone(S);if(n>0&&n<S.items.length){S.rebootT-=dt;if(S.rebootT<=0){S.items.forEach(i=>{i.done=false;i.prog=0});floatText(S.p.x,S.p.y-30,'REBOOT FAILED — NODES RESET','#f66')}}
    else if(n===0)S.rebootT=S.f.window||30},
-  progress:S=>{const n=nDone(S);return `Core nodes ${n}/${S.items.length}`+(n>0&&n<S.items.length?`  — ${Math.ceil(S.rebootT)}s left before reset!`:`  (all within ${S.f.window||30}s)`)},done:allDone},
+  progress:S=>{const n=nDone(S);return gline(`${n}/${S.items.length} nodes`)+(n>0&&n<S.items.length?` — ${Math.ceil(S.rebootT)}s left`:``)+holdHint()},done:allDone},
  reactor:{label:'Stabilize the reactor',setup:(S,f)=>{S.items=[mkItem({kind:'zone',...P(20,11),r:110,label:'REACTOR CORE',color:'#ffb040',time:f.zoneTime||25})];S.pulseT=7},
   update(dt,S){const z=S.items[0];if(z.done)return;S.pulseT-=dt;if(S.pulseT<=0){S.pulseT=7;S.rings.push({x:z.x,y:z.y,r:10,life:.5,col:'#ffb040'});if(dist(S.p,z)<z.r)hurtPlayer(10);floatText(z.x,z.y-40,'REACTOR PULSE','#fb4')}},
-  progress:S=>`Reactor stabilized ${Math.floor(S.items[0].prog*100)}%  (stand inside the core ring, dodge pulses)`,done:allDone},
+  progress:S=>gline(`${Math.floor(S.items[0].prog*100)}%`)+' — stand in the ring, dodge pulses',done:allDone},
  eggs:{label:'Destroy the sacs before they hatch',setup:(S,f)=>{S.hatched=0;S.items=shootItems(f,'EGG SAC','#ff7ad0',90,{r:16,burnBonus:true});S.items.forEach(it=>it.hatchT=rnd(...f.hatch))},
   update(dt,S){for(const it of S.items){if(it.done)continue;it.hatchT-=dt;if(it.hatchT<=0){it.done=true;it.hatched=true;S.hatched++;floatText(it.x,it.y-30,'HATCHED!','#f66');spawnNear('swarmer',it.x,it.y,5,40);spawnNear('runner',it.x,it.y,2,40)}}},
-  progress:S=>`Sacs destroyed ${S.items.filter(i=>i.done&&!i.hatched).length}/${S.items.length}  hatched ${S.hatched}`+(S.items.some(i=>!i.done)?`  next hatch ${Math.ceil(Math.min(...S.items.filter(i=>!i.done).map(i=>i.hatchT)))}s`:''),done:allDone},
+  progress:S=>gline(`${S.items.filter(i=>i.done&&!i.hatched).length}/${S.items.length} sacs`)+` — hatched ${S.hatched}`+(S.items.some(i=>!i.done)?`, next ${Math.ceil(Math.min(...S.items.filter(i=>!i.done).map(i=>i.hatchT)))}s`:''),done:allDone},
  survive:{label:'Survive',setup:(S,f)=>{S.items=[];S.surviveT=f.survive||60},update(dt,S){S.surviveT-=dt},
-  progress:S=>`Survive the swarm: ${Math.max(0,Math.ceil(S.surviveT))}s`,done:S=>S.surviveT<=0},
- defrost:{label:'Defrost frozen systems',setup:(S,f)=>{S.items=holdItems(f,'FROZEN SYSTEM','#aef',3)},progress:S=>`Systems defrosted ${nDone(S)}/${S.items.length}  (${useHint().toLowerCase()}, avoid frost)`,done:allDone},
+  progress:S=>gline(`${Math.max(0,Math.ceil(S.surviveT))}s left`),done:S=>S.surviveT<=0},
+ defrost:{label:'Defrost frozen systems',setup:(S,f)=>{S.items=holdItems(f,'FROZEN SYSTEM','#aef',3)},progress:S=>gline(`${nDone(S)}/${S.items.length} systems`)+holdHint()+' — avoid the frost',done:allDone},
  boss:{label:'Kill the boss',setup:(S,f)=>{S.items=[];S.bossT=2.5;S.bossSpawned=false},
   update(dt,S,f){if(S.bossSpawned)return;S.bossT-=dt;if(S.bossT<=0){S.bossSpawned=true;const b=P(...(f.bossAt||[20,5]));spawnEnemy(f.boss,b.x,b.y);sfx('roar');S.shake=16;showBanner(ENEMIES[f.boss].name.toUpperCase(),f.bossLine||'',3)}},
-  progress:S=>S.bossSpawned?`Kill ${ENEMIES[S.f.boss].name}`:'Something is coming...',done:S=>S.bossSpawned&&!S.enemies.some(e=>ENEMIES[e.type].boss)},
+  progress:S=>S.bossSpawned?gline(`0/1 ${ENEMIES[S.f.boss].name}`):gline('0/1 — incoming'),done:S=>S.bossSpawned&&!S.enemies.some(e=>ENEMIES[e.type].boss)},
  keycards:{label:'Find keycards under swarm pressure',setup:(S,f)=>{const cards=shuffle(f.points.map((_,i)=>i)).slice(0,3);S.cards=0;S.bossSpawned=false;
    S.items=shootItems(f,'COCOON','#d9a',70,{});S.items.forEach(it=>{it.hasCard=cards.includes(it.idx);it.onDone=()=>{if(it.hasCard){S.items.push(mkItem({kind:'pickup',x:it.x,y:it.y,label:'KEYCARD',color:'#ff5',onDone:()=>{S.cards++;floatText(it.x,it.y-25,'KEYCARD '+S.cards+'/3','#ff5')}}))}else spawnNear('swarmer',it.x,it.y,4)}});
    S.door=mkItem({kind:'hold',...P(...f.door),label:'SECURITY DOOR',color:'#f5a',time:2,active:false,onDone:()=>{S.bossSpawned=true;const b=spawnEnemy('warden',cp(20),cp(4));
     showBanner('BROOD WARDEN AWAKENS','Final wave incoming',3);sfx('roar');S.shake=16;for(let i=0;i<8;i++){const pt=edgeSpawn();spawnEnemy(pickR(['swarmer','runner','brute','exploder']),pt.x,pt.y)}}});S.items.push(S.door)},
   update(dt,S){S.door.active=S.cards>=3},
-  progress:S=>!S.door.done?`Keycards ${S.cards}/3`+(S.cards>=3?`  — open the SECURITY DOOR (${useHint().toLowerCase()})`:'  (shoot cocoons)'):S.enemies.some(e=>ENEMIES[e.type].boss)?'Kill the Brood Warden!':'Done',
+  progress:S=>!S.door.done?(S.cards<3?gline(`${S.cards}/3 keycards`)+' — shoot cocoons':gline('3/3 keycards — open the door')+holdHint()):S.enemies.some(e=>ENEMIES[e.type].boss)?gline('0/1 Brood Warden'):gline('warden down'),
   done:S=>S.door.done&&S.bossSpawned&&!S.enemies.some(e=>ENEMIES[e.type].boss)},
 };
 
@@ -241,6 +244,7 @@ const FLOORS=[
  Fx('The Heart','Burn out the hive heart','biomass','#9a1d1d','core',[[10,3,2,6],[28,3,2,6],[10,14,2,6],[28,14,2,6],[17,5,6,1],[17,17,6,1]],{n:6,hz:{acid:3,lasers:[[20,11,240,.6]]},exit:[20,20],set:'heart',mix:M6}),
  Fx('The Overmind','Destroy the Overmind','boss','#ff2050','core',[[8,4,2,2],[30,4,2,2],[8,17,2,2],[30,17,2,2]],{boss:'overmind',bossAt:[20,9],bossLine:'Final boss — three phases.',spawn:[20,19],mix:M6,interval:14,set:'tendrils'}),
 ];
+if(window.TDP_STORY&&TDP_STORY.BRIEFS)FLOORS.forEach((f,i)=>Object.assign(f,TDP_STORY.BRIEFS[i]||{}));
 
 // ================= INPUT =================
 // ================= SETTINGS / SAVE =================
@@ -309,7 +313,7 @@ function musicStart(){const c=AU.ctx,pad=c.createGain();pad.gain.value=.07;const
  const lfo=c.createOscillator(),lg=c.createGain();lfo.frequency.value=.06;lg.gain.value=140;lfo.connect(lg);lg.connect(lp.frequency);lfo.start();
  AU.next=c.currentTime+.1;setInterval(musicTick,60)}
 function musicTick(){const c=AU.ctx;if(!c||c.state!=='running')return;
- let tgt=.06;if(S&&S.state==='play'){let near=0;for(const e of S.enemies)if(dist(e,S.p)<480)near++;tgt=Math.min(.85,.18+near/22);if(S.enemies.some(e=>ENEMIES[e.type].boss))tgt=1}else if(S&&S.state==='paused')tgt=.03;
+ let tgt=.06;if(S&&S.state==='play'){let near=0;for(const e of S.enemies)if(dist(e,S.p)<480)near++;tgt=Math.min(.85,.18+near/22);if(S.enemies.some(e=>ENEMIES[e.type].boss))tgt=1}else if(S&&(S.state==='paused'||S.state==='gear'))tgt=.03;
  AU.intensity+=(tgt-AU.intensity)*.04;const I=AU.intensity;AU.padLP.frequency.setTargetAtTime(280+I*1500,c.currentTime,.6);
  const st=60/(92+I*44)/4;
  while(AU.next<c.currentTime+.2){const s=AU.step++,t=AU.next,prog=[0,0,5,3,0,0,8,7][Math.floor(s/16)%8];
@@ -322,15 +326,19 @@ function musicTick(){const c=AU.ctx;if(!c||c.state!=='running')return;
 
 const IN={mx:0,my:0,aim:null,fire:false,src:'kbm'};window.IN=IN;
 const keys={},mouse={x:W/2,y:H/2,down:false,sx:0,sy:0,cx:0,cy:0,moved:false};
-const mapK=k=>window.TDP_SETTINGS?TDP_SETTINGS.mapKey(k):k;addEventListener('keydown',e=>{const raw=e.key.toLowerCase(),k=mapK(raw);if(k==='\u0000')return;if(S&&S.state==='play'&&(k==='fire'||raw===' '||raw==='tab'))e.preventDefault();keys[k]=true;if(k==='e'&&!e.repeat)useEdge();onKey(k,raw)});addEventListener('keyup',e=>keys[mapK(e.key.toLowerCase())]=false);
+const mapK=k=>window.TDP_SETTINGS?TDP_SETTINGS.mapKey(k):k;addEventListener('keydown',e=>{const raw=e.key.toLowerCase(),k=mapK(raw);if(k==='\u0000')return;if(S&&(S.state==='play'||S.state==='gear')&&(k==='fire'||raw===' '||raw==='tab'))e.preventDefault();keys[k]=true;if(k==='e'&&!e.repeat)useEdge();onKey(k,raw)});addEventListener('keyup',e=>keys[mapK(e.key.toLowerCase())]=false);
 // interact: 'hold' = held while the use control is down; 'toggle' = each press latches/unlatches (S.useLatch)
 function useEdge(){if(CFG.interact==='toggle'&&S&&S.state==='play')S.useLatch=!S.useLatch}
 const useOn=()=>CFG.interact==='toggle'?!!(S&&S.useLatch):CFG.interact==='auto'?true:!!keys.e;
 const autoUse=()=>CFG.interact==='auto';
 const standVerb=l=>{l=String(l||'');return /TERMINAL|CORE NODE/.test(l)?'HACK':/LOCKER|DOOR/.test(l)?'OPEN':/MAG-LOCK/.test(l)?'DISABLE':/VALVE/.test(l)?'SEAL':/FROZEN/.test(l)?'DEFROST':/GENERATOR/.test(l)?'POWER UP':/PUMP/.test(l)?'START':'ACTIVATE'};
 const kL=a=>TDP_SETTINGS.keyLabel(a),pL=a=>TDP_SETTINGS.padLabel(a),useHint=it=>autoUse()?(it?`STAND HERE TO ${standVerb(it.label)}`:'stand on it'):`${TDP_SETTINGS.useVerb()} ${TDP_SETTINGS.useCtl(IN.src)}`;
+function cycleDrone(){const d=S.p.drones;S.p.drone=d[(d.indexOf(S.p.drone)+1)%d.length]}
 function cycleWeapon(d){if(!S||!S.p)return;const w=S.p.weapons;S.p.weapon=w[(w.indexOf(S.p.weapon)+d+w.length)%w.length]}
-const setM=e=>{IN.aim=null;IN.src='kbm';mouse.cx=e.clientX;mouse.cy=e.clientY;mouse.sx=e.clientX/hs;mouse.sy=e.clientY/hs;mouse.moved=true};
+function viewSize(){const probe=document.getElementById('safeprobe');let l=0,t=0,r=0,b=0;
+ if(probe){const s=getComputedStyle(probe);l=parseFloat(s.paddingLeft)||0;t=parseFloat(s.paddingTop)||0;r=parseFloat(s.paddingRight)||0;b=parseFloat(s.paddingBottom)||0}
+ return{l,t,r,b,w:Math.max(1,innerWidth-l-r),h:Math.max(1,innerHeight-t-b)}}
+const setM=e=>{IN.aim=null;IN.src='kbm';mouse.cx=e.clientX;mouse.cy=e.clientY;const v=viewSize();mouse.sx=(e.clientX-v.l)/hs;mouse.sy=(e.clientY-v.t)/hs;mouse.moved=true};
 addEventListener('mousemove',setM);addEventListener('mousedown',e=>{setM(e);mouse.down=true;onClick()});addEventListener('mouseup',()=>mouse.down=false);
 addEventListener('contextmenu',e=>e.preventDefault());
 let S;
@@ -349,8 +357,9 @@ function startFloor(){const f=floorAt(S.floor);S.f=f;S.dmgK=S.endless&&S.floor>=
  S.grid=new Uint8Array(GW*GH);for(let y=0;y<GH;y++)for(let x=0;x<GW;x++)S.grid[x+y*GW]=S.walls.some(w=>cp(x)>w.x&&cp(x)<w.x+w.w&&cp(y)>w.y&&cp(y)<w.y+w.h)?1:0;
  S.flow=new Int16Array(GW*GH);S.flowT=0;
  Object.assign(S.p,P(...f.spawn));S.enemies=[];S.bullets=[];S.ebullets=[];S.parts=[];S.arcs=[];S.rings=[];S.dying=[];S.beams=[];S.orbs=[];S.booms=[];S.decoy=null;S.pickups=[];S.hpPity=0;if(!S.demo){const nk=S.floor<10?2:1;for(let i=0;i<nk;i++){const q={x:S.p.x+(i?-70:70),y:S.p.y+40,r:12};resolve(q);S.pickups.push({x:q.x,y:q.y,life:1e9,heal:hpHeal(),start:true})}}S.p.hpos={x:S.p.x,y:S.p.y};S.exit=null;S.exitDwell=0;S.choices=null;S.texts=[];
- S.winds=null;S.well=null;S.useLatch=false;S.hazards=[];S.carry=null;S.socket=null;S.floorT=0;S.eliteSpawned=false;fixSpawn(f);const fx=f.points||!f.n?f:Object.assign({},f,{points:autoPoints(f.n)});S.fx=fx;S.obj.setup(S,fx);makeHazards(f);S.waveT=2;S.wave=0;S.cleared=false;showBanner(`${floorLbl(S.floor)} — ${f.name.toUpperCase()}`,f.task,3.5);if(S.endless)recordEndless()}
+ S.winds=null;S.well=null;S.useLatch=false;S.hazards=[];S.carry=null;S.socket=null;S.floorT=0;S.eliteSpawned=false;S.told=false;fixSpawn(f);const fx=f.points||!f.n?f:Object.assign({},f,{points:autoPoints(f.n)});S.fx=fx;S.obj.setup(S,fx);makeHazards(f);S.waveT=2;S.wave=0;S.cleared=false;S.brief={name:f.name,why:f.why||f.task,goal:f.goal||f.task,life:8,arm:.45};if(S.endless)recordEndless()}
 function showBanner(a,b,t){S.banner={a,b,life:t}}
+function dismissBrief(){if(!S||!S.brief||S.state!=='play'||S.brief.arm>0)return;if(S.brief.life>.75)S.brief.life=.75}
 function floatText(x,y,t,col){S.texts.push({x,y,t,col:col||'#bff',life:1.6})}
 // Gentler per-floor scaling (30 floors, halved 2026-11-04); difficulty mostly comes from new enemy mixes, hazards and objectives.
 function reachable(){const st=clamp(Math.floor(S.p.x/CELL),0,GW-1)+clamp(Math.floor(S.p.y/CELL),0,GH-1)*GW,D=new Int16Array(GW*GH).fill(-1);D[st]=0;const q=[st];
@@ -445,13 +454,13 @@ function weaponCard(p,fl){const o=rollWeapon(p,fl);if(!o)return null;const w=WEA
 const SUP={after:60,hurtAfter:35,cd:60,cdMiss:20,max:3,life:30};
 function supState(){if(!S.sup||S.sup.walls!==S.walls)S.sup={walls:S.walls,n:0,cd:0,armed:false,list:[]};return S.sup}
 function rollSupply(p,fl){const out=[],wc=weaponCard(p,fl),fm=freeMods(p,p.weapon);if(wc)out.push([wc,fl>=16?4:3]);
- if(fm.length){const m=pickR(fm),wk=p.weapon;out.push([{name:'Mod: '+MODS[m].name,apply:p=>{addMod(p,wk,m);p.ups.push(`${MODS[m].name} (${WEAPONS[wk].name})`)},noUp:true},3])}
+ if(fm.length){const m=pickR(fm),wk=p.weapon;out.push([{name:'Mod: '+MODS[m].name,mk:m,desc:MODS[m].desc,apply:p=>{addMod(p,wk,m);p.ups.push(`${MODS[m].name} (${WEAPONS[wk].name})`)},noUp:true},3])}
  const u=pickR(UPGRADES);out.push([u,4]);let r=Math.random()*out.reduce((a,b)=>a+b[1],0);for(const[c,w]of out){r-=w;if(r<=0)return c}return u}
 function supplyTick(dt){if(S.demo||!S.obj)return;const u=supState(),p=S.p;u.cd-=dt;
  const objDone=!!S.exit||S.obj.done(S),hurt=p.hp<p.maxHp*.35&&S.floorT>=SUP.hurtAfter;
  u.armed=!objDone&&u.n<SUP.max&&u.cd<=0&&!u.list.length&&(S.floorT>=SUP.after||hurt);
  for(const d of u.list){d.life-=dt;if(d.life>0&&dist(d,p)<p.r+22){d.life=0;d.got=true;const c=d.up;c.apply(p);if(!c.noUp)p.ups.push(c.name);u.cd=SUP.cd;S.stats.supply=(S.stats.supply||0)+1;sfx('choose');
-   floatText(p.x,p.y-30,'SUPPLY: '+c.name.replace(/^(Weapon|Mod): /,''),'#ffd35a');burst(d.x,d.y,'#ffd35a',26)}
+   floatText(p.x,p.y-30,'SUPPLY: '+c.name.replace(/^(Weapon|Mod): /,''),'#ffd35a');S.supplyPop={c,life:5};burst(d.x,d.y,'#ffd35a',26)}
   else if(d.life<=0&&!d.got)u.cd=SUP.cdMiss}u.list=u.list.filter(d=>d.life>0)}
 function supplyKill(e){const u=S.sup;if(!u||!u.armed||ENEMIES[e.type].boss||S.demo)return;u.armed=false;u.n++;
  const d={x:e.x,y:e.y,r:14,life:SUP.life,up:rollSupply(S.p,S.floor+1)};resolve(d);u.list.push(d);floatText(e.x,e.y-36,'SUPPLY DROP','#ffd35a');sfx('pickup');
@@ -497,16 +506,18 @@ function burst(x,y,col,n){for(let i=0;i<n;i++){const a=rnd(0,6.28),s=rnd(40,220)
 function ebullet(x,y,a,speed,dmg,col){S.ebullets.push({x,y,vx:Math.cos(a)*speed,vy:Math.sin(a)*speed,dmg,life:4,col:col||'#c6f',r:5})}
 
 // ================= FLOW / STATE =================
-function onKey(k,raw){if(!S)return;if(k==='escape'){if(S.state==='play')pauseGame();else if(S.state==='paused'){if(menuStack.length>1)backMenu();else resumeGame()}else if(S.state==='title'&&menuStack.length>1)backMenu();else if(S.state==='dead'||S.state==='victory'){goTitle()}return}if(S.state==='title'||S.state==='paused'||S.state==='descent')return;if(S.state==='victory'&&k==='e'&&CFG.endless){continueEndless();return}if((S.state==='dead'||S.state==='victory')&&k==='r'){startGame();return}
+function onKey(k,raw){if(!S)return;if(raw==='tab'||k==='tab'){if(S.state==='play'||S.state==='gear')toggleGear();return}
+ if(S.state==='gear'){if(k==='escape')closeGear();else if(/^[1-7]$/.test(k)&&S.p.weapons[+k-1]){S.p.weapon=S.p.weapons[+k-1];TDP_GEAR.render()}else if(k==='q'){cycleDrone();TDP_GEAR.render()}return}
+ if(k==='escape'){if(S.state==='play')pauseGame();else if(S.state==='paused'){if(menuStack.length>1)backMenu();else resumeGame()}else if(S.state==='title'&&menuStack.length>1)backMenu();else if(S.state==='dead'||S.state==='victory'){goTitle()}return}if(S.state==='title'||S.state==='paused'||S.state==='descent')return;if(S.state==='victory'&&k==='e'&&CFG.endless){continueEndless();return}if((S.state==='dead'||S.state==='victory')&&k==='r'){startGame();return}
  if(S.state==='upgrade'){const n=/^[123]$/.test(raw||'')?raw:/^[123]$/.test(k)?k:null;if(n)pick(+n-1);return}
  if(S.state==='play'){if(/^[1-7]$/.test(k)&&S.p.weapons[+k-1])S.p.weapon=S.p.weapons[+k-1];if(k==='wnext')cycleWeapon(1);if(k==='wprev')cycleWeapon(-1);
-  if(k==='q'){const d=S.p.drones;S.p.drone=d[(d.indexOf(S.p.drone)+1)%d.length]}}}
+  if(k==='q')cycleDrone()}}
 function onClick(){if(!S)return;if(S.state==='victory'&&CFG.endless){const b=endlessBtnRect();if(mouse.sx>b.x&&mouse.sx<b.x+b.w&&mouse.sy>b.y&&mouse.sy<b.y+b.h){continueEndless();return}}if(S.state==='dead'||S.state==='victory')startGame();
  else if(S.state==='upgrade'&&S.choices)S.choices.forEach((c,i)=>{const b=cardRect(i);if(mouse.sx>b.x&&mouse.sx<b.x+b.w&&mouse.sy>b.y&&mouse.sy<b.y+b.h)pick(i)})}
 function rollChoices(){const p=S.p,Wc=[],Dc=[],Mc=[];S.offerN=(S.offerN||0)+1;
  {const c=weaponCard(p,S.floor+1);if(c)Wc.push(c)}// floor-scaled weapon slot (tiers + grade)
- for(const[k,d]of Object.entries(DRONES))if(d.implemented&&!p.drones.includes(k))Dc.push({name:'Drone: '+d.name,desc:d.desc,gear:true,apply:p=>{p.drones.push(k);p.drone=k}});
- const wk=p.weapon;for(const m of freeMods(p,wk))Mc.push({name:'Mod: '+MODS[m].name,desc:`${MODS[m].desc} → ${WEAPONS[wk].name}`,gear:true,mod:true,apply:p=>{addMod(p,wk,m);p.ups.push(`${MODS[m].name} (${WEAPONS[wk].name})`)},noUp:true});
+ for(const[k,d]of Object.entries(DRONES))if(d.implemented&&!p.drones.includes(k))Dc.push({name:'Drone: '+d.name,desc:d.desc,gear:true,dk:k,apply:p=>{p.drones.push(k);p.drone=k}});
+ const wk=p.weapon;for(const m of freeMods(p,wk))Mc.push({name:'Mod: '+MODS[m].name,desc:`${MODS[m].desc} → ${WEAPONS[wk].name}`,gear:true,mod:true,mk:m,apply:p=>{addMod(p,wk,m);p.ups.push(`${MODS[m].name} (${WEAPONS[wk].name})`)},noUp:true});
  // Weighted for variety: every chamber offers one new weapon AND one new drone while any remain (so a run sees all categories),
  // the third card is a mod for the equipped weapon (45%) or a stat upgrade; when gear runs out, mods and stats fill in.
  const out=[];if(Wc.length)out.push(pickR(Wc));if(Dc.length)out.push(pickR(Dc));
@@ -524,7 +535,10 @@ function endlessUps(p){return ENDLESS_UPS.filter(u=>!u.ok||u.ok(p)).map(u=>{cons
   apply:p=>{p.eu=p.eu||{};p.eu[u.k]=n;u.apply(p);p.ups.push(u.name+(n>1?' '+ROMAN(n):''))}}})}
 function pick(i){const u=S.choices&&S.choices[i];if(!u)return;u.apply(S.p);if(!u.noUp)S.p.ups.push(u.name);sfx('choose');
  if(S.draft&&++S.draft.n<S.draft.of){S.choices=rollChoices();return}S.draft=null;sfx('descend');S.state='descent';S.descT=0;S.descDone=false}
-function cardRect(i){const w=260,h=150,g=30,x0=VW/2-(w*3+g*2)/2;return{x:x0+i*(w+g),y:VH/2-h/2,w,h}}
+// upgrade-chamber cards: local layout 260x258 (picture on top); k scales them up to fill phone screens (they were tiny/unreadable there)
+const CARD={w:260,h:258,g:24};
+const cardK=()=>TDP_GEAR.compact?Math.max(.8,Math.min(VW*.97/(CARD.w*3+CARD.g*2),VH*.8/CARD.h)):1;
+function cardRect(i){const k=cardK(),w=CARD.w*k,h=CARD.h*k,g=CARD.g*k,x0=VW/2-(w*3+g*2)/2;return{x:x0+i*(w+g),y:VH/2-h/2+10*k,w,h,k}}
 
 // ================= UPDATE =================
 // ---- floor-1 tutorial: data-driven steps; each advances when its condition holds ----
@@ -539,7 +553,7 @@ function update(dt){S.t+=dt;S._dt=dt;if(S.banner&&S.banner.life>0)S.banner.life-
  for(const t of S.texts){t.life-=dt;t.y-=20*dt}S.texts=S.texts.filter(t=>t.life>0);
  for(const a of S.arcs)a.life-=dt;S.arcs=S.arcs.filter(a=>a.life>0);for(const r of S.rings){r.life-=dt;r.r+=(r.v||400)*dt}if(S.dying){for(const d of S.dying)d.dt-=dt;S.dying=S.dying.filter(d=>d.dt>0)}S.rings=S.rings.filter(r=>r.life>0);for(const b of S.beams)b.life-=dt;S.beams=S.beams.filter(b=>b.life>0);for(const b of S.booms)b.life-=dt;S.booms=S.booms.filter(b=>b.life>0);
  if(S.state==='descent'){S.descT+=dt;if(!S.descDone&&S.descT>=.9){S.descDone=true;S.floor++;startFloor();saveGame()}if(S.descT>=1.8)S.state='play';return}
- if(S.state!=='play')return;const p=S.p,f=S.f;S.stats.time+=dt;if(S.endless&&S.floor>=TDP_ENDLESS.START)S.stats.etime=(S.stats.etime||0)+dt;TDP_STATS.tick(S,dt);tutTick(dt);
+ if(S.state!=='play')return;const p=S.p,f=S.f;if(S.brief&&S.brief.life>0){S.brief.life-=dt;if(S.brief.arm>0)S.brief.arm-=dt}S.stats.time+=dt;if(S.endless&&S.floor>=TDP_ENDLESS.START)S.stats.etime=(S.stats.etime||0)+dt;TDP_STATS.tick(S,dt);tutTick(dt);
  S.floorT+=dt;p.slow=1;S.obj.update&&S.obj.update(dt,S,f);
  if(p.hp>0&&p.hp<p.maxHp*.3){S.lowT=(S.lowT||0)+dt;if(S.lowT>=(p.hp<p.maxHp*.15?.75:1.05)){S.lowT=0;sfx('heartbeat')}}else S.lowT=.9;
  if(f.elite&&!S.eliteSpawned&&S.floorT>=f.elite.at){S.eliteSpawned=true;const pt=edgeSpawn(),e=spawnEnemy(f.elite.type,pt.x,pt.y);e.hp=e.max=e.max*(f.elite.hp||.55);e.elite=true;sfx('roar');S.shake=12;showBanner('ELITE: '+ENEMIES[f.elite.type].name.toUpperCase(),f.elite.line||'A champion of the hive joins the fight',2.5)}updateHazards(dt);resolve(p);
@@ -557,9 +571,10 @@ function update(dt){S.t+=dt;S._dt=dt;if(S.banner&&S.banner.life>0)S.banner.life-
   else if((it.kind==='touch'||it.kind==='pickup')&&d<it.r+p.r+8){it.done=true;burst(it.x,it.y,it.color,25);sfx('pickup');if(it.kind==='touch')floatText(it.x,it.y-30,it.label+' RELAYED',it.color);it.onDone&&it.onDone(it)}
   if(it.flash>0)it.flash-=dt}
  // waves / exit
- const objDone=S.obj.done(S);
+ const objDone=S.obj.done(S),fresh=objDone&&!S.told;if(fresh)S.told=true;
  if(!objDone){S.waveT-=dt;if(S.waveT<=0){spawnWave();S.waveT=Math.max(f.interval*.75,f.interval-S.floor*.1)}}
- else if(!S.exit&&S.enemies.length===0){S.exit=P(...(f.exit||[20,11]));showBanner('FLOOR CLEAR',isFinal()?'Reach the extraction chamber':'Enter the upgrade chamber',2.5)}
+ else if(!S.exit&&S.enemies.length===0){S.exit=P(...(f.exit||[20,11]));showBanner(isFinal()?'EXTRACTION':'FLOOR CLEAR',(fresh&&f.clear)?f.clear:(isFinal()?'Reach the extraction chamber':'Enter the upgrade chamber'),3.2)}
+ else if(fresh&&f.clear)showBanner('OBJECTIVE COMPLETE',f.clear,3.4)
  if(S.exit){S.exitDwell=dist(S.exit,p)<40?(S.exitDwell||0)+dt:0}if(S.exit&&dist(S.exit,p)<40&&(!autoUse()||S.exitDwell>=.4)){if(isFinal()){S.state='ending';recordBest(true);if(!CFG.endless){CFG.endless=true;saveCfg()}try{localStorage.removeItem('tdp_save')}catch(e){}sfx('complete');playEnding();return}S.state='upgrade';S.choices=rollChoices();sfx('complete');return}
  // enemies
  S.flowT-=dt;if(S.flowT<=0){buildFlow();S.flowT=.2}
@@ -595,16 +610,19 @@ function update(dt){S.t+=dt;S._dt=dt;if(S.banner&&S.banner.life>0)S.banner.life-
 
 // ================= RENDER (Three.js, angled top-down) =================
 // Simulation stays on the 2D ground plane: sim (x,y) -> world (x, height, y).
-const renderer=new THREE.WebGLRenderer({antialias:true,preserveDrawingBuffer:true});
-renderer.setPixelRatio(Math.min(devicePixelRatio||1,1.5));renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+// phones/tablets/the Android app: lighter renderer (no MSAA, no preserved buffer, pixel ratio capped at 1, no post-processing below High)
+const MOB=(()=>{try{return !!(window.Capacitor&&Capacitor.isNativePlatform&&Capacitor.isNativePlatform())||matchMedia('(pointer:coarse)').matches||/Android|iPhone|iPad|Mobile/i.test(navigator.userAgent)}catch(e){return false}})();window.TDP_MOB=MOB;
+const renderer=new THREE.WebGLRenderer({antialias:!MOB,preserveDrawingBuffer:!MOB,powerPreference:'high-performance'});
+const PRMAX=()=>MOB?1:1.5;const usePost=()=>CFG.quality!=='low';
+renderer.setPixelRatio(Math.min(devicePixelRatio||1,PRMAX()));renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
 renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.0;renderer.domElement.id='gl';document.body.appendChild(renderer.domElement);
 const hud=document.createElement('canvas');hud.id='hud';document.body.appendChild(hud);const ctx=hud.getContext('2d');
 const scene=new THREE.Scene();scene.background=new THREE.Color(0x020507);scene.fog=new THREE.Fog(0x020507,1000,2100);
 const camera=new THREE.PerspectiveCamera(46,1,10,5000);const CAM_OFF=new THREE.Vector3(0,600,400);// ~56deg tilt
 let hs=1,VW=W,VH=H;
-function resize(){renderer.setSize(innerWidth,innerHeight);hud.width=innerWidth;hud.height=innerHeight;camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();
- hs=Math.min(innerWidth/W,innerHeight/H);VW=innerWidth/hs;VH=innerHeight/hs;
- if(composer){composer.setPixelRatio(renderer.getPixelRatio());composer.setSize(innerWidth,innerHeight);if(bloomPass){const k=CFG.quality==='high'?.5:.33;bloomPass.resolution.set(innerWidth*k,innerHeight*k)}}}
+function resize(){const v=viewSize();renderer.setSize(v.w,v.h);hud.width=v.w;hud.height=v.h;renderer.domElement.style.left=v.l+'px';renderer.domElement.style.top=v.t+'px';hud.style.left=v.l+'px';hud.style.top=v.t+'px';camera.aspect=v.w/v.h;camera.updateProjectionMatrix();
+ hs=Math.min(v.w/W,v.h/H);VW=v.w/hs;VH=v.h/hs;
+ if(composer){composer.setPixelRatio(renderer.getPixelRatio());composer.setSize(v.w,v.h);if(bloomPass){const k=MOB?.25:CFG.quality==='high'?.5:.33;bloomPass.resolution.set(v.w*k,v.h*k)}}}
 addEventListener('resize',resize);resize();
 const hemi=new THREE.HemisphereLight(0x7fb8c8,0x06090b,0.7);scene.add(hemi);
 const sun=new THREE.DirectionalLight(0xa8e0ee,1.3);sun.position.set(W/2-350,950,H/2+450);sun.target.position.set(W/2,0,H/2);sun.castShadow=true;sun.shadow.mapSize.set(2048,2048);
@@ -710,6 +728,43 @@ function makeDrone(k){const g=new THREE.Group(),c=DRONES[k].color;g.add(cyl(9,6,
  if(k==='needler')for(let i=0;i<4;i++){const c2=new THREE.Mesh(new THREE.ConeGeometry(2,14,5),emis(c,1.2,0x220033));c2.rotation.z=Math.PI/2;c2.rotation.y=i*Math.PI/2;c2.position.set(Math.cos(i*Math.PI/2)*12,0,-Math.sin(i*Math.PI/2)*12);c2.rotation.order='YZX';g.add(c2)}
  if(k==='harvestor'){for(const sd of[-1,1]){const cl=box(2,10,2,mat.armor,sd*5,-8,0,false);cl.rotation.z=sd*.4;g.add(cl)}g.add(new THREE.Mesh(new THREE.SphereGeometry(5,10,8),add(0x88ff55,.6)))}
  if(k==='specter'){g.children[0].material=add(0x99eeff,.35);const h=new THREE.Mesh(new THREE.ConeGeometry(14,30,16,1,true),add(0x99eeff,.08));h.position.y=-18;g.add(h)}return g}
+// ---- option pictures: weapons/drones are rendered ONCE from the game's own 3D models (cold-blue rim light) into cached canvases/data URLs;
+// mods and stat upgrades use the canvas line icons from js/icons.js. cardPic(card) -> canvas 192x128 for any chamber/supply/loadout option.
+const THUMB={rt:null,scene:null,cam:null,cv:new Map(),url:new Map()};
+const SRGB=(()=>{const t=new Uint8Array(256);for(let i=0;i<256;i++){const c=i/255;t[i]=Math.round(255*(c<=.0031308?c*12.92:1.055*Math.pow(c,1/2.4)-.055))}return t})();
+function modelThumb(kind,key){const id=kind+':'+key;if(THUMB.cv.has(id))return THUMB.cv.get(id);
+ const W=192,H=128,K=2,RW=W*K,RH=H*K;
+ if(!THUMB.scene){THUMB.rt=new THREE.WebGLRenderTarget(RW,RH,{depthBuffer:true});THUMB.scene=new THREE.Scene();THUMB.cam=new THREE.PerspectiveCamera(28,W/H,1,2000);
+  const sc=THUMB.scene;sc.add(new THREE.HemisphereLight(0x8fc4ff,0x05090e,1.1));
+  const key1=new THREE.DirectionalLight(0xdff0ff,2.1);key1.position.set(-40,70,90);sc.add(key1);
+  const rim=new THREE.DirectionalLight(0x35c6ff,3.4);rim.position.set(60,30,-80);sc.add(rim);
+  const rim2=new THREE.DirectionalLight(0x2a7bff,1.6);rim2.position.set(-90,10,-30);sc.add(rim2);
+  const acc=new THREE.PointLight(0xff3050,.9,0,2);acc.position.set(0,-30,40);sc.add(acc)}
+ const obj=kind==='drone'?makeDrone(key):makeGun(key);const hold=new THREE.Group();hold.add(obj);THUMB.scene.add(hold);
+ // brighten dark game metals for the portrait (clones, the game's own materials are untouched): no env map here, so metal would render black
+ const clones=[];obj.traverse(o=>{if(o.isMesh&&o.material&&o.material.isMeshStandardMaterial&&!(o.material.emissive.getHex()!==0&&o.material.emissiveIntensity>.6)){const m=o.material.clone();m.metalness=Math.min(m.metalness,.2);m.roughness=Math.max(.45,m.roughness*.9);{const L=(m.color.r+m.color.g+m.color.b)/3,f=Math.min(1.1,.38+L*7);m.color.setRGB(.5*f,.62*f,.72*f)}m.emissive=new THREE.Color(0x0b2432);m.emissiveIntensity=1;o.material=m;clones.push(m)}});
+ const bb=new THREE.Box3().setFromObject(obj),ctr=bb.getCenter(new THREE.Vector3()),sz=bb.getSize(new THREE.Vector3());obj.position.sub(ctr);
+ if(kind==='drone'){const au=obj.getObjectByName&&obj.getObjectByName('aura');if(au)obj.remove(au);const b2=new THREE.Box3().setFromObject(obj),c2=b2.getCenter(new THREE.Vector3());obj.position.sub(c2)}
+ const bs=new THREE.Box3().setFromObject(obj).getSize(new THREE.Vector3()),fit=kind==='drone'?Math.max(bs.x*.5,bs.z*.42+bs.y*.55):Math.max(bs.x*.4,bs.y*1.3,bs.z*.95);
+ const dist=fit/Math.tan(THREE.MathUtils.degToRad(28/2))/ (kind==='drone'?1.0:1.0);
+ const dir=kind==='drone'?new THREE.Vector3(.2,.55,1):new THREE.Vector3(-.3,.5,1);dir.normalize();THUMB.cam.position.copy(dir.multiplyScalar(dist));THUMB.cam.lookAt(0,0,0);
+ const R=renderer,prevRT=R.getRenderTarget(),prevCol=new THREE.Color(),prevA=R.getClearAlpha();R.getClearColor(prevCol);
+ R.setRenderTarget(THUMB.rt);R.setClearColor(0x000000,0);R.clear();R.render(THUMB.scene,THUMB.cam);
+ const buf=new Uint8Array(RW*RH*4);R.readRenderTargetPixels(THUMB.rt,0,0,RW,RH,buf);R.setRenderTarget(prevRT);R.setClearColor(prevCol,prevA);
+ THUMB.scene.remove(hold);clones.forEach(m=>m.dispose());
+ const tmp=document.createElement('canvas');tmp.width=RW;tmp.height=RH;const tg=tmp.getContext('2d'),im=tg.createImageData(RW,RH);
+ for(let y=0;y<RH;y++){const src=(RH-1-y)*RW*4,dst=y*RW*4;for(let x=0;x<RW*4;x+=4){const a=buf[src+x+3];im.data[dst+x]=SRGB[buf[src+x]];im.data[dst+x+1]=SRGB[buf[src+x+1]];im.data[dst+x+2]=SRGB[buf[src+x+2]];im.data[dst+x+3]=a}}
+ tg.putImageData(im,0,0);
+ const c=document.createElement('canvas');c.width=W;c.height=H;const g=c.getContext('2d');TDP_ICONS.plate(g,W,H);g.imageSmoothingQuality='high';g.shadowColor='rgba(60,220,255,.55)';g.shadowBlur=14;g.drawImage(tmp,0,0,W,H);g.shadowBlur=0;
+ THUMB.cv.set(id,c);return c}
+function pic(kind,key){return kind==='weapon'||kind==='drone'?modelThumb(kind,key):TDP_ICONS.icon(kind,key)}
+function cardPic(c){if(!c)return null;try{
+  if(c.wk){const b=pic('weapon',c.wk);if(!c.refit)return b;const id='refit:'+c.wk;if(!THUMB.cv.has(id)){const n=document.createElement('canvas');n.width=b.width;n.height=b.height;const g=n.getContext('2d');g.drawImage(b,0,0);TDP_ICONS.badge(g,b.width-30,b.height-30,22);THUMB.cv.set(id,n)}return THUMB.cv.get(id)}
+  if(c.dk)return pic('drone',c.dk);if(c.mk)return pic('mod',c.mk);return pic('stat',c.name)}catch(e){console.warn('card picture failed',e);return null}}
+function picURL(kind,key){const id=kind+':'+key;if(!THUMB.url.has(id)){const cv=pic(kind,key);THUMB.url.set(id,cv?cv.toDataURL('image/png'):'')}return THUMB.url.get(id)}
+// render the 13 model pictures one per slice shortly after load so the first chamber/panel never hitches
+function prewarmPics(){const q=[...Object.keys(WEAPONS).filter(k=>WEAPONS[k].implemented).map(k=>['weapon',k]),...Object.keys(DRONES).filter(k=>DRONES[k].implemented).map(k=>['drone',k])];
+ const step=()=>{const j=q.shift();if(!j)return;try{modelThumb(j[0],j[1])}catch(e){}setTimeout(step,90)};setTimeout(step,2500)}
 function makeItem(it){const g=new THREE.Group(),c=new THREE.Color(it.color),u={};
  if(TDP_CONTENT.itemMesh(it,g,u)){g.position.set(it.x,0,it.y);g.userData=u;return g}
  if(it.kind==='hold'){g.add(cyl(22,26,8,mat.steel,0,4,0));const L=it.label;
@@ -752,14 +807,14 @@ function buildLevel(){if(level){scene.remove(level);disposeQ.push(level)}poolTri
  for(const w of wallFade)for(const m of w.meshes){const c=m.material.clone();c.transparent=true;c.userData.base=m.material.opacity??1;m.material=c;w.mats.push(c)}
  TDP_CONTENT.setPiece(f,{T:THREE,add:(...o)=>level.add(...o),walls:S.walls,trim,P,W,H});
  if(HQ){const pg=new THREE.Group();level.add(pg);TDP_VIS.props({group:pg,W,H,dark:mat.dark,emis:emis(tint,1.6),inner:(x,y)=>S.walls.some(w=>x>w.x-40&&x<w.x+w.w+40&&y>w.y-40&&y<w.y+w.h+40)}).forEach(keep)}
- if(window.TDP_LOOK)TDP_LOOK.build({walls:S.walls,cp,level,keep});builtFor=S.walls;camPos.set(S.p.x,0,S.p.y).add(CAM_OFF);needWarm=true}
+ if(window.TDP_LOOK)TDP_LOOK.build({walls:S.walls,cp,level,keep,lights:{pLight,spot},mats:{floorHQ:floorMatHQ,floor:floorMat,wallHQ:wallMatHQ,topHQ:topMatHQ,steel:mat.steel}});builtFor=S.walls;camPos.set(S.p.x,0,S.p.y).add(CAM_OFF);needWarm=true}
 // shader pre-warm: once per level build, draw one (microscopic, light-stripped) copy of every enemy/boss model plus fx
 // meshes next to the camera target so every program (incl. shadow-depth variants) is compiled before play starts.
 let needWarm=false,warmG=null;
 function prewarm(){if(!warmG){warmG=new THREE.Group();for(const t of Object.keys(ENEMIES)){const g=bugClone(t);g.userData.hf.visible=g.userData.fr.visible=g.userData.st.visible=true;warmG.add(g)}
   for(const m of[basic('#fff'),add(0xff7a30,.55),emis(0xffbb33,1.5,0x332200)])warmG.add(new THREE.Mesh(geoB,m));
   const strip=[];warmG.traverse(o=>{if(o.isLight)strip.push(o)});strip.forEach(o=>o.parent.remove(o));warmG.scale.setScalar(.001)}
- warmG.position.set(S.p.x,20,S.p.y);scene.add(warmG);const c0=performance.now();if(composer&&CFG.quality!=='low')composer.render();else renderer.render(scene,camera);scene.remove(warmG);window.__warmMs=performance.now()-c0}
+ warmG.position.set(S.p.x,20,S.p.y);scene.add(warmG);const c0=performance.now();if(composer&&usePost())composer.render();else renderer.render(scene,camera);scene.remove(warmG);window.__warmMs=performance.now()-c0}
 // ---- dynamic entity sync ----
 const itemMeshes=new Map(),enemyMeshes=new Map(),bulletMeshes=new Map(),pickMeshes=new Map(),ebMeshes=new Map(),ringMeshes=new Map();
 // object pooling: meshes of keyed lists (enemies, bullets) are hidden and reused instead of rebuilt
@@ -808,7 +863,7 @@ var composer=null,bloomPass=null,gradePass=null;
 // flashlight: one shadow-casting SpotLight following the player's aim (Medium: no shadow, Low: off)
 const spot=new THREE.SpotLight(0xfff0d8,0,760,.52,.55,1.6);spot.shadow.mapSize.set(1024,1024);spot.shadow.bias=-0.0008;spot.shadow.camera.near=20;spot.shadow.camera.far=800;scene.add(spot,spot.target);
 if(ADDONS){try{composer=new ADDONS.EffectComposer(renderer);composer.addPass(new ADDONS.RenderPass(scene,camera));bloomPass=new ADDONS.UnrealBloomPass(new THREE.Vector2(512,512),.8,.55,.78);composer.addPass(bloomPass);composer.addPass(new ADDONS.OutputPass());if(ADDONS.ShaderPass){gradePass=new ADDONS.ShaderPass(TDP_VIS.GradeShader);composer.addPass(gradePass)}resize()}catch(e){console.warn('bloom disabled',e);composer=null}}
-function applyQuality(){const q=CFG.quality;renderer.setPixelRatio(q==='low'?.85:q==='med'?1:Math.min(devicePixelRatio||1,1.5));
+function applyQuality(){const q=CFG.quality;renderer.setPixelRatio(Math.min(devicePixelRatio||1,q==='low'?(MOB?(window.__lowScaled?.65:.8):.85):q==='med'?1:PRMAX()));
  const sh=q!=='low';if(renderer.shadowMap.enabled!==sh){renderer.shadowMap.enabled=sh;scene.traverse(o=>{if(o.material)(Array.isArray(o.material)?o.material:[o.material]).forEach(m=>m.needsUpdate=true)})}
  sun.castShadow=sh;spot.visible=q!=='low';spot.castShadow=q==='high';if(gradePass)gradePass.enabled=q!=='low';ground.material=q==='low'?floorMat:floorMatHQ;
  decMesh.material.alphaMap=q==='low'?null:TDP_VIS.splat();decMesh.material.needsUpdate=true;if(applyQuality.q&&applyQuality.q!==q)builtFor=null;applyQuality.q=q;const ms=q==='high'?2048:1024;if(sun.shadow.mapSize.x!==ms){sun.shadow.mapSize.set(ms,ms);if(sun.shadow.map){sun.shadow.map.dispose();sun.shadow.map=null}}if(window.TDP_LOOK)TDP_LOOK.quality(q,{bloom:bloomPass,grade:gradePass});resize()}
@@ -826,7 +881,7 @@ function render(dt){const snap=dt===undefined;dt=dt||1/60;const p=S.p,f=S.f;if(d
  const flick=f.dark&&Math.random()<.05?.35:1;pLight.position.set(p.x,110,p.y+30);pLight.intensity=(f.dark?26000:14000)*flick;
  if(S.stats.shots!==lastShots){lastShots=S.stats.shots;muzzleT=.06}muzzleT-=dt;
  const tip={x:p.x+Math.cos(aim)*34-Math.sin(aim)*9,y:p.y+Math.sin(aim)*34+Math.cos(aim)*9};
- spot.position.set(p.x-Math.cos(aim)*6,64,p.y-Math.sin(aim)*6);spot.target.position.set(p.x+Math.cos(aim)*260,0,p.y+Math.sin(aim)*260);spot.intensity=S.state==='title'?0:(f.dark?3.2e5:1.3e5)*flick;
+ spot.position.set(p.x-Math.cos(aim)*6,64,p.y-Math.sin(aim)*6);spot.target.position.set(p.x+Math.cos(aim)*260,0,p.y+Math.sin(aim)*260);spot.intensity=S.state==='title'?0:(f.dark?3.2e5:1.3e5)*flick*(window.TDP_LOOK&&TDP_LOOK.spotK?TDP_LOOK.spotK():1);
  if(gradePass){gradePass.uniforms.time.value=S.t%10;gradePass.uniforms.dmg.value=Math.max(0,S.hurtT||0)/.35+(p.hp<p.maxHp*.25&&S.state==='play'?.25+.15*Math.sin(S.t*6):0)}
  muzzle.position.set(tip.x,32,tip.y);muzzle.intensity=muzzleT>0?16000:0;muzzle.color.set({flamethrower:0xff8840,grenade_launcher:0xffcc55,railgun:0xdd99ff,bio_harvester:0x66ff66}[p.weapon]||0xbfffff);
  flash.visible=muzzleT>0;flash.position.copy(muzzle.position);flash.scale.setScalar(rnd(.7,1.4));
@@ -879,21 +934,45 @@ function render(dt){const snap=dt===undefined;dt=dt||1/60;const p=S.p,f=S.f;if(d
  // particles
  const n=Math.min(PMAX,S.parts.length);for(let i=0;i<n;i++){const q=S.parts[i],c=C(q.col);pPos[i*3]=q.x;pPos[i*3+1]=8+(.6-q.life)*40;pPos[i*3+2]=q.y;pCol[i*3]=c.r;pCol[i*3+1]=c.g;pCol[i*3+2]=c.b}
  pGeo.setDrawRange(0,n);pGeo.attributes.position.needsUpdate=true;pGeo.attributes.color.needsUpdate=true;
- fxUpdate(dt);TDP_INST.lightBudget(scene);if(needWarm){needWarm=false;prewarm()}if(composer&&CFG.quality!=='low')composer.render();else renderer.render(scene,camera);drawHUD()}
+ fxUpdate(dt);TDP_INST.lightBudget(scene);if(needWarm){needWarm=false;prewarm()}if(composer&&usePost())composer.render();else renderer.render(scene,camera);drawHUD()}
 // ---- aiming: raycast mouse onto the ground plane at gun height ----
 const ray=new THREE.Raycaster(),aimPlane=new THREE.Plane(new THREE.Vector3(0,1,0),-20),_hit=new THREE.Vector3();
-function aimRaycast(){ray.setFromCamera(new THREE.Vector2(mouse.cx/innerWidth*2-1,-(mouse.cy/innerHeight)*2+1),camera);if(ray.ray.intersectPlane(aimPlane,_hit)){mouse.x=_hit.x;mouse.y=_hit.z}}
+function aimRaycast(){const v=viewSize();ray.setFromCamera(new THREE.Vector2((mouse.cx-v.l)/v.w*2-1,-((mouse.cy-v.t)/v.h)*2+1),camera);if(ray.ray.intersectPlane(aimPlane,_hit)){mouse.x=_hit.x;mouse.y=_hit.z}}
 // ---- HUD overlay ----
-const _v=new THREE.Vector3();function toScreen(x,h,y){_v.set(x,h,y).project(camera);return{x:(_v.x+1)/2*innerWidth,y:(1-_v.y)/2*innerHeight,vis:_v.z<1}}
+const _v=new THREE.Vector3();function toScreen(x,h,y){_v.set(x,h,y).project(camera);return{x:(_v.x+1)/2*hud.width,y:(1-_v.y)/2*hud.height,vis:_v.z<1}}
 function text(t,x,y,c,sz,al){ctx.fillStyle=c;ctx.font=`${sz||14}px monospace`;ctx.textAlign=al||'left';ctx.fillText(t,x,y)}
 function hudPanel(x,y,w,h){const g=ctx.createLinearGradient(x,y,x,y+h);g.addColorStop(0,'rgba(4,26,32,.82)');g.addColorStop(1,'rgba(1,8,11,.7)');ctx.fillStyle=g;ctx.fillRect(x,y,w,h);
  ctx.strokeStyle='rgba(40,170,180,.45)';ctx.lineWidth=1;ctx.strokeRect(x+.5,y+.5,w-1,h-1);ctx.strokeStyle='#5ff';ctx.lineWidth=2;ctx.shadowColor='#3ff';ctx.shadowBlur=6;const c=10;ctx.beginPath();
  for(const[px,py,dx,dy]of[[x,y,1,1],[x+w,y,-1,1],[x,y+h,1,-1],[x+w,y+h,-1,-1]]){ctx.moveTo(px+dx*c,py);ctx.lineTo(px,py);ctx.lineTo(px,py+dy*c)}ctx.stroke();ctx.shadowBlur=0;ctx.lineWidth=1}
 function hudBar(x,y,w,h,f,cols,seg){f=Math.max(0,Math.min(1,f));ctx.fillStyle='#061418';ctx.fillRect(x,y,w,h);const g=ctx.createLinearGradient(x,0,x+w,0);g.addColorStop(0,cols[0]);g.addColorStop(1,cols[1]);ctx.fillStyle=g;ctx.shadowColor=cols[1];ctx.shadowBlur=8;ctx.fillRect(x,y,w*f,h);ctx.shadowBlur=0;
  ctx.fillStyle='rgba(255,255,255,.18)';ctx.fillRect(x,y,w*f,h*.35);ctx.fillStyle='rgba(0,0,0,.35)';for(let i=1;i<seg;i++)ctx.fillRect(x+w*i/seg,y,1,h);ctx.strokeStyle='rgba(120,255,250,.5)';ctx.strokeRect(x+.5,y+.5,w-1,h-1)}
-function drawHUD(){const p=S.p,f=S.f;ctx.setTransform(1,0,0,1,0,0);ctx.clearRect(0,0,hud.width,hud.height);if(S.state==='title')return;
+function wrapLines(str,maxW,font){ctx.font=font;const out=[];let cur='';for(const w of String(str).split(' ')){const t=cur?cur+' '+w:w;if(cur&&ctx.measureText(t).width>maxW){out.push(cur);cur=w}else cur=t}if(cur)out.push(cur);return out}
+function drawBriefCard(){const b=S.brief;if(!b||b.life<=0)return;const dw=hud.width,dh=hud.height,a=Math.min(1,b.life/.8);
+ ctx.save();ctx.setTransform(1,0,0,1,0,0);ctx.globalAlpha=a;
+ const titlePx=Math.max(16,Math.min(22,Math.round(dw/42))),bodyPx=Math.max(14,Math.min(17,Math.round(dw/50)));
+ const maxW=Math.min(dw-28,640),pad=14;
+ const head=`${floorLbl(S.floor)}  ·  ${b.name.toUpperCase()}`;
+ const bits=[...(S.endless?['The hive rebuilt this deck.']:[]),b.why,'Goal: '+b.goal];
+ const bodyFont=`${bodyPx}px monospace`,titleFont=`bold ${titlePx}px monospace`;
+ const lines=bits.flatMap(s=>wrapLines(s,maxW-pad*2,bodyFont));
+ const lh=bodyPx+6,cardH=pad+titlePx+16+lines.length*lh+pad+16,cardW=maxW;
+ const x=(dw-cardW)/2;let y=Math.max(8,Math.min(dh*.08,36));if(x<(S.hudRight||510*hs)+8)y=Math.max(y,(S.hudBottom||160*hs)+8); /* keep the card clear of the top-left HP/goal panel on narrow screens */
+ if(y+cardH>dh-8)y=Math.max(8,dh-8-cardH);
+ ctx.fillStyle='rgba(2,12,16,.92)';ctx.fillRect(x,y,cardW,cardH);
+ ctx.strokeStyle='#3ff';ctx.lineWidth=2;ctx.strokeRect(x+.5,y+.5,cardW-1,cardH-1);
+ ctx.font=titleFont;ctx.fillStyle='#dff';ctx.textAlign='center';ctx.fillText(head,dw/2,y+pad+titlePx-4);
+ ctx.font=bodyFont;ctx.fillStyle='#cfe';lines.forEach((ln,i)=>ctx.fillText(ln,dw/2,y+pad+titlePx+18+i*lh));
+ ctx.fillStyle='#6aa';ctx.font=`${Math.max(12,bodyPx-2)}px monospace`;ctx.fillText(b.arm>0?'':'Tap, click, or wait',dw/2,y+cardH-10);
+ ctx.restore()}
+function drawSupplyPop(sp){const c=sp.c,a=Math.min(1,sp.life/.8,(5-sp.life)/.25+.2),cm=TDP_GEAR.compact,w=cm?240:290,h=cm?64:80,dw=hud.width,x=Math.max(dw/2-w/2,(S.hudRight||0)+10),y=10,pw=h*1.5-8,ph=h-8;
+ ctx.save();ctx.setTransform(1,0,0,1,0,0);ctx.globalAlpha=a;ctx.fillStyle='rgba(2,14,18,.92)';ctx.fillRect(x,y,w,h);ctx.strokeStyle='#ffd35a';ctx.shadowColor='#ffd35a';ctx.shadowBlur=10;ctx.lineWidth=2;ctx.strokeRect(x+.5,y+.5,w-1,h-1);ctx.shadowBlur=0;
+ const pc=cardPic(c);if(pc)ctx.drawImage(pc,x+4,y+4,pw,ph);const tx=x+pw+12,nm=c.name.replace(/^(Weapon|Drone|Mod|Refit):\s*/,'');
+ ctx.textAlign='left';ctx.fillStyle='#ffd35a';ctx.font='bold 11px monospace';ctx.fillText('SUPPLY DROP',tx,y+16);ctx.fillStyle='#eff';ctx.font=`bold ${cm?12:14}px monospace`;ctx.fillText(nm.length>24?nm.slice(0,23)+'…':nm,tx,y+34);
+ ctx.fillStyle='#8bb';ctx.font='10px monospace';wrapLines(c.desc||'',w-pw-20,'10px monospace').slice(0,cm?2:3).forEach((ln,j)=>ctx.fillText(ln,tx,y+48+j*12));ctx.restore()}
+function drawHUD(){const p=S.p,f=S.f;ctx.setTransform(1,0,0,1,0,0);ctx.clearRect(0,0,hud.width,hud.height);if(S.state==='title'){TDP_GEAR.hud({show:false});return}
  if(S.hurtT>0){const g=ctx.createRadialGradient(hud.width/2,hud.height/2,hud.height*.3,hud.width/2,hud.height/2,hud.height*.8);g.addColorStop(0,'rgba(255,0,0,0)');g.addColorStop(1,`rgba(255,20,20,${S.hurtT*1.2})`);ctx.fillStyle=g;ctx.fillRect(0,0,hud.width,hud.height)}
  if(S.state==='play'&&p.hp>0&&p.hp<p.maxHp*.3){const k=.2+.12*Math.sin(S.t*7),g=ctx.createRadialGradient(hud.width/2,hud.height/2,hud.height*.38,hud.width/2,hud.height/2,hud.height*.85);g.addColorStop(0,'rgba(255,0,0,0)');g.addColorStop(1,`rgba(200,0,0,${k})`);ctx.fillStyle=g;ctx.fillRect(0,0,hud.width,hud.height);const sc=hud.height/VH;ctx.save();ctx.font='bold '+Math.round(15*sc)+'px monospace';ctx.textAlign='center';const lt='LOW HEALTH — back off and grab green +HP drops',lw=ctx.measureText(lt).width+28*sc,ly=hud.height-46*sc;ctx.fillStyle='rgba(20,0,0,.7)';ctx.fillRect(hud.width/2-lw/2,ly-17*sc,lw,24*sc);ctx.strokeStyle='rgba(255,70,70,.6)';ctx.strokeRect(hud.width/2-lw/2+.5,ly-17*sc+.5,lw-1,24*sc-1);ctx.fillStyle=`rgba(255,110,110,${.8+.2*Math.sin(S.t*7)})`;ctx.fillText(lt,hud.width/2,ly);ctx.restore()}
+ if(S.supplyPop&&S.state==='play'){const sp=S.supplyPop;sp.life-=S._dt||.016;if(sp.life<=0)S.supplyPop=null;else drawSupplyPop(sp)}
  const fs=Math.max(10,11*hs);
  ctx.shadowColor='#000';ctx.shadowBlur=4;
  for(const it of S.items){if((it.done&&it.kind!=='hold')||(it.kind==='pickup'&&it.done))continue;const s=toScreen(it.x,it.kind==='hold'?95:70,it.y);if(!s.vis)continue;
@@ -902,26 +981,38 @@ function drawHUD(){const p=S.p,f=S.f;ctx.setTransform(1,0,0,1,0,0);ctx.clearRect
   if(it.kind==='shoot'){ctx.fillStyle='#300';ctx.fillRect(s.x-22,s.y+5,44,4);ctx.fillStyle=it.color;ctx.fillRect(s.x-22,s.y+5,44*it.hp/it.max,4)}}
  ctx.globalAlpha=1;if(S.exit){const s=toScreen(S.exit.x,120,S.exit.y);text(isFinal()?'EXTRACTION':'UPGRADE CHAMBER',s.x,s.y,'#7ff',fs+2,'center')}
  for(const t of S.texts){const s=toScreen(t.x,70,t.y);ctx.globalAlpha=Math.min(1,t.life);text(t.t,s.x,s.y,t.col,fs+2,'center')}ctx.globalAlpha=1;ctx.shadowBlur=0;
- if(S.state==='play')TDP_MINIMAP.arrows(ctx,S,toScreen,innerWidth,innerHeight,hs);
+ if(S.state==='play')TDP_MINIMAP.arrows(ctx,S,toScreen,hud.width,hud.height,hs);
  ctx.setTransform(hs,0,0,hs,0,0);
- hudPanel(10,10,500,150);
- hudBar(18,18,240,16,p.hp/p.maxHp,p.hp/p.maxHp<.3?['#f33','#f88']:['#0bb','#6ff'],10);
+ {const cm=TDP_GEAR.compact,hh=cm?Math.max(hs,.9):hs,pw=cm?300:500,ph=cm?86:88;ctx.setTransform(hh,0,0,hh,0,0);
+ hudPanel(10,10,pw,ph);
+ hudBar(18,18,cm?190:240,16,p.hp/p.maxHp,p.hp/p.maxHp<.3?['#f33','#f88']:['#0bb','#6ff'],10);
  text(`HP ${Math.ceil(p.hp)}/${p.maxHp}`+(p.drone==='bastion'?(p.shield?'  [SHIELD]':'  [shield charging]'):''),24,31,'#012',12);
- text(S.floor>=TDP_ENDLESS.START?`ENDLESS F${S.floor+1}: ${f.name.toUpperCase()}`:`FLOOR ${S.floor+1}/${FLOORS.length}: ${f.name.toUpperCase()}`,18,54,S.floor>=TDP_ENDLESS.START?'#fc6':'#7ff',16);
- text('OBJECTIVE: '+(S.exit?(isFinal()?'Reach extraction':'Enter the upgrade chamber'):S.obj.done(S)?`Clear remaining swarm (${S.enemies.length})`:S.obj.progress(S)),18,74,'#bff',12);
- ctx.font='11px monospace';let x=18,y=94;p.weapons.forEach((k,i)=>{const s=`[${IN.src==='pad'?i+1:kL(String(i+1))}] ${WEAPONS[k].name}`,w=ctx.measureText(s).width;if(x+w>500){x=18;y+=15}text(s,x,y,k===p.weapon?'#fff':'#477',11);x+=w+12;if(k===p.weapon){const l=`Lv ${wLevel(p,k)}`;text(l,x-8,y,'#9df',10);x+=ctx.measureText(l).width+8}});
- const cm=p.mods[p.weapon]||[];text('Mods: '+(cm.length?cm.map(m=>MODS[m].name).join(', '):'none'),18,y+18,cm.length?'#fc8':'#466',11);
- text(`Drone [${IN.src==='pad'?pL('drone'):IN.src==='touch'?'DRN':kL('q')}]: ${p.drones.map(k=>k===p.drone?'>'+DRONES[k].name+'<':DRONES[k].name).join('  ')}`,18,y+36,'#4fc',11);
+ text(S.floor>=TDP_ENDLESS.START?`ENDLESS F${S.floor+1}: ${f.name.toUpperCase()}`:`FLOOR ${S.floor+1}/${FLOORS.length}: ${f.name.toUpperCase()}`,18,54,S.floor>=TDP_ENDLESS.START?'#fc6':'#7ff',cm?14:16);
+ const objLine=S.exit?(isFinal()?'Reach extraction':'Get to the exit: upgrade chamber'):S.obj.done(S)?`Clear the swarm: ${S.enemies.length} left`:S.obj.progress(S);
+ ctx.font='12px monospace';const ow=ctx.measureText(objLine).width,om=pw-28;text(objLine,18,74,'#bff',ow>om?Math.max(8.5,Math.floor(12*om/ow*10)/10):12);
+ const v0=viewSize();const gh=TDP_GEAR.hud({show:(S.state==='play'||S.state==='gear')&&S.p.hp>0,left:v0.l+10*hh,top:v0.t+(10+ph+4)*hh,scale:hh});S.hudBottom=gh?(10+ph+4)*hh+gh:(10+ph)*hh;S.hudRight=(10+pw)*hh;ctx.setTransform(hs,0,0,hs,0,0)}
  text('UPGRADES',VW-16,24,'#7ff',13,'right');p.ups.slice(-14).forEach((u,i)=>text(u,VW-16,42+i*15,'#5cc',11,'right'));
- if(S.state==='play'||S.state==='paused')TDP_MINIMAP.draw(ctx,S,{W,H,size:220,x:12,y:VH-12-124,isBoss:e=>ENEMIES[e.type].boss,aim:Math.atan2(mouse.y-p.y,mouse.x-p.x)});
+ if(S.state==='play'||S.state==='paused'||S.state==='gear')TDP_MINIMAP.draw(ctx,S,{W,H,size:220,x:12,y:VH-12-124,isBoss:e=>ENEMIES[e.type].boss,aim:Math.atan2(mouse.y-p.y,mouse.x-p.x)});
  if(S.tut&&S.floor===0&&TUT[S.tut.i]&&S.state==='play'){const st=TUT[S.tut.i],m0=st[IN.src]||st.kbm,msg=typeof m0==='function'?m0():m0;ctx.font='16px monospace';const w=ctx.measureText(msg).width+40;
   ctx.fillStyle='rgba(2,20,24,.85)';ctx.fillRect(VW/2-w/2,VH-130,w,44);ctx.strokeStyle='#3ff';ctx.shadowColor='#3ff';ctx.shadowBlur=10;ctx.strokeRect(VW/2-w/2,VH-130,w,44);ctx.shadowBlur=0;
   text(`TUTORIAL ${S.tut.i+1}/${TUT.length}`,VW/2,VH-136,'#6ff',11,'center');text(msg,VW/2,VH-102,'#eff',16,'center')}
  const boss=S.enemies.find(e=>ENEMIES[e.type].boss);if(boss){hudPanel(VW/2-260,VH-58,520,46);hudBar(VW/2-250,VH-34,500,14,boss.hp/boss.max,['#a02','#f5a'],20);text(ENEMIES[boss.type].name.toUpperCase()+(boss.type==='overmind'?`  — PHASE ${boss.phase||1}`:''),VW/2,VH-40,'#f9c',13,'center')}
  if(S.banner&&S.banner.life>0&&S.state==='play'){ctx.globalAlpha=Math.min(1,S.banner.life);ctx.shadowColor='#000';ctx.shadowBlur=8;text(S.banner.a,VW/2,VH/3,'#7ff',34,'center');text(S.banner.b,VW/2,VH/3+30,'#9cc',15,'center');ctx.globalAlpha=1;ctx.shadowBlur=0}
- if(S.state==='upgrade'){ctx.fillStyle='rgba(0,8,12,.85)';ctx.fillRect(0,0,VW,VH);text((S.draft?`ENDLESS LOADOUT DRAFT ${S.draft.n+1}/${S.draft.of} — CHOOSE ONE  `:'UPGRADE CHAMBER — CHOOSE ONE  ')+({pad:'[X / A / B]',touch:'[tap a card]'}[IN.src]||'[1/2/3 or click]'),VW/2,VH/2-110,'#7ff',22,'center');
-  S.choices.forEach((c,i)=>{const b=cardRect(i),col=c.endless?'#f8a':c.gear?'#ff5':'#3ff';ctx.fillStyle='rgba(10,30,36,.8)';ctx.fillRect(b.x,b.y,b.w,b.h);ctx.shadowColor=col;ctx.shadowBlur=15;ctx.strokeStyle=col;ctx.lineWidth=2;ctx.strokeRect(b.x,b.y,b.w,b.h);ctx.shadowBlur=0;
-   text(IN.src==='pad'?['X','A','B'][i]:IN.src==='touch'?'TAP':`[${i+1}]`,b.x+b.w/2,b.y+36,'#5aa',16,'center');text(c.name,b.x+b.w/2,b.y+75,'#eff',15,'center');text(c.desc||'',b.x+b.w/2,b.y+105,'#7aa',10,'center')})}
+ if(S.brief&&S.brief.life>0&&S.state==='play')drawBriefCard();
+ if(S.state==='upgrade'){ctx.fillStyle='rgba(0,8,12,.85)';ctx.fillRect(0,0,VW,VH);text((S.draft?`ENDLESS LOADOUT DRAFT ${S.draft.n+1}/${S.draft.of} — CHOOSE ONE  `:'UPGRADE CHAMBER — CHOOSE ONE  ')+({pad:'[X / A / B]',touch:'[tap a card]'}[IN.src]||'[1/2/3 or click]'),VW/2,cardRect(0).y-16,'#7ff',22,'center');
+  S.choices.forEach((c,i)=>{const b=cardRect(i),k=b.k,col=c.endless?'#f8a':c.gear?'#ff5':'#3ff';ctx.fillStyle='rgba(10,30,36,.88)';ctx.fillRect(b.x,b.y,b.w,b.h);ctx.shadowColor=col;ctx.shadowBlur=15;ctx.strokeStyle=col;ctx.lineWidth=2;ctx.strokeRect(b.x,b.y,b.w,b.h);ctx.shadowBlur=0;
+   ctx.save();ctx.translate(b.x,b.y);ctx.scale(k,k);
+   const pc=cardPic(c);if(pc)ctx.drawImage(pc,22,10,216,144);else{ctx.fillStyle='#04141a';ctx.fillRect(22,10,216,144)}
+   ctx.strokeStyle='rgba(80,255,240,.45)';ctx.lineWidth=1;ctx.strokeRect(22.5,10.5,215,143);
+   const kind=c.refit?'REFIT':c.endless?'ENDLESS':c.wk?'WEAPON':c.dk?'DRONE':c.mk?'MOD':'UPGRADE',mk=(c.name.match(/\s(Mk \d+)$/)||[])[1],nm=c.name.replace(/^(Weapon|Drone|Mod|Refit|Endless):\s*/,'').replace(/\s+Mk \d+$/,'');
+   const kl=IN.src==='pad'?['X','A','B'][i]:IN.src==='touch'?'TAP':`[${i+1}]`;
+   ctx.fillStyle='rgba(2,12,16,.78)';ctx.fillRect(22,10,64,20);text(kl,28,25,'#8cc',14);
+   ctx.fillStyle='rgba(2,12,16,.78)';const kw=kind.length*8+16;ctx.fillRect(238-kw,10,kw,20);text(kind,238-kw/2,25,col,12,'center');
+   text(mk||'',28,172,'#fc8',13);
+   if(c.tier){for(let t=0;t<3;t++){ctx.beginPath();ctx.arc(228-t*16,168,5,0,7);if(t<c.tier){ctx.fillStyle='#ff4d5a';ctx.fill()}else{ctx.strokeStyle='#5aa';ctx.lineWidth=1.5;ctx.stroke()}}}
+   const nl=wrapLines(nm,236,'bold 16px monospace');ctx.shadowColor='#000';nl.slice(0,2).forEach((ln,j)=>text(ln,CARD.w/2,194+j*18,'#eff',16,'center'));ctx.font='bold 16px monospace';
+   const dl=wrapLines(c.desc||'',236,'12px monospace');dl.slice(0,3).forEach((ln,j)=>text(ln,CARD.w/2,(nl.length>1?230:212)+j*14,'#8bb',12,'center'));
+   ctx.restore()})}
  const st=S.stats,mmss=t=>`${Math.floor(t/60)}:${String(Math.floor(t%60)).padStart(2,'0')}`;
  if(S.state==='dead'||S.state==='victory')TDP_STATS.draw(ctx,S,S.state,{VW,VH,text,WEAPONS,DRONES,name:t=>ENEMIES[t]?ENEMIES[t].name:(t||'unknown'),best:LS('tdp_best',{}),endlessBtn:S.state==='victory'&&CFG.endless?endlessBtnRect():null,ekey:IN.src==='pad'?'X':IN.src==='touch'?'TAP':kL('e')});
  if(S.state==='descent'){const k=S.descT<.9?S.descT/.9:Math.max(0,1-(S.descT-.9)/.9);ctx.fillStyle=`rgba(0,5,7,${Math.min(1,k*1.15)})`;ctx.fillRect(0,0,VW,VH);ctx.strokeStyle=`rgba(80,255,240,${k*.55})`;ctx.lineWidth=2;
@@ -964,6 +1055,10 @@ const ENDLESS_DRAFT=29;
 function continueEndless(){if(!S||S.demo||S.state!=='victory'||!CFG.endless)return false;S.endless={seed:TDP_ENDLESS.newSeed()};S.p.hp=S.p.maxHp;S.state='upgrade';S.choices=rollChoices();sfx('choose');mouse.down=false;return true}
 function startEndless(){if(!CFG.endless)return false;startGame();S.endless={seed:TDP_ENDLESS.newSeed()};S.floor=TDP_ENDLESS.START-1;S.draft={n:0,of:ENDLESS_DRAFT};S.state='upgrade';S.choices=rollChoices();hideMenu();mouse.down=false;return true}
 function endlessBtnRect(){return{x:VW/2-200,y:612,w:400,h:44}}
+// loadout panel (js/gear.js): freezes the run while open (state 'gear'); Tab toggles, Esc / X / tap outside closes
+function openGear(){if(!S||S.state!=='play')return;S.state='gear';IN.fire=false;IN.mx=IN.my=0;mouse.down=false;for(const k in keys)keys[k]=false;TDP_GEAR.show()}
+function closeGear(){if(!S||S.state!=='gear')return;S.state='play';mouse.down=false;for(const k in keys)keys[k]=false;TDP_GEAR.hide()}
+function toggleGear(){S.state==='gear'?closeGear():openGear()}
 function pauseGame(){if(S.state!=='play')return;S.state='paused';openMenuRoot('m-pause')}
 function resumeGame(){if(S.state!=='paused')return;S.state='play';hideMenu();mouse.down=false;for(const k in keys)keys[k]=false}
 const DIFF_LBL={easy:'EASY',normal:'NORMAL',hard:'HARD'};
@@ -974,10 +1069,12 @@ function playEnding(){TDP_STORY.crawl(TDP_STORY.ENDING,{onDone:()=>{if(S.state==
 const MENU_ACT={start:startIntro,endless:startEndless,diff:cycleDiff,credits:()=>{document.getElementById('credits-body').innerHTML=TDP_STORY.creditsHTML();openMenu('m-credits')},continue:continueRun,settings:()=>openMenu('m-settings'),controls:()=>openMenu('m-controls'),back:backMenu,resume:resumeGame,quit:()=>{saveGame();goTitle()}};
 menuEl.addEventListener('mousedown',e=>{e.stopPropagation();audioInit();if(AU.ctx&&AU.ctx.state==='suspended')AU.ctx.resume()});
 menuEl.addEventListener('click',e=>{const b=e.target.closest('button');if(!b||b.disabled)return;const a=b.dataset.a;if(a!=='back')sfx(a==='start'||a==='continue'?'choose':'ui');MENU_ACT[a]&&MENU_ACT[a]()});
-addEventListener('pointerdown',()=>{audioInit();if(AU.ctx&&AU.ctx.state==='suspended')AU.ctx.resume()},{capture:true});
-addEventListener('keydown',()=>{audioInit();if(AU.ctx&&AU.ctx.state==='suspended')AU.ctx.resume()},{capture:true});
+addEventListener('pointerdown',()=>{audioInit();if(AU.ctx&&AU.ctx.state==='suspended')AU.ctx.resume();dismissBrief()},{capture:true});
+addEventListener('keydown',()=>{audioInit();if(AU.ctx&&AU.ctx.state==='suspended')AU.ctx.resume();dismissBrief()},{capture:true});
 
 window.TDP_INPUT&&TDP_INPUT.init({IN,keys,onKey,state:()=>S&&S.state,menuOpen:()=>!menuEl.classList.contains('hide'),
- tap:(x,y)=>{mouse.sx=x/hs;mouse.sy=y/hs;onClick()},cycleWeapon,useEdge});
+ tap:(x,y)=>{const v=viewSize();mouse.sx=(x-v.l)/hs;mouse.sy=(y-v.t)/hs;onClick()},cycleWeapon,useEdge});
+TDP_GEAR.init({icon:picURL,S:()=>S,WEAPONS,DRONES,MODS,wLevel,wGrade,KPL:KILLS_PER_LEVEL,kL,setWeapon:k=>{if(S&&S.p&&S.p.weapons.includes(k))S.p.weapon=k},setDrone:k=>{if(S&&S.p&&S.p.drones.includes(k))S.p.drone=k},open:openGear,close:closeGear});
+prewarmPics();window.TDP_PICS={cardPic,picURL,modelThumb,pic};window.TDP_OPEN_GEAR=openGear;window.TDP_CLOSE_GEAR=closeGear;
 applyQuality();goTitle();
 </script></body></html>

@@ -100,7 +100,7 @@ function objectives(){const P=A.P,dist=A.dist;
    if(it.moving){let mv=it.speed*dt*(it.contest?.5:1);while(mv>0&&it.seg<it.path.length-1){const q=it.path[it.seg+1],d=dist(it,q);if(d<=mv){it.x=q.x;it.y=q.y;it.seg++;mv-=d;it.trav+=d}else{it.x+=(q.x-it.x)/d*mv;it.y+=(q.y-it.y)/d*mv;it.trav+=mv;mv=0}}
     it.prog=Math.min(1,it.trav/it.total);if(it.seg>=it.path.length-1){it.done=true;it.prog=1;A.burst(it.x,it.y,it.color,40);A.sfx('complete');A.floatText(it.x,it.y-40,it.label+' DELIVERED',it.color)}}
    const th=[.3,.62,.85];if(it.amb<th.length&&it.prog>=th[it.amb]){it.amb++;A.floatText(it.x,it.y-40,'AMBUSH!','#f66');A.sfx('roar');const n=Math.round((3+S.floor/6)*A.DF().count);for(let i=0;i<n;i++){const a=A.rnd(0,TAU),r=A.rnd(230,320);A.spawnEnemy(A.pickType(),A.clamp(it.x+Math.cos(a)*r,30,A.W-30),A.clamp(it.y+Math.sin(a)*r,30,A.H-30))}}},
-  progress:S=>{const it=S.items[0];return `Payload ${Math.floor(it.prog*100)}%`+(it.done?'':it.contest>2?'  — CONTESTED: clear the bugs around it':it.contest?'  — slowed: bugs on it':dist(S.p,it)>it.r?'  — stay close to push it':'  — moving')},done:A.allDone},
+  progress:S=>{const it=S.items[0],g=(S.f&&(S.f.goal||S.f.task))||'Escort the payload';return `${g}: ${Math.floor((it.prog||0)*100)}%`+(it.done?'':it.contest>2?' — clear bugs off it':it.contest?' — slowed by bugs':dist(S.p,it)>it.r?' — stay close':' — moving')},done:A.allDone},
  cells:{label:'Deliver power cells',
   setup(S,f){S.carry=null;const so=A.mkItem({kind:'socket',...P(...(f.socket||[20,11])),label:'GRID SOCKET',color:'#ffd23a',r:30,active:false,need:f.points.length,got:0});
    S.items=f.points.map((q,i)=>A.mkItem({kind:'cell',...P(q[0],q[1]),label:'POWER CELL',color:'#ffd23a',idx:i,r:14}));S.items.push(so);S.socket=so},
@@ -109,7 +109,7 @@ function objectives(){const P=A.P,dist=A.dist;
    if(S.carry){for(const it of S.items)if(it.kind==='cell')it.active=false;const c=S.carry;c.x=p.x;c.y=p.y;so.active=true;p.slow=Math.min(p.slow,.85);
     if(dist(p,so)<so.r+p.r+6){c.done=true;c.x=so.x+Math.cos(so.got*2.1)*16;c.y=so.y+Math.sin(so.got*2.1)*16;S.carry=null;so.got++;A.burst(so.x,so.y,so.color,30);A.sfx('complete');A.floatText(so.x,so.y-40,`CELL ${so.got}/${so.need} SEATED`,so.color);if(so.got>=so.need)so.done=true;else{const n=Math.round((1+S.floor/8)*A.DF().count);for(let i=0;i<n;i++){const q=A.edgeSpawn?A.edgeSpawn():{x:A.rnd(40,A.W-40),y:Math.random()<.5?40:A.H-40};A.spawnEnemy(A.pickType(),q.x,q.y)}}}}
    else so.active=false},
-  progress:S=>{const so=S.socket;return `Power cells ${so.got}/${so.need}`+(S.carry?'  — carry it to the socket (slower fire while carrying)':'  — pick up a cell')},done:A.allDone},
+  progress:S=>{const so=S.socket,g=(S.f&&(S.f.goal||S.f.task))||'Deliver the power cells';return `${g}: ${so.got}/${so.need}`+(S.carry?' — carry it to the socket':' — pick up a cell')},done:A.allDone},
  defend:{label:'Defend the core',
   setup(S,f){S.items=[A.mkItem({kind:'defend',...P(...(f.core||[20,11])),r:150,label:'CORE',color:'#3ff0ff',hp:100,time:f.defendT||50,t:0,breaches:0})]},
   update(dt,S){const it=S.items[0];if(it.done)return;it.t+=dt;it.prog=Math.min(1,it.t/it.time);let n=0;
@@ -118,7 +118,7 @@ function objectives(){const P=A.P,dist=A.dist;
    if(it.hp<=0){it.hp=60;it.breaches++;it.t=Math.max(0,it.t-8);S.rings.push({x:it.x,y:it.y,r:10,life:.7,col:'#f55'});A.burst(it.x,it.y,'#f55',50);S.shake=16;A.sfx('slam');if(dist(S.p,it)<it.r)A.hurtPlayer(18);
     for(const e of S.enemies)if(!A.ENEMIES[e.type].boss&&dist(e,it)<it.r)e.hp-=60;A.floatText(it.x,it.y-50,'CORE BREACH! −8s','#f66')}
    if(it.prog>=1){it.done=true;A.burst(it.x,it.y,it.color,50);A.sfx('complete');A.floatText(it.x,it.y-50,'CORE SEALED',it.color);for(const e of S.enemies)e.goal=null}},
-  progress:S=>{const it=S.items[0];return `Core sealed ${Math.floor(it.prog*100)}%  integrity ${Math.max(0,Math.round(it.hp))}%`+(it.under?'  — SAPPERS ON THE CORE!':'')},done:A.allDone},
+  progress:S=>{const it=S.items[0],g=(S.f&&(S.f.goal||S.f.task))||'Defend the core';return `${g}: ${Math.floor(it.prog*100)}% sealed, ${Math.max(0,Math.round(it.hp))}% integrity`+(it.under?' — sappers on it':'')},done:A.allDone},
  }}
 function itemMesh(it,g,u){if(!A)return false;const T=A.THREE,c=new T.Color(it.color);
  if(it.kind==='escort'){const cart=grp();cart.add(A.box(46,14,30,A.mat.armor,0,14,0),A.box(50,4,34,A.mat.dark,0,6,0));for(const sx of[-16,16])for(const sz of[-16,16])cart.add(A.cyl(6,6,6,A.mat.dark,sx,6,sz));u.core=A.sph(10,A.emis(c,2.2),0,34,0);cart.add(u.core);
