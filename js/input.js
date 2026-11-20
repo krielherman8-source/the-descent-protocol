@@ -51,7 +51,7 @@ function buildUI(){ui=el('div','');ui.id='touchui';
  const hint=el('div','thint','LEFT STICK: MOVE · RIGHT STICK: AIM & FIRE');ui.appendChild(hint);
  document.body.appendChild(ui)}
 function enableTouch(){if(touchOn)return;touchOn=true;if(!ui)buildUI();document.body.classList.add('touch');A.IN.src='touch'}
-function inUI(t){return t&&t.closest&&(t.closest('#menu:not(.hide)')||t.closest('#crawl.on')||t.closest('.tbtn'))}
+function inUI(t){return t&&t.closest&&(t.closest('#menu:not(.hide)')||t.closest('#crawl.on')||t.closest('.tbtn')||t.closest('.gchip')||t.closest('#gear'))}
 function showStick(s,st){const b=document.getElementById('stk'+s);if(!b)return;if(!st){b.style.display='none';return}b.style.display='block';b.style.left=(st.x0-R)+'px';b.style.top=(st.y0-R)+'px';
  const k=b.firstChild;k.style.transform=`translate(${st.dx}px,${st.dy}px)`}
 function onStart(ev){enableTouch();if(inUI(ev.target))return;const st=A.state();

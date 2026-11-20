@@ -29,7 +29,7 @@ s.textContent=JSON.stringify({imports:{three:local?'./vendor/three.module.js':cd
 <label>GRAPHICS <select id="s-q"><option value="low">LOW (fastest, best for phones)</option><option value="med">MEDIUM (balanced)</option><option value="high">HIGH (best look, needs a strong device)</option></select></label>
 <label>SCREEN SHAKE <input type="checkbox" id="s-shake"></label><button data-a="controls">CONTROLS &amp; REBINDING</button><button data-a="back">BACK</button></div>
 <div class="panel" id="m-controls"><h2>CONTROLS</h2><button data-a="back">BACK</button></div></div>
-<link rel="stylesheet" href="css/ui.css"><script src="js/story.js"></script><script src="js/input.js"></script><script src="js/minimap.js"></script><script src="js/content.js"></script><script src="js/instancing.js"></script><script src="js/visuals.js"></script><script src="js/settings.js"></script><script src="js/stats.js"></script><script src="js/endless.js"></script><script src="js/shell.js"></script>
+<link rel="stylesheet" href="css/ui.css"><script src="js/story.js"></script><script src="js/input.js"></script><script src="js/gear.js"></script><script src="js/icons.js"></script><script src="js/minimap.js"></script><script src="js/content.js"></script><script src="js/instancing.js"></script><script src="js/visuals.js"></script><script src="js/settings.js"></script><script src="js/stats.js"></script><script src="js/endless.js"></script><script src="js/shell.js"></script>
 <div id="load">LOADING THE DESCENT PROTOCOL…</div><script type="module">
 'use strict';
 let THREE;
@@ -313,7 +313,7 @@ function musicStart(){const c=AU.ctx,pad=c.createGain();pad.gain.value=.07;const
  const lfo=c.createOscillator(),lg=c.createGain();lfo.frequency.value=.06;lg.gain.value=140;lfo.connect(lg);lg.connect(lp.frequency);lfo.start();
  AU.next=c.currentTime+.1;setInterval(musicTick,60)}
 function musicTick(){const c=AU.ctx;if(!c||c.state!=='running')return;
- let tgt=.06;if(S&&S.state==='play'){let near=0;for(const e of S.enemies)if(dist(e,S.p)<480)near++;tgt=Math.min(.85,.18+near/22);if(S.enemies.some(e=>ENEMIES[e.type].boss))tgt=1}else if(S&&S.state==='paused')tgt=.03;
+ let tgt=.06;if(S&&S.state==='play'){let near=0;for(const e of S.enemies)if(dist(e,S.p)<480)near++;tgt=Math.min(.85,.18+near/22);if(S.enemies.some(e=>ENEMIES[e.type].boss))tgt=1}else if(S&&(S.state==='paused'||S.state==='gear'))tgt=.03;
  AU.intensity+=(tgt-AU.intensity)*.04;const I=AU.intensity;AU.padLP.frequency.setTargetAtTime(280+I*1500,c.currentTime,.6);
  const st=60/(92+I*44)/4;
  while(AU.next<c.currentTime+.2){const s=AU.step++,t=AU.next,prog=[0,0,5,3,0,0,8,7][Math.floor(s/16)%8];
@@ -326,13 +326,14 @@ function musicTick(){const c=AU.ctx;if(!c||c.state!=='running')return;
 
 const IN={mx:0,my:0,aim:null,fire:false,src:'kbm'};window.IN=IN;
 const keys={},mouse={x:W/2,y:H/2,down:false,sx:0,sy:0,cx:0,cy:0,moved:false};
-const mapK=k=>window.TDP_SETTINGS?TDP_SETTINGS.mapKey(k):k;addEventListener('keydown',e=>{const raw=e.key.toLowerCase(),k=mapK(raw);if(k==='\u0000')return;if(S&&S.state==='play'&&(k==='fire'||raw===' '||raw==='tab'))e.preventDefault();keys[k]=true;if(k==='e'&&!e.repeat)useEdge();onKey(k,raw)});addEventListener('keyup',e=>keys[mapK(e.key.toLowerCase())]=false);
+const mapK=k=>window.TDP_SETTINGS?TDP_SETTINGS.mapKey(k):k;addEventListener('keydown',e=>{const raw=e.key.toLowerCase(),k=mapK(raw);if(k==='\u0000')return;if(S&&(S.state==='play'||S.state==='gear')&&(k==='fire'||raw===' '||raw==='tab'))e.preventDefault();keys[k]=true;if(k==='e'&&!e.repeat)useEdge();onKey(k,raw)});addEventListener('keyup',e=>keys[mapK(e.key.toLowerCase())]=false);
 // interact: 'hold' = held while the use control is down; 'toggle' = each press latches/unlatches (S.useLatch)
 function useEdge(){if(CFG.interact==='toggle'&&S&&S.state==='play')S.useLatch=!S.useLatch}
 const useOn=()=>CFG.interact==='toggle'?!!(S&&S.useLatch):CFG.interact==='auto'?true:!!keys.e;
 const autoUse=()=>CFG.interact==='auto';
 const standVerb=l=>{l=String(l||'');return /TERMINAL|CORE NODE/.test(l)?'HACK':/LOCKER|DOOR/.test(l)?'OPEN':/MAG-LOCK/.test(l)?'DISABLE':/VALVE/.test(l)?'SEAL':/FROZEN/.test(l)?'DEFROST':/GENERATOR/.test(l)?'POWER UP':/PUMP/.test(l)?'START':'ACTIVATE'};
 const kL=a=>TDP_SETTINGS.keyLabel(a),pL=a=>TDP_SETTINGS.padLabel(a),useHint=it=>autoUse()?(it?`STAND HERE TO ${standVerb(it.label)}`:'stand on it'):`${TDP_SETTINGS.useVerb()} ${TDP_SETTINGS.useCtl(IN.src)}`;
+function cycleDrone(){const d=S.p.drones;S.p.drone=d[(d.indexOf(S.p.drone)+1)%d.length]}
 function cycleWeapon(d){if(!S||!S.p)return;const w=S.p.weapons;S.p.weapon=w[(w.indexOf(S.p.weapon)+d+w.length)%w.length]}
 function viewSize(){const probe=document.getElementById('safeprobe');let l=0,t=0,r=0,b=0;
  if(probe){const s=getComputedStyle(probe);l=parseFloat(s.paddingLeft)||0;t=parseFloat(s.paddingTop)||0;r=parseFloat(s.paddingRight)||0;b=parseFloat(s.paddingBottom)||0}
@@ -453,13 +454,13 @@ function weaponCard(p,fl){const o=rollWeapon(p,fl);if(!o)return null;const w=WEA
 const SUP={after:60,hurtAfter:35,cd:60,cdMiss:20,max:3,life:30};
 function supState(){if(!S.sup||S.sup.walls!==S.walls)S.sup={walls:S.walls,n:0,cd:0,armed:false,list:[]};return S.sup}
 function rollSupply(p,fl){const out=[],wc=weaponCard(p,fl),fm=freeMods(p,p.weapon);if(wc)out.push([wc,fl>=16?4:3]);
- if(fm.length){const m=pickR(fm),wk=p.weapon;out.push([{name:'Mod: '+MODS[m].name,apply:p=>{addMod(p,wk,m);p.ups.push(`${MODS[m].name} (${WEAPONS[wk].name})`)},noUp:true},3])}
+ if(fm.length){const m=pickR(fm),wk=p.weapon;out.push([{name:'Mod: '+MODS[m].name,mk:m,desc:MODS[m].desc,apply:p=>{addMod(p,wk,m);p.ups.push(`${MODS[m].name} (${WEAPONS[wk].name})`)},noUp:true},3])}
  const u=pickR(UPGRADES);out.push([u,4]);let r=Math.random()*out.reduce((a,b)=>a+b[1],0);for(const[c,w]of out){r-=w;if(r<=0)return c}return u}
 function supplyTick(dt){if(S.demo||!S.obj)return;const u=supState(),p=S.p;u.cd-=dt;
  const objDone=!!S.exit||S.obj.done(S),hurt=p.hp<p.maxHp*.35&&S.floorT>=SUP.hurtAfter;
  u.armed=!objDone&&u.n<SUP.max&&u.cd<=0&&!u.list.length&&(S.floorT>=SUP.after||hurt);
  for(const d of u.list){d.life-=dt;if(d.life>0&&dist(d,p)<p.r+22){d.life=0;d.got=true;const c=d.up;c.apply(p);if(!c.noUp)p.ups.push(c.name);u.cd=SUP.cd;S.stats.supply=(S.stats.supply||0)+1;sfx('choose');
-   floatText(p.x,p.y-30,'SUPPLY: '+c.name.replace(/^(Weapon|Mod): /,''),'#ffd35a');burst(d.x,d.y,'#ffd35a',26)}
+   floatText(p.x,p.y-30,'SUPPLY: '+c.name.replace(/^(Weapon|Mod): /,''),'#ffd35a');S.supplyPop={c,life:5};burst(d.x,d.y,'#ffd35a',26)}
   else if(d.life<=0&&!d.got)u.cd=SUP.cdMiss}u.list=u.list.filter(d=>d.life>0)}
 function supplyKill(e){const u=S.sup;if(!u||!u.armed||ENEMIES[e.type].boss||S.demo)return;u.armed=false;u.n++;
  const d={x:e.x,y:e.y,r:14,life:SUP.life,up:rollSupply(S.p,S.floor+1)};resolve(d);u.list.push(d);floatText(e.x,e.y-36,'SUPPLY DROP','#ffd35a');sfx('pickup');
@@ -505,16 +506,18 @@ function burst(x,y,col,n){for(let i=0;i<n;i++){const a=rnd(0,6.28),s=rnd(40,220)
 function ebullet(x,y,a,speed,dmg,col){S.ebullets.push({x,y,vx:Math.cos(a)*speed,vy:Math.sin(a)*speed,dmg,life:4,col:col||'#c6f',r:5})}
 
 // ================= FLOW / STATE =================
-function onKey(k,raw){if(!S)return;if(k==='escape'){if(S.state==='play')pauseGame();else if(S.state==='paused'){if(menuStack.length>1)backMenu();else resumeGame()}else if(S.state==='title'&&menuStack.length>1)backMenu();else if(S.state==='dead'||S.state==='victory'){goTitle()}return}if(S.state==='title'||S.state==='paused'||S.state==='descent')return;if(S.state==='victory'&&k==='e'&&CFG.endless){continueEndless();return}if((S.state==='dead'||S.state==='victory')&&k==='r'){startGame();return}
+function onKey(k,raw){if(!S)return;if(raw==='tab'||k==='tab'){if(S.state==='play'||S.state==='gear')toggleGear();return}
+ if(S.state==='gear'){if(k==='escape')closeGear();else if(/^[1-7]$/.test(k)&&S.p.weapons[+k-1]){S.p.weapon=S.p.weapons[+k-1];TDP_GEAR.render()}else if(k==='q'){cycleDrone();TDP_GEAR.render()}return}
+ if(k==='escape'){if(S.state==='play')pauseGame();else if(S.state==='paused'){if(menuStack.length>1)backMenu();else resumeGame()}else if(S.state==='title'&&menuStack.length>1)backMenu();else if(S.state==='dead'||S.state==='victory'){goTitle()}return}if(S.state==='title'||S.state==='paused'||S.state==='descent')return;if(S.state==='victory'&&k==='e'&&CFG.endless){continueEndless();return}if((S.state==='dead'||S.state==='victory')&&k==='r'){startGame();return}
  if(S.state==='upgrade'){const n=/^[123]$/.test(raw||'')?raw:/^[123]$/.test(k)?k:null;if(n)pick(+n-1);return}
  if(S.state==='play'){if(/^[1-7]$/.test(k)&&S.p.weapons[+k-1])S.p.weapon=S.p.weapons[+k-1];if(k==='wnext')cycleWeapon(1);if(k==='wprev')cycleWeapon(-1);
-  if(k==='q'){const d=S.p.drones;S.p.drone=d[(d.indexOf(S.p.drone)+1)%d.length]}}}
+  if(k==='q')cycleDrone()}}
 function onClick(){if(!S)return;if(S.state==='victory'&&CFG.endless){const b=endlessBtnRect();if(mouse.sx>b.x&&mouse.sx<b.x+b.w&&mouse.sy>b.y&&mouse.sy<b.y+b.h){continueEndless();return}}if(S.state==='dead'||S.state==='victory')startGame();
  else if(S.state==='upgrade'&&S.choices)S.choices.forEach((c,i)=>{const b=cardRect(i);if(mouse.sx>b.x&&mouse.sx<b.x+b.w&&mouse.sy>b.y&&mouse.sy<b.y+b.h)pick(i)})}
 function rollChoices(){const p=S.p,Wc=[],Dc=[],Mc=[];S.offerN=(S.offerN||0)+1;
  {const c=weaponCard(p,S.floor+1);if(c)Wc.push(c)}// floor-scaled weapon slot (tiers + grade)
- for(const[k,d]of Object.entries(DRONES))if(d.implemented&&!p.drones.includes(k))Dc.push({name:'Drone: '+d.name,desc:d.desc,gear:true,apply:p=>{p.drones.push(k);p.drone=k}});
- const wk=p.weapon;for(const m of freeMods(p,wk))Mc.push({name:'Mod: '+MODS[m].name,desc:`${MODS[m].desc} → ${WEAPONS[wk].name}`,gear:true,mod:true,apply:p=>{addMod(p,wk,m);p.ups.push(`${MODS[m].name} (${WEAPONS[wk].name})`)},noUp:true});
+ for(const[k,d]of Object.entries(DRONES))if(d.implemented&&!p.drones.includes(k))Dc.push({name:'Drone: '+d.name,desc:d.desc,gear:true,dk:k,apply:p=>{p.drones.push(k);p.drone=k}});
+ const wk=p.weapon;for(const m of freeMods(p,wk))Mc.push({name:'Mod: '+MODS[m].name,desc:`${MODS[m].desc} → ${WEAPONS[wk].name}`,gear:true,mod:true,mk:m,apply:p=>{addMod(p,wk,m);p.ups.push(`${MODS[m].name} (${WEAPONS[wk].name})`)},noUp:true});
  // Weighted for variety: every chamber offers one new weapon AND one new drone while any remain (so a run sees all categories),
  // the third card is a mod for the equipped weapon (45%) or a stat upgrade; when gear runs out, mods and stats fill in.
  const out=[];if(Wc.length)out.push(pickR(Wc));if(Dc.length)out.push(pickR(Dc));
@@ -532,7 +535,10 @@ function endlessUps(p){return ENDLESS_UPS.filter(u=>!u.ok||u.ok(p)).map(u=>{cons
   apply:p=>{p.eu=p.eu||{};p.eu[u.k]=n;u.apply(p);p.ups.push(u.name+(n>1?' '+ROMAN(n):''))}}})}
 function pick(i){const u=S.choices&&S.choices[i];if(!u)return;u.apply(S.p);if(!u.noUp)S.p.ups.push(u.name);sfx('choose');
  if(S.draft&&++S.draft.n<S.draft.of){S.choices=rollChoices();return}S.draft=null;sfx('descend');S.state='descent';S.descT=0;S.descDone=false}
-function cardRect(i){const w=260,h=150,g=30,x0=VW/2-(w*3+g*2)/2;return{x:x0+i*(w+g),y:VH/2-h/2,w,h}}
+// upgrade-chamber cards: local layout 260x258 (picture on top); k scales them up to fill phone screens (they were tiny/unreadable there)
+const CARD={w:260,h:258,g:24};
+const cardK=()=>TDP_GEAR.compact?Math.max(.8,Math.min(VW*.97/(CARD.w*3+CARD.g*2),VH*.8/CARD.h)):1;
+function cardRect(i){const k=cardK(),w=CARD.w*k,h=CARD.h*k,g=CARD.g*k,x0=VW/2-(w*3+g*2)/2;return{x:x0+i*(w+g),y:VH/2-h/2+10*k,w,h,k}}
 
 // ================= UPDATE =================
 // ---- floor-1 tutorial: data-driven steps; each advances when its condition holds ----
@@ -722,6 +728,43 @@ function makeDrone(k){const g=new THREE.Group(),c=DRONES[k].color;g.add(cyl(9,6,
  if(k==='needler')for(let i=0;i<4;i++){const c2=new THREE.Mesh(new THREE.ConeGeometry(2,14,5),emis(c,1.2,0x220033));c2.rotation.z=Math.PI/2;c2.rotation.y=i*Math.PI/2;c2.position.set(Math.cos(i*Math.PI/2)*12,0,-Math.sin(i*Math.PI/2)*12);c2.rotation.order='YZX';g.add(c2)}
  if(k==='harvestor'){for(const sd of[-1,1]){const cl=box(2,10,2,mat.armor,sd*5,-8,0,false);cl.rotation.z=sd*.4;g.add(cl)}g.add(new THREE.Mesh(new THREE.SphereGeometry(5,10,8),add(0x88ff55,.6)))}
  if(k==='specter'){g.children[0].material=add(0x99eeff,.35);const h=new THREE.Mesh(new THREE.ConeGeometry(14,30,16,1,true),add(0x99eeff,.08));h.position.y=-18;g.add(h)}return g}
+// ---- option pictures: weapons/drones are rendered ONCE from the game's own 3D models (cold-blue rim light) into cached canvases/data URLs;
+// mods and stat upgrades use the canvas line icons from js/icons.js. cardPic(card) -> canvas 192x128 for any chamber/supply/loadout option.
+const THUMB={rt:null,scene:null,cam:null,cv:new Map(),url:new Map()};
+const SRGB=(()=>{const t=new Uint8Array(256);for(let i=0;i<256;i++){const c=i/255;t[i]=Math.round(255*(c<=.0031308?c*12.92:1.055*Math.pow(c,1/2.4)-.055))}return t})();
+function modelThumb(kind,key){const id=kind+':'+key;if(THUMB.cv.has(id))return THUMB.cv.get(id);
+ const W=192,H=128,K=2,RW=W*K,RH=H*K;
+ if(!THUMB.scene){THUMB.rt=new THREE.WebGLRenderTarget(RW,RH,{depthBuffer:true});THUMB.scene=new THREE.Scene();THUMB.cam=new THREE.PerspectiveCamera(28,W/H,1,2000);
+  const sc=THUMB.scene;sc.add(new THREE.HemisphereLight(0x8fc4ff,0x05090e,1.1));
+  const key1=new THREE.DirectionalLight(0xdff0ff,2.1);key1.position.set(-40,70,90);sc.add(key1);
+  const rim=new THREE.DirectionalLight(0x35c6ff,3.4);rim.position.set(60,30,-80);sc.add(rim);
+  const rim2=new THREE.DirectionalLight(0x2a7bff,1.6);rim2.position.set(-90,10,-30);sc.add(rim2);
+  const acc=new THREE.PointLight(0xff3050,.9,0,2);acc.position.set(0,-30,40);sc.add(acc)}
+ const obj=kind==='drone'?makeDrone(key):makeGun(key);const hold=new THREE.Group();hold.add(obj);THUMB.scene.add(hold);
+ // brighten dark game metals for the portrait (clones, the game's own materials are untouched): no env map here, so metal would render black
+ const clones=[];obj.traverse(o=>{if(o.isMesh&&o.material&&o.material.isMeshStandardMaterial&&!(o.material.emissive.getHex()!==0&&o.material.emissiveIntensity>.6)){const m=o.material.clone();m.metalness=Math.min(m.metalness,.2);m.roughness=Math.max(.45,m.roughness*.9);{const L=(m.color.r+m.color.g+m.color.b)/3,f=Math.min(1.1,.38+L*7);m.color.setRGB(.5*f,.62*f,.72*f)}m.emissive=new THREE.Color(0x0b2432);m.emissiveIntensity=1;o.material=m;clones.push(m)}});
+ const bb=new THREE.Box3().setFromObject(obj),ctr=bb.getCenter(new THREE.Vector3()),sz=bb.getSize(new THREE.Vector3());obj.position.sub(ctr);
+ if(kind==='drone'){const au=obj.getObjectByName&&obj.getObjectByName('aura');if(au)obj.remove(au);const b2=new THREE.Box3().setFromObject(obj),c2=b2.getCenter(new THREE.Vector3());obj.position.sub(c2)}
+ const bs=new THREE.Box3().setFromObject(obj).getSize(new THREE.Vector3()),fit=kind==='drone'?Math.max(bs.x*.5,bs.z*.42+bs.y*.55):Math.max(bs.x*.4,bs.y*1.3,bs.z*.95);
+ const dist=fit/Math.tan(THREE.MathUtils.degToRad(28/2))/ (kind==='drone'?1.0:1.0);
+ const dir=kind==='drone'?new THREE.Vector3(.2,.55,1):new THREE.Vector3(-.3,.5,1);dir.normalize();THUMB.cam.position.copy(dir.multiplyScalar(dist));THUMB.cam.lookAt(0,0,0);
+ const R=renderer,prevRT=R.getRenderTarget(),prevCol=new THREE.Color(),prevA=R.getClearAlpha();R.getClearColor(prevCol);
+ R.setRenderTarget(THUMB.rt);R.setClearColor(0x000000,0);R.clear();R.render(THUMB.scene,THUMB.cam);
+ const buf=new Uint8Array(RW*RH*4);R.readRenderTargetPixels(THUMB.rt,0,0,RW,RH,buf);R.setRenderTarget(prevRT);R.setClearColor(prevCol,prevA);
+ THUMB.scene.remove(hold);clones.forEach(m=>m.dispose());
+ const tmp=document.createElement('canvas');tmp.width=RW;tmp.height=RH;const tg=tmp.getContext('2d'),im=tg.createImageData(RW,RH);
+ for(let y=0;y<RH;y++){const src=(RH-1-y)*RW*4,dst=y*RW*4;for(let x=0;x<RW*4;x+=4){const a=buf[src+x+3];im.data[dst+x]=SRGB[buf[src+x]];im.data[dst+x+1]=SRGB[buf[src+x+1]];im.data[dst+x+2]=SRGB[buf[src+x+2]];im.data[dst+x+3]=a}}
+ tg.putImageData(im,0,0);
+ const c=document.createElement('canvas');c.width=W;c.height=H;const g=c.getContext('2d');TDP_ICONS.plate(g,W,H);g.imageSmoothingQuality='high';g.shadowColor='rgba(60,220,255,.55)';g.shadowBlur=14;g.drawImage(tmp,0,0,W,H);g.shadowBlur=0;
+ THUMB.cv.set(id,c);return c}
+function pic(kind,key){return kind==='weapon'||kind==='drone'?modelThumb(kind,key):TDP_ICONS.icon(kind,key)}
+function cardPic(c){if(!c)return null;try{
+  if(c.wk){const b=pic('weapon',c.wk);if(!c.refit)return b;const id='refit:'+c.wk;if(!THUMB.cv.has(id)){const n=document.createElement('canvas');n.width=b.width;n.height=b.height;const g=n.getContext('2d');g.drawImage(b,0,0);TDP_ICONS.badge(g,b.width-30,b.height-30,22);THUMB.cv.set(id,n)}return THUMB.cv.get(id)}
+  if(c.dk)return pic('drone',c.dk);if(c.mk)return pic('mod',c.mk);return pic('stat',c.name)}catch(e){console.warn('card picture failed',e);return null}}
+function picURL(kind,key){const id=kind+':'+key;if(!THUMB.url.has(id)){const cv=pic(kind,key);THUMB.url.set(id,cv?cv.toDataURL('image/png'):'')}return THUMB.url.get(id)}
+// render the 13 model pictures one per slice shortly after load so the first chamber/panel never hitches
+function prewarmPics(){const q=[...Object.keys(WEAPONS).filter(k=>WEAPONS[k].implemented).map(k=>['weapon',k]),...Object.keys(DRONES).filter(k=>DRONES[k].implemented).map(k=>['drone',k])];
+ const step=()=>{const j=q.shift();if(!j)return;try{modelThumb(j[0],j[1])}catch(e){}setTimeout(step,90)};setTimeout(step,2500)}
 function makeItem(it){const g=new THREE.Group(),c=new THREE.Color(it.color),u={};
  if(TDP_CONTENT.itemMesh(it,g,u)){g.position.set(it.x,0,it.y);g.userData=u;return g}
  if(it.kind==='hold'){g.add(cyl(22,26,8,mat.steel,0,4,0));const L=it.label;
@@ -913,7 +956,7 @@ function drawBriefCard(){const b=S.brief;if(!b||b.life<=0)return;const dw=hud.wi
  const bodyFont=`${bodyPx}px monospace`,titleFont=`bold ${titlePx}px monospace`;
  const lines=bits.flatMap(s=>wrapLines(s,maxW-pad*2,bodyFont));
  const lh=bodyPx+6,cardH=pad+titlePx+16+lines.length*lh+pad+16,cardW=maxW;
- const x=(dw-cardW)/2;let y=Math.max(8,Math.min(dh*.08,36));if(x<510*hs)y=Math.max(y,160*hs+8); /* keep the card clear of the top-left HP/goal panel on narrow screens */
+ const x=(dw-cardW)/2;let y=Math.max(8,Math.min(dh*.08,36));if(x<(S.hudRight||510*hs)+8)y=Math.max(y,(S.hudBottom||160*hs)+8); /* keep the card clear of the top-left HP/goal panel on narrow screens */
  if(y+cardH>dh-8)y=Math.max(8,dh-8-cardH);
  ctx.fillStyle='rgba(2,12,16,.92)';ctx.fillRect(x,y,cardW,cardH);
  ctx.strokeStyle='#3ff';ctx.lineWidth=2;ctx.strokeRect(x+.5,y+.5,cardW-1,cardH-1);
@@ -921,9 +964,15 @@ function drawBriefCard(){const b=S.brief;if(!b||b.life<=0)return;const dw=hud.wi
  ctx.font=bodyFont;ctx.fillStyle='#cfe';lines.forEach((ln,i)=>ctx.fillText(ln,dw/2,y+pad+titlePx+18+i*lh));
  ctx.fillStyle='#6aa';ctx.font=`${Math.max(12,bodyPx-2)}px monospace`;ctx.fillText(b.arm>0?'':'Tap, click, or wait',dw/2,y+cardH-10);
  ctx.restore()}
-function drawHUD(){const p=S.p,f=S.f;ctx.setTransform(1,0,0,1,0,0);ctx.clearRect(0,0,hud.width,hud.height);if(S.state==='title')return;
+function drawSupplyPop(sp){const c=sp.c,a=Math.min(1,sp.life/.8,(5-sp.life)/.25+.2),cm=TDP_GEAR.compact,w=cm?240:290,h=cm?64:80,dw=hud.width,x=Math.max(dw/2-w/2,(S.hudRight||0)+10),y=10,pw=h*1.5-8,ph=h-8;
+ ctx.save();ctx.setTransform(1,0,0,1,0,0);ctx.globalAlpha=a;ctx.fillStyle='rgba(2,14,18,.92)';ctx.fillRect(x,y,w,h);ctx.strokeStyle='#ffd35a';ctx.shadowColor='#ffd35a';ctx.shadowBlur=10;ctx.lineWidth=2;ctx.strokeRect(x+.5,y+.5,w-1,h-1);ctx.shadowBlur=0;
+ const pc=cardPic(c);if(pc)ctx.drawImage(pc,x+4,y+4,pw,ph);const tx=x+pw+12,nm=c.name.replace(/^(Weapon|Drone|Mod|Refit):\s*/,'');
+ ctx.textAlign='left';ctx.fillStyle='#ffd35a';ctx.font='bold 11px monospace';ctx.fillText('SUPPLY DROP',tx,y+16);ctx.fillStyle='#eff';ctx.font=`bold ${cm?12:14}px monospace`;ctx.fillText(nm.length>24?nm.slice(0,23)+'…':nm,tx,y+34);
+ ctx.fillStyle='#8bb';ctx.font='10px monospace';wrapLines(c.desc||'',w-pw-20,'10px monospace').slice(0,cm?2:3).forEach((ln,j)=>ctx.fillText(ln,tx,y+48+j*12));ctx.restore()}
+function drawHUD(){const p=S.p,f=S.f;ctx.setTransform(1,0,0,1,0,0);ctx.clearRect(0,0,hud.width,hud.height);if(S.state==='title'){TDP_GEAR.hud({show:false});return}
  if(S.hurtT>0){const g=ctx.createRadialGradient(hud.width/2,hud.height/2,hud.height*.3,hud.width/2,hud.height/2,hud.height*.8);g.addColorStop(0,'rgba(255,0,0,0)');g.addColorStop(1,`rgba(255,20,20,${S.hurtT*1.2})`);ctx.fillStyle=g;ctx.fillRect(0,0,hud.width,hud.height)}
  if(S.state==='play'&&p.hp>0&&p.hp<p.maxHp*.3){const k=.2+.12*Math.sin(S.t*7),g=ctx.createRadialGradient(hud.width/2,hud.height/2,hud.height*.38,hud.width/2,hud.height/2,hud.height*.85);g.addColorStop(0,'rgba(255,0,0,0)');g.addColorStop(1,`rgba(200,0,0,${k})`);ctx.fillStyle=g;ctx.fillRect(0,0,hud.width,hud.height);const sc=hud.height/VH;ctx.save();ctx.font='bold '+Math.round(15*sc)+'px monospace';ctx.textAlign='center';const lt='LOW HEALTH — back off and grab green +HP drops',lw=ctx.measureText(lt).width+28*sc,ly=hud.height-46*sc;ctx.fillStyle='rgba(20,0,0,.7)';ctx.fillRect(hud.width/2-lw/2,ly-17*sc,lw,24*sc);ctx.strokeStyle='rgba(255,70,70,.6)';ctx.strokeRect(hud.width/2-lw/2+.5,ly-17*sc+.5,lw-1,24*sc-1);ctx.fillStyle=`rgba(255,110,110,${.8+.2*Math.sin(S.t*7)})`;ctx.fillText(lt,hud.width/2,ly);ctx.restore()}
+ if(S.supplyPop&&S.state==='play'){const sp=S.supplyPop;sp.life-=S._dt||.016;if(sp.life<=0)S.supplyPop=null;else drawSupplyPop(sp)}
  const fs=Math.max(10,11*hs);
  ctx.shadowColor='#000';ctx.shadowBlur=4;
  for(const it of S.items){if((it.done&&it.kind!=='hold')||(it.kind==='pickup'&&it.done))continue;const s=toScreen(it.x,it.kind==='hold'?95:70,it.y);if(!s.vis)continue;
@@ -934,26 +983,36 @@ function drawHUD(){const p=S.p,f=S.f;ctx.setTransform(1,0,0,1,0,0);ctx.clearRect
  for(const t of S.texts){const s=toScreen(t.x,70,t.y);ctx.globalAlpha=Math.min(1,t.life);text(t.t,s.x,s.y,t.col,fs+2,'center')}ctx.globalAlpha=1;ctx.shadowBlur=0;
  if(S.state==='play')TDP_MINIMAP.arrows(ctx,S,toScreen,hud.width,hud.height,hs);
  ctx.setTransform(hs,0,0,hs,0,0);
- hudPanel(10,10,500,150);
- hudBar(18,18,240,16,p.hp/p.maxHp,p.hp/p.maxHp<.3?['#f33','#f88']:['#0bb','#6ff'],10);
+ {const cm=TDP_GEAR.compact,hh=cm?Math.max(hs,.9):hs,pw=cm?300:500,ph=cm?86:88;ctx.setTransform(hh,0,0,hh,0,0);
+ hudPanel(10,10,pw,ph);
+ hudBar(18,18,cm?190:240,16,p.hp/p.maxHp,p.hp/p.maxHp<.3?['#f33','#f88']:['#0bb','#6ff'],10);
  text(`HP ${Math.ceil(p.hp)}/${p.maxHp}`+(p.drone==='bastion'?(p.shield?'  [SHIELD]':'  [shield charging]'):''),24,31,'#012',12);
- text(S.floor>=TDP_ENDLESS.START?`ENDLESS F${S.floor+1}: ${f.name.toUpperCase()}`:`FLOOR ${S.floor+1}/${FLOORS.length}: ${f.name.toUpperCase()}`,18,54,S.floor>=TDP_ENDLESS.START?'#fc6':'#7ff',16);
+ text(S.floor>=TDP_ENDLESS.START?`ENDLESS F${S.floor+1}: ${f.name.toUpperCase()}`:`FLOOR ${S.floor+1}/${FLOORS.length}: ${f.name.toUpperCase()}`,18,54,S.floor>=TDP_ENDLESS.START?'#fc6':'#7ff',cm?14:16);
  const objLine=S.exit?(isFinal()?'Reach extraction':'Get to the exit: upgrade chamber'):S.obj.done(S)?`Clear the swarm: ${S.enemies.length} left`:S.obj.progress(S);
- ctx.font='12px monospace';text(objLine,18,74,'#bff',ctx.measureText(objLine).width>470?10:12);
- ctx.font='11px monospace';let x=18,y=94;p.weapons.forEach((k,i)=>{const s=`[${IN.src==='pad'?i+1:kL(String(i+1))}] ${WEAPONS[k].name}`,w=ctx.measureText(s).width;if(x+w>500){x=18;y+=15}text(s,x,y,k===p.weapon?'#fff':'#477',11);x+=w+12;if(k===p.weapon){const l=`Lv ${wLevel(p,k)}`;text(l,x-8,y,'#9df',10);x+=ctx.measureText(l).width+8}});
- const cm=p.mods[p.weapon]||[];text('Mods: '+(cm.length?cm.map(m=>MODS[m].name).join(', '):'none'),18,y+18,cm.length?'#fc8':'#466',11);
- text(`Drone [${IN.src==='pad'?pL('drone'):IN.src==='touch'?'DRN':kL('q')}]: ${p.drones.map(k=>k===p.drone?'>'+DRONES[k].name+'<':DRONES[k].name).join('  ')}`,18,y+36,'#4fc',11);
+ ctx.font='12px monospace';const ow=ctx.measureText(objLine).width,om=pw-28;text(objLine,18,74,'#bff',ow>om?Math.max(8.5,Math.floor(12*om/ow*10)/10):12);
+ const v0=viewSize();const gh=TDP_GEAR.hud({show:(S.state==='play'||S.state==='gear')&&S.p.hp>0,left:v0.l+10*hh,top:v0.t+(10+ph+4)*hh,scale:hh});S.hudBottom=gh?(10+ph+4)*hh+gh:(10+ph)*hh;S.hudRight=(10+pw)*hh;ctx.setTransform(hs,0,0,hs,0,0)}
  text('UPGRADES',VW-16,24,'#7ff',13,'right');p.ups.slice(-14).forEach((u,i)=>text(u,VW-16,42+i*15,'#5cc',11,'right'));
- if(S.state==='play'||S.state==='paused')TDP_MINIMAP.draw(ctx,S,{W,H,size:220,x:12,y:VH-12-124,isBoss:e=>ENEMIES[e.type].boss,aim:Math.atan2(mouse.y-p.y,mouse.x-p.x)});
+ if(S.state==='play'||S.state==='paused'||S.state==='gear')TDP_MINIMAP.draw(ctx,S,{W,H,size:220,x:12,y:VH-12-124,isBoss:e=>ENEMIES[e.type].boss,aim:Math.atan2(mouse.y-p.y,mouse.x-p.x)});
  if(S.tut&&S.floor===0&&TUT[S.tut.i]&&S.state==='play'){const st=TUT[S.tut.i],m0=st[IN.src]||st.kbm,msg=typeof m0==='function'?m0():m0;ctx.font='16px monospace';const w=ctx.measureText(msg).width+40;
   ctx.fillStyle='rgba(2,20,24,.85)';ctx.fillRect(VW/2-w/2,VH-130,w,44);ctx.strokeStyle='#3ff';ctx.shadowColor='#3ff';ctx.shadowBlur=10;ctx.strokeRect(VW/2-w/2,VH-130,w,44);ctx.shadowBlur=0;
   text(`TUTORIAL ${S.tut.i+1}/${TUT.length}`,VW/2,VH-136,'#6ff',11,'center');text(msg,VW/2,VH-102,'#eff',16,'center')}
  const boss=S.enemies.find(e=>ENEMIES[e.type].boss);if(boss){hudPanel(VW/2-260,VH-58,520,46);hudBar(VW/2-250,VH-34,500,14,boss.hp/boss.max,['#a02','#f5a'],20);text(ENEMIES[boss.type].name.toUpperCase()+(boss.type==='overmind'?`  — PHASE ${boss.phase||1}`:''),VW/2,VH-40,'#f9c',13,'center')}
  if(S.banner&&S.banner.life>0&&S.state==='play'){ctx.globalAlpha=Math.min(1,S.banner.life);ctx.shadowColor='#000';ctx.shadowBlur=8;text(S.banner.a,VW/2,VH/3,'#7ff',34,'center');text(S.banner.b,VW/2,VH/3+30,'#9cc',15,'center');ctx.globalAlpha=1;ctx.shadowBlur=0}
  if(S.brief&&S.brief.life>0&&S.state==='play')drawBriefCard();
- if(S.state==='upgrade'){ctx.fillStyle='rgba(0,8,12,.85)';ctx.fillRect(0,0,VW,VH);text((S.draft?`ENDLESS LOADOUT DRAFT ${S.draft.n+1}/${S.draft.of} — CHOOSE ONE  `:'UPGRADE CHAMBER — CHOOSE ONE  ')+({pad:'[X / A / B]',touch:'[tap a card]'}[IN.src]||'[1/2/3 or click]'),VW/2,VH/2-110,'#7ff',22,'center');
-  S.choices.forEach((c,i)=>{const b=cardRect(i),col=c.endless?'#f8a':c.gear?'#ff5':'#3ff';ctx.fillStyle='rgba(10,30,36,.8)';ctx.fillRect(b.x,b.y,b.w,b.h);ctx.shadowColor=col;ctx.shadowBlur=15;ctx.strokeStyle=col;ctx.lineWidth=2;ctx.strokeRect(b.x,b.y,b.w,b.h);ctx.shadowBlur=0;
-   text(IN.src==='pad'?['X','A','B'][i]:IN.src==='touch'?'TAP':`[${i+1}]`,b.x+b.w/2,b.y+36,'#5aa',16,'center');text(c.name,b.x+b.w/2,b.y+75,'#eff',15,'center');text(c.desc||'',b.x+b.w/2,b.y+105,'#7aa',10,'center')})}
+ if(S.state==='upgrade'){ctx.fillStyle='rgba(0,8,12,.85)';ctx.fillRect(0,0,VW,VH);text((S.draft?`ENDLESS LOADOUT DRAFT ${S.draft.n+1}/${S.draft.of} — CHOOSE ONE  `:'UPGRADE CHAMBER — CHOOSE ONE  ')+({pad:'[X / A / B]',touch:'[tap a card]'}[IN.src]||'[1/2/3 or click]'),VW/2,cardRect(0).y-16,'#7ff',22,'center');
+  S.choices.forEach((c,i)=>{const b=cardRect(i),k=b.k,col=c.endless?'#f8a':c.gear?'#ff5':'#3ff';ctx.fillStyle='rgba(10,30,36,.88)';ctx.fillRect(b.x,b.y,b.w,b.h);ctx.shadowColor=col;ctx.shadowBlur=15;ctx.strokeStyle=col;ctx.lineWidth=2;ctx.strokeRect(b.x,b.y,b.w,b.h);ctx.shadowBlur=0;
+   ctx.save();ctx.translate(b.x,b.y);ctx.scale(k,k);
+   const pc=cardPic(c);if(pc)ctx.drawImage(pc,22,10,216,144);else{ctx.fillStyle='#04141a';ctx.fillRect(22,10,216,144)}
+   ctx.strokeStyle='rgba(80,255,240,.45)';ctx.lineWidth=1;ctx.strokeRect(22.5,10.5,215,143);
+   const kind=c.refit?'REFIT':c.endless?'ENDLESS':c.wk?'WEAPON':c.dk?'DRONE':c.mk?'MOD':'UPGRADE',mk=(c.name.match(/\s(Mk \d+)$/)||[])[1],nm=c.name.replace(/^(Weapon|Drone|Mod|Refit|Endless):\s*/,'').replace(/\s+Mk \d+$/,'');
+   const kl=IN.src==='pad'?['X','A','B'][i]:IN.src==='touch'?'TAP':`[${i+1}]`;
+   ctx.fillStyle='rgba(2,12,16,.78)';ctx.fillRect(22,10,64,20);text(kl,28,25,'#8cc',14);
+   ctx.fillStyle='rgba(2,12,16,.78)';const kw=kind.length*8+16;ctx.fillRect(238-kw,10,kw,20);text(kind,238-kw/2,25,col,12,'center');
+   text(mk||'',28,172,'#fc8',13);
+   if(c.tier){for(let t=0;t<3;t++){ctx.beginPath();ctx.arc(228-t*16,168,5,0,7);if(t<c.tier){ctx.fillStyle='#ff4d5a';ctx.fill()}else{ctx.strokeStyle='#5aa';ctx.lineWidth=1.5;ctx.stroke()}}}
+   const nl=wrapLines(nm,236,'bold 16px monospace');ctx.shadowColor='#000';nl.slice(0,2).forEach((ln,j)=>text(ln,CARD.w/2,194+j*18,'#eff',16,'center'));ctx.font='bold 16px monospace';
+   const dl=wrapLines(c.desc||'',236,'12px monospace');dl.slice(0,3).forEach((ln,j)=>text(ln,CARD.w/2,(nl.length>1?230:212)+j*14,'#8bb',12,'center'));
+   ctx.restore()})}
  const st=S.stats,mmss=t=>`${Math.floor(t/60)}:${String(Math.floor(t%60)).padStart(2,'0')}`;
  if(S.state==='dead'||S.state==='victory')TDP_STATS.draw(ctx,S,S.state,{VW,VH,text,WEAPONS,DRONES,name:t=>ENEMIES[t]?ENEMIES[t].name:(t||'unknown'),best:LS('tdp_best',{}),endlessBtn:S.state==='victory'&&CFG.endless?endlessBtnRect():null,ekey:IN.src==='pad'?'X':IN.src==='touch'?'TAP':kL('e')});
  if(S.state==='descent'){const k=S.descT<.9?S.descT/.9:Math.max(0,1-(S.descT-.9)/.9);ctx.fillStyle=`rgba(0,5,7,${Math.min(1,k*1.15)})`;ctx.fillRect(0,0,VW,VH);ctx.strokeStyle=`rgba(80,255,240,${k*.55})`;ctx.lineWidth=2;
@@ -996,6 +1055,10 @@ const ENDLESS_DRAFT=29;
 function continueEndless(){if(!S||S.demo||S.state!=='victory'||!CFG.endless)return false;S.endless={seed:TDP_ENDLESS.newSeed()};S.p.hp=S.p.maxHp;S.state='upgrade';S.choices=rollChoices();sfx('choose');mouse.down=false;return true}
 function startEndless(){if(!CFG.endless)return false;startGame();S.endless={seed:TDP_ENDLESS.newSeed()};S.floor=TDP_ENDLESS.START-1;S.draft={n:0,of:ENDLESS_DRAFT};S.state='upgrade';S.choices=rollChoices();hideMenu();mouse.down=false;return true}
 function endlessBtnRect(){return{x:VW/2-200,y:612,w:400,h:44}}
+// loadout panel (js/gear.js): freezes the run while open (state 'gear'); Tab toggles, Esc / X / tap outside closes
+function openGear(){if(!S||S.state!=='play')return;S.state='gear';IN.fire=false;IN.mx=IN.my=0;mouse.down=false;for(const k in keys)keys[k]=false;TDP_GEAR.show()}
+function closeGear(){if(!S||S.state!=='gear')return;S.state='play';mouse.down=false;for(const k in keys)keys[k]=false;TDP_GEAR.hide()}
+function toggleGear(){S.state==='gear'?closeGear():openGear()}
 function pauseGame(){if(S.state!=='play')return;S.state='paused';openMenuRoot('m-pause')}
 function resumeGame(){if(S.state!=='paused')return;S.state='play';hideMenu();mouse.down=false;for(const k in keys)keys[k]=false}
 const DIFF_LBL={easy:'EASY',normal:'NORMAL',hard:'HARD'};
@@ -1011,5 +1074,7 @@ addEventListener('keydown',()=>{audioInit();if(AU.ctx&&AU.ctx.state==='suspended
 
 window.TDP_INPUT&&TDP_INPUT.init({IN,keys,onKey,state:()=>S&&S.state,menuOpen:()=>!menuEl.classList.contains('hide'),
  tap:(x,y)=>{const v=viewSize();mouse.sx=(x-v.l)/hs;mouse.sy=(y-v.t)/hs;onClick()},cycleWeapon,useEdge});
+TDP_GEAR.init({icon:picURL,S:()=>S,WEAPONS,DRONES,MODS,wLevel,wGrade,KPL:KILLS_PER_LEVEL,kL,setWeapon:k=>{if(S&&S.p&&S.p.weapons.includes(k))S.p.weapon=k},setDrone:k=>{if(S&&S.p&&S.p.drones.includes(k))S.p.drone=k},open:openGear,close:closeGear});
+prewarmPics();window.TDP_PICS={cardPic,picURL,modelThumb,pic};window.TDP_OPEN_GEAR=openGear;window.TDP_CLOSE_GEAR=closeGear;
 applyQuality();goTitle();
 </script></body></html>

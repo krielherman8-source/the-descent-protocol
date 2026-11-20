@@ -24,3 +24,41 @@ body.touch #touchui{display:block}
 
 #crawl .cr-mask{position:absolute;inset:0;-webkit-mask-image:linear-gradient(transparent 0%,#000 18%,#000 80%,transparent 100%);mask-image:linear-gradient(transparent 0%,#000 18%,#000 80%,transparent 100%)}
 #menu button.locked{opacity:.45;border-style:dashed;color:#8aa}#endless-hint{margin:-4px 0 4px;font-size:11px}
+
+/* ---- loadout: compact HUD chips + weapon/drone panel (js/gear.js) ---- */
+#gchips{position:fixed;z-index:3;display:none;flex-wrap:wrap;gap:6px;pointer-events:none;max-width:calc(100vw - 20px)}
+.gchip{pointer-events:auto;cursor:pointer;min-height:30px;max-width:100%;box-sizing:border-box;padding:4px 10px;border:1px solid rgba(80,255,240,.55);border-radius:3px;background:rgba(4,26,32,.78);color:#cff;font:12px monospace;letter-spacing:.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;touch-action:manipulation;-webkit-tap-highlight-color:transparent;box-shadow:0 0 8px rgba(40,255,230,.15)}
+.gchip b{color:#7ff;font-weight:bold}.gchip i{font-style:normal;color:#9df}
+.gchip:hover,.gchip:active,.gchip.on{background:rgba(30,110,120,.7);border-color:#6ff}
+body.compact .gchip{min-height:40px;font-size:13px}
+#gear{display:none;position:fixed;inset:0;z-index:30;background:rgba(0,6,9,.62);align-items:center;justify-content:center;font-family:monospace;color:#cff;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+#gear.on{display:flex}
+#gear .gbox{position:relative;box-sizing:border-box;width:min(96vw,720px);max-height:calc(100vh - 16px);max-height:calc(100dvh - 16px);overflow:auto;padding:12px 14px 14px;border:1px solid #3ff;background:linear-gradient(180deg,rgba(4,28,34,.96),rgba(1,9,12,.96));box-shadow:0 0 28px rgba(40,255,230,.28),inset 0 0 22px rgba(40,255,230,.06);border-radius:3px}
+#gear .ghd{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+#gear .gt{flex:1;font:bold 16px monospace;letter-spacing:3px;color:#7ff}
+#gear .gh{font-size:11px;color:#6aa;letter-spacing:1px}
+#gear .gx{flex:none;width:44px;height:44px;border:1px solid #3ff;background:rgba(4,30,34,.8);color:#cff;font:bold 20px monospace;cursor:pointer;border-radius:3px;touch-action:manipulation}
+#gear .gx:hover,#gear .gx:active{background:rgba(60,200,190,.5);color:#012}
+#gear .gcols{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+#gear h4{margin:6px 0;font:bold 12px monospace;letter-spacing:3px;color:#5cc;border-bottom:1px solid rgba(80,255,240,.25);padding-bottom:3px}
+#gear .grow{display:block;width:100%;box-sizing:border-box;min-height:44px;margin:0 0 6px;padding:6px 10px;text-align:left;border:1px solid rgba(80,255,240,.3);background:rgba(2,16,20,.8);color:#bdd;font:12px/1.35 monospace;cursor:pointer;border-radius:3px;touch-action:manipulation}
+#gear .grow:hover{border-color:#6ff;background:rgba(10,50,56,.8)}
+#gear .grow.on{border-color:#6ff;background:rgba(20,90,100,.55);color:#eff;box-shadow:0 0 10px rgba(40,255,230,.3)}
+#gear .grow .r1{display:flex;gap:8px;align-items:baseline}
+#gear .gk{flex:none;min-width:16px;text-align:center;color:#012;background:#5cc;border-radius:2px;font-weight:bold;padding:0 3px}
+#gear .gn{flex:1;font-weight:bold;font-size:13px;color:#dff}
+#gear .gm{flex:none;color:#fc8;font-size:11px}
+#gear .r2{margin-top:2px;font-size:11px;color:#8bb}
+#gear .grow.on .r2{color:#bde}
+#gear .tag{color:#4fc;font-weight:bold}
+body.compact #gear .gbox{width:min(98vw,520px);padding:8px 10px 10px}
+body.compact #gear .gcols{grid-template-columns:1fr;gap:4px}
+body.compact #gear .grow{min-height:44px;padding:5px 8px}
+@media (max-width:900px){#gear .gcols{grid-template-columns:1fr;gap:4px}}
+@media (max-height:420px){#gear .gbox{padding:6px 10px 8px}#gear .gt{font-size:14px}#gear .gh{display:none}#gear .gcols{grid-template-columns:1fr 1fr;gap:10px}#gear .grow .r2{font-size:10px}}
+
+#gear .grow{display:flex;gap:10px;align-items:center}
+#gear .gi{flex:none;width:84px;height:56px;border-radius:2px;border:1px solid rgba(80,255,240,.3);background:#04141a;object-fit:cover}
+#gear .gb{flex:1;min-width:0}
+body.compact #gear .gi{width:66px;height:44px}
+.gchip .ci{height:22px;width:33px;vertical-align:middle;margin:-4px 6px -4px -4px;border-radius:2px}
