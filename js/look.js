@@ -109,7 +109,7 @@ function build(ctx){// called at the end of buildLevel (level group already buil
   // sparks also come off random props along the side walls
   for(let i=0;i<(q>1?3:1);i++){const sd=Math.random()<.5;emitters.push({x:sd?8:W-8,y:R(30,60),z:R(120,H-120),t:R(1,6)})}}
  // --- Overmind biomass creeping over walls and floor (scales with depth)
- const k=depthK(s);if(k>0){const wl=[],fl=[],vl=[];const nW=Math.round(k*(q>1?7:q>0?5:3)),nF=Math.round(k*(q>1?70:q>0?48:22));
+ const k=depthK(s);if(k>0){const wl=[],fl=[],vl=[];const mk=MB()?.55:1,nW=Math.round(k*mk*(q>1?7:q>0?5:3)),nF=Math.round(k*mk*(q>1?70:q>0?48:22));
   for(const w of walls){for(let i=0;i<nW;i++){const side=(Math.random()*4)|0;let x,y;if(side<2){x=w.x+R(0,w.w);y=side?w.y+w.h:w.y}else{y=w.y+R(0,w.h);x=side===2?w.x:w.x+w.w}
     const sz=R(9,22)*(.6+k*.6);put(wl,x,R(0,14),y,sz*R(.9,1.6),sz*R(.35,.7),sz*R(.9,1.6),R(0,TAU));
     if(Math.random()<.55*k)put(vl,x,R(20,48),y,R(3,6),R(18,40),R(3,6),R(0,TAU),R(-.25,.25),R(-.25,.25))}}
@@ -123,22 +123,24 @@ function build(ctx){// called at the end of buildLevel (level group already buil
   inst(g.blob,bm.wall,wl,q>1);inst(g.blob,bm.wall,vl,false);inst(g.disc,bm.floor,fl,false);bm.wall.emissiveIntensity=1.2;pulseMats=[[bm.wall,.7+k*.9],[bm.floor,.35+k*.5]]}else pulseMats=[];
  if(ctx.level){const om=overmindMats();ctx.keep&&ctx.keep(om.flesh);ctx.level.traverse(o=>{const m=o.material;if(o.isMesh&&m&&m.isMeshStandardMaterial&&m!==om.flesh&&m.emissive&&m.emissive.getHex()===0xff2050&&m.color.getHex()===0x3a0814){m.dispose();o.material=om.flesh}})}
  setVis()}
-function setVis(){const q=LV();if(dust){dust.visible=true;dust.geometry.setDrawRange(0,q>1?320:q>0?200:70)}if(fogG){fogG.visible=q>0;fogs.forEach((f,i)=>f.visible=i<(q>1?14:8))}}
+const MB=()=>!!window.TDP_MOB;// phones: far fewer motes, fog sprites, biomass blobs and sparks
+function setVis(){const q=LV(),m=MB();if(dust){dust.visible=true;dust.geometry.setDrawRange(0,m?(q>1?160:q>0?100:50):q>1?320:q>0?200:70)}if(fogG){fogG.visible=q>0;fogs.forEach((f,i)=>f.visible=i<(m?(q>1?7:4):q>1?14:8))}}
 // ---------------------------------------------------------------- per-frame
 let fpsW={t:0,n:0,bad:0,cool:0},lastNow=0,toastEl=null;
 function toast(msg){if(!toastEl){toastEl=document.createElement('div');toastEl.style.cssText='position:fixed;left:50%;bottom:12%;transform:translateX(-50%);z-index:6;font:13px monospace;letter-spacing:1px;color:#bff;background:rgba(2,14,18,.8);border:1px solid #2aa;padding:8px 14px;pointer-events:none;transition:opacity .6s';document.body.appendChild(toastEl)}
  toastEl.textContent=msg;toastEl.style.opacity='1';clearTimeout(toast.h);toast.h=setTimeout(()=>toastEl.style.opacity='0',4200)}
 const autoOK=()=>!(navigator.webdriver||/HeadlessChrome/.test(navigator.userAgent)||window.__noAutoQ||new URLSearchParams(location.search).get('gfx'));
 function watchdog(){const now=performance.now(),ft=now-(lastNow||now);lastNow=now;const s=S();if(!s||s.state!=='play'||document.hidden||ft>250||!autoOK())return;
- fpsW.t+=ft;fpsW.n++;if(fpsW.t<3000)return;const fps=fpsW.n*1000/fpsW.t;fpsW.t=0;fpsW.n=0;if(fpsW.cool>0){fpsW.cool--;return}
- const q=Q(),lim=q==='high'?40:q==='med'?30:0;if(fps<lim){if(++fpsW.bad>=2){fpsW.bad=0;fpsW.cool=2;const nq=q==='high'?'med':'low';C.setQuality(nq);toast(`GRAPHICS SET TO ${nq==='med'?'MEDIUM':'LOW'} FOR SMOOTHER PLAY · change it in Settings`)}}else fpsW.bad=0}
+ const M=MB();fpsW.t+=ft;fpsW.n++;if(fpsW.t<(M?1500:3000))return;const fps=fpsW.n*1000/fpsW.t;fpsW.t=0;fpsW.n=0;if(fpsW.cool>0){fpsW.cool--;return}
+ const q=Q(),lim=M?(q==='low'?30:50):q==='high'?40:q==='med'?30:0;if(q==='low'&&M&&fps<lim){if(++fpsW.bad>=2&&!window.__lowScaled){window.__lowScaled=1;fpsW.bad=0;C.setQuality('low',.65)}return}
+ if(fps<lim){if(++fpsW.bad>=2){fpsW.bad=0;fpsW.cool=M?1:2;const nq=q==='high'?'med':'low';C.setQuality(nq);toast(`GRAPHICS SET TO ${nq==='med'?'MEDIUM':'LOW'} FOR SMOOTHER PLAY · change it in Settings`)}}else fpsW.bad=0}
 function update(dt){if(!C)return;watchdog();const s=S();if(!s)return;const t=s.t||0,q=LV();
  // dust motes: slow drift + sway, wrapped around the arena
  if(dust&&dust.visible){const P=dust.geometry.attributes.position.array,ph=dust.userData.ph,n=dust.geometry.drawRange.count;for(let i=0;i<n&&i*3<P.length;i++){P[i*3]+=(6+Math.sin(t*.4+ph[i])*7)*dt;P[i*3+1]+=Math.sin(t*.7+ph[i]*3)*4*dt;P[i*3+2]+=Math.cos(t*.3+ph[i])*5*dt;if(P[i*3]>C.W+80)P[i*3]=-80}dust.geometry.attributes.position.needsUpdate=true;dust.material.opacity=.4+.15*Math.sin(t*.9)}
  if(fogG&&fogG.visible)for(const f of fogs){const u=f.userData;f.position.x+=u.vx*dt;f.position.z+=u.vz*dt;if(f.position.x<-300)f.position.x=C.W+300;if(f.position.x>C.W+300)f.position.x=-300;if(f.position.z<-200)f.position.z=C.H+200;if(f.position.z>C.H+200)f.position.z=-200;f.material.opacity=u.op*(.75+.25*Math.sin(t*.35+u.ph))}
  for(const b of beacons){const v=Math.max(0,Math.sin(t*b.sp+b.ph));b.gl.material.opacity=.15+.65*v*v;b.pool.material.opacity=.05+.2*v*v}
  for(const f of flickers){f.t-=dt;if(f.t<=0){f.on=f.on?0:1;f.t=f.on?R(.8,3.5):R(.04,.18)}const v=f.on?(.85+Math.random()*.15):Math.random()<.3?.4:.05;f.pn.material.color.setRGB(.62*v,.9*v,v);f.gl.material.opacity=.4*v}
- for(const e of emitters){e.t-=dt;if(e.t<=0){e.t=R(1.6,5.5)/(q>1?1:.7);burst(e.x,e.y,e.z,q>1?18:q>0?12:7);const fl=flickers.find(f=>Math.abs(f.pn.position.x-e.x)<1);if(fl){fl.on=0;fl.t=R(.05,.15)}}}
+ for(const e of emitters){e.t-=dt;if(e.t<=0){e.t=R(1.6,5.5)/(q>1?1:.7);burst(e.x,e.y,e.z,Math.round((q>1?18:q>0?12:7)*(MB()?.5:1)));const fl=flickers.find(f=>Math.abs(f.pn.position.x-e.x)<1);if(fl){fl.on=0;fl.t=R(.05,.15)}}}
  if(sparks){const P=sparks.geometry.attributes.position.array,Cc=sparks.geometry.attributes.color.array;for(let i=SP.length-1;i>=0;i--){const p=SP[i];p.life-=dt;if(p.life<=0){SP.splice(i,1);continue}p.vy-=520*dt;p.x+=p.vx*dt;p.y+=p.vy*dt;p.z+=p.vz*dt;if(p.y<1){p.y=1;p.vy*=-.35;p.vx*=.5;p.vz*=.5}}
   for(let i=0;i<SP.length;i++){const p=SP[i],k=Math.min(1,p.life/.5);P[i*3]=p.x;P[i*3+1]=p.y;P[i*3+2]=p.z;Cc[i*3]=1.6*k;Cc[i*3+1]=(.75+.3*k)*k;Cc[i*3+2]=.3*k*k}
   sparks.geometry.setDrawRange(0,SP.length);sparks.geometry.attributes.position.needsUpdate=true;sparks.geometry.attributes.color.needsUpdate=true}
@@ -146,8 +148,8 @@ function update(dt){if(!C)return;watchdog();const s=S();if(!s)return;const t=s.t
  if(pulseMats.length){const ph=(t*1.1)%1,beat=Math.exp(-((ph-.1)**2)/.004)+.6*Math.exp(-((ph-.28)**2)/.004);for(const[m,base]of pulseMats)m.emissiveIntensity=base*(.55+.6*beat)}
  if(OM){const ph=(t*.9)%1;OM.brain.emissiveIntensity=1.0+.6*(Math.exp(-((ph-.1)**2)/.006)+.6*Math.exp(-((ph-.3)**2)/.006))}}
 // post: bloom tuned so emissives glow but bullets and the HUD stay crisp (HUD is a separate 2D canvas and never bloomed)
-function quality(q,ctx){if(ctx.bloom){ctx.bloom.strength=q==='high'?.72:.6;ctx.bloom.radius=.62;ctx.bloom.threshold=.82}
- if(ctx.grade){const u=ctx.grade.uniforms;if(u.look)u.look.value=q==='high'?1:.85;if(u.grain)u.grain.value=q==='high'?.04:.03}setVis()}
+function quality(q,ctx){const m=MB();if(ctx.bloom){ctx.bloom.strength=(q==='high'?.72:.6)*(m?.55:1);ctx.bloom.radius=.62;ctx.bloom.threshold=.82}
+ if(ctx.grade){const u=ctx.grade.uniforms;if(u.look)u.look.value=q==='high'?1:.85;if(u.grain)u.grain.value=(q==='high'?.04:.03)*(m?.5:1)}setVis()}
 function init(c){C=c;T=c.THREE;S=c.getS;textures();mkDust();mkSparks();mkFog();
  // phones/tablets start on Medium once (bloom + grade, cheaper shadows); the player can still pick High in Settings
  try{const mob=matchMedia('(pointer:coarse)').matches||/Android|iPhone|iPad|Mobile/i.test(navigator.userAgent);if(mob&&!localStorage.getItem('tdp_look_mob')){localStorage.setItem('tdp_look_mob','1');if(Q()==='high'&&autoOK()){c.CFG.quality='med';c.saveCfg&&c.saveCfg()}}}catch(e){}}

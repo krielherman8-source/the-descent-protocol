@@ -26,7 +26,7 @@ s.textContent=JSON.stringify({imports:{three:local?'./vendor/three.module.js':cd
 <div class="panel" id="m-pause"><h2>PAUSED</h2><button data-a="resume">RESUME</button><button data-a="settings">SETTINGS</button><button data-a="controls">CONTROLS</button><button data-a="quit">SAVE &amp; QUIT TO TITLE</button></div>
 <div class="panel" id="m-settings"><h2>SETTINGS</h2>
 <label>MASTER <input type="range" min="0" max="100" data-v="master"></label><label>SFX <input type="range" min="0" max="100" data-v="sfx"></label><label>MUSIC <input type="range" min="0" max="100" data-v="music"></label>
-<label>GRAPHICS <select id="s-q"><option value="low">LOW (no bloom/shadows)</option><option value="med">MEDIUM (bloom)</option><option value="high">HIGH (bloom, hi-res shadows)</option></select></label>
+<label>GRAPHICS <select id="s-q"><option value="low">LOW (fastest, best for phones)</option><option value="med">MEDIUM (balanced)</option><option value="high">HIGH (best look, needs a strong device)</option></select></label>
 <label>SCREEN SHAKE <input type="checkbox" id="s-shake"></label><button data-a="controls">CONTROLS &amp; REBINDING</button><button data-a="back">BACK</button></div>
 <div class="panel" id="m-controls"><h2>CONTROLS</h2><button data-a="back">BACK</button></div></div>
 <link rel="stylesheet" href="css/ui.css"><script src="js/story.js"></script><script src="js/input.js"></script><script src="js/minimap.js"></script><script src="js/content.js"></script><script src="js/instancing.js"></script><script src="js/visuals.js"></script><script src="js/settings.js"></script><script src="js/stats.js"></script><script src="js/endless.js"></script><script src="js/shell.js"></script>
@@ -604,8 +604,11 @@ function update(dt){S.t+=dt;S._dt=dt;if(S.banner&&S.banner.life>0)S.banner.life-
 
 // ================= RENDER (Three.js, angled top-down) =================
 // Simulation stays on the 2D ground plane: sim (x,y) -> world (x, height, y).
-const renderer=new THREE.WebGLRenderer({antialias:true,preserveDrawingBuffer:true});
-renderer.setPixelRatio(Math.min(devicePixelRatio||1,1.5));renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+// phones/tablets/the Android app: lighter renderer (no MSAA, no preserved buffer, pixel ratio capped at 1, no post-processing below High)
+const MOB=(()=>{try{return !!(window.Capacitor&&Capacitor.isNativePlatform&&Capacitor.isNativePlatform())||matchMedia('(pointer:coarse)').matches||/Android|iPhone|iPad|Mobile/i.test(navigator.userAgent)}catch(e){return false}})();window.TDP_MOB=MOB;
+const renderer=new THREE.WebGLRenderer({antialias:!MOB,preserveDrawingBuffer:!MOB,powerPreference:'high-performance'});
+const PRMAX=()=>MOB?1:1.5;const usePost=()=>CFG.quality!=='low';
+renderer.setPixelRatio(Math.min(devicePixelRatio||1,PRMAX()));renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
 renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.0;renderer.domElement.id='gl';document.body.appendChild(renderer.domElement);
 const hud=document.createElement('canvas');hud.id='hud';document.body.appendChild(hud);const ctx=hud.getContext('2d');
 const scene=new THREE.Scene();scene.background=new THREE.Color(0x020507);scene.fog=new THREE.Fog(0x020507,1000,2100);
@@ -613,7 +616,7 @@ const camera=new THREE.PerspectiveCamera(46,1,10,5000);const CAM_OFF=new THREE.V
 let hs=1,VW=W,VH=H;
 function resize(){const v=viewSize();renderer.setSize(v.w,v.h);hud.width=v.w;hud.height=v.h;renderer.domElement.style.left=v.l+'px';renderer.domElement.style.top=v.t+'px';hud.style.left=v.l+'px';hud.style.top=v.t+'px';camera.aspect=v.w/v.h;camera.updateProjectionMatrix();
  hs=Math.min(v.w/W,v.h/H);VW=v.w/hs;VH=v.h/hs;
- if(composer){composer.setPixelRatio(renderer.getPixelRatio());composer.setSize(v.w,v.h);if(bloomPass){const k=CFG.quality==='high'?.5:.33;bloomPass.resolution.set(v.w*k,v.h*k)}}}
+ if(composer){composer.setPixelRatio(renderer.getPixelRatio());composer.setSize(v.w,v.h);if(bloomPass){const k=MOB?.25:CFG.quality==='high'?.5:.33;bloomPass.resolution.set(v.w*k,v.h*k)}}}
 addEventListener('resize',resize);resize();
 const hemi=new THREE.HemisphereLight(0x7fb8c8,0x06090b,0.7);scene.add(hemi);
 const sun=new THREE.DirectionalLight(0xa8e0ee,1.3);sun.position.set(W/2-350,950,H/2+450);sun.target.position.set(W/2,0,H/2);sun.castShadow=true;sun.shadow.mapSize.set(2048,2048);
@@ -768,7 +771,7 @@ let needWarm=false,warmG=null;
 function prewarm(){if(!warmG){warmG=new THREE.Group();for(const t of Object.keys(ENEMIES)){const g=bugClone(t);g.userData.hf.visible=g.userData.fr.visible=g.userData.st.visible=true;warmG.add(g)}
   for(const m of[basic('#fff'),add(0xff7a30,.55),emis(0xffbb33,1.5,0x332200)])warmG.add(new THREE.Mesh(geoB,m));
   const strip=[];warmG.traverse(o=>{if(o.isLight)strip.push(o)});strip.forEach(o=>o.parent.remove(o));warmG.scale.setScalar(.001)}
- warmG.position.set(S.p.x,20,S.p.y);scene.add(warmG);const c0=performance.now();if(composer&&CFG.quality!=='low')composer.render();else renderer.render(scene,camera);scene.remove(warmG);window.__warmMs=performance.now()-c0}
+ warmG.position.set(S.p.x,20,S.p.y);scene.add(warmG);const c0=performance.now();if(composer&&usePost())composer.render();else renderer.render(scene,camera);scene.remove(warmG);window.__warmMs=performance.now()-c0}
 // ---- dynamic entity sync ----
 const itemMeshes=new Map(),enemyMeshes=new Map(),bulletMeshes=new Map(),pickMeshes=new Map(),ebMeshes=new Map(),ringMeshes=new Map();
 // object pooling: meshes of keyed lists (enemies, bullets) are hidden and reused instead of rebuilt
@@ -817,7 +820,7 @@ var composer=null,bloomPass=null,gradePass=null;
 // flashlight: one shadow-casting SpotLight following the player's aim (Medium: no shadow, Low: off)
 const spot=new THREE.SpotLight(0xfff0d8,0,760,.52,.55,1.6);spot.shadow.mapSize.set(1024,1024);spot.shadow.bias=-0.0008;spot.shadow.camera.near=20;spot.shadow.camera.far=800;scene.add(spot,spot.target);
 if(ADDONS){try{composer=new ADDONS.EffectComposer(renderer);composer.addPass(new ADDONS.RenderPass(scene,camera));bloomPass=new ADDONS.UnrealBloomPass(new THREE.Vector2(512,512),.8,.55,.78);composer.addPass(bloomPass);composer.addPass(new ADDONS.OutputPass());if(ADDONS.ShaderPass){gradePass=new ADDONS.ShaderPass(TDP_VIS.GradeShader);composer.addPass(gradePass)}resize()}catch(e){console.warn('bloom disabled',e);composer=null}}
-function applyQuality(){const q=CFG.quality;renderer.setPixelRatio(q==='low'?.85:q==='med'?1:Math.min(devicePixelRatio||1,1.5));
+function applyQuality(){const q=CFG.quality;renderer.setPixelRatio(Math.min(devicePixelRatio||1,q==='low'?(MOB?(window.__lowScaled?.65:.8):.85):q==='med'?1:PRMAX()));
  const sh=q!=='low';if(renderer.shadowMap.enabled!==sh){renderer.shadowMap.enabled=sh;scene.traverse(o=>{if(o.material)(Array.isArray(o.material)?o.material:[o.material]).forEach(m=>m.needsUpdate=true)})}
  sun.castShadow=sh;spot.visible=q!=='low';spot.castShadow=q==='high';if(gradePass)gradePass.enabled=q!=='low';ground.material=q==='low'?floorMat:floorMatHQ;
  decMesh.material.alphaMap=q==='low'?null:TDP_VIS.splat();decMesh.material.needsUpdate=true;if(applyQuality.q&&applyQuality.q!==q)builtFor=null;applyQuality.q=q;const ms=q==='high'?2048:1024;if(sun.shadow.mapSize.x!==ms){sun.shadow.mapSize.set(ms,ms);if(sun.shadow.map){sun.shadow.map.dispose();sun.shadow.map=null}}if(window.TDP_LOOK)TDP_LOOK.quality(q,{bloom:bloomPass,grade:gradePass});resize()}
@@ -888,7 +891,7 @@ function render(dt){const snap=dt===undefined;dt=dt||1/60;const p=S.p,f=S.f;if(d
  // particles
  const n=Math.min(PMAX,S.parts.length);for(let i=0;i<n;i++){const q=S.parts[i],c=C(q.col);pPos[i*3]=q.x;pPos[i*3+1]=8+(.6-q.life)*40;pPos[i*3+2]=q.y;pCol[i*3]=c.r;pCol[i*3+1]=c.g;pCol[i*3+2]=c.b}
  pGeo.setDrawRange(0,n);pGeo.attributes.position.needsUpdate=true;pGeo.attributes.color.needsUpdate=true;
- fxUpdate(dt);TDP_INST.lightBudget(scene);if(needWarm){needWarm=false;prewarm()}if(composer&&CFG.quality!=='low')composer.render();else renderer.render(scene,camera);drawHUD()}
+ fxUpdate(dt);TDP_INST.lightBudget(scene);if(needWarm){needWarm=false;prewarm()}if(composer&&usePost())composer.render();else renderer.render(scene,camera);drawHUD()}
 // ---- aiming: raycast mouse onto the ground plane at gun height ----
 const ray=new THREE.Raycaster(),aimPlane=new THREE.Plane(new THREE.Vector3(0,1,0),-20),_hit=new THREE.Vector3();
 function aimRaycast(){const v=viewSize();ray.setFromCamera(new THREE.Vector2((mouse.cx-v.l)/v.w*2-1,-((mouse.cy-v.t)/v.h)*2+1),camera);if(ray.ray.intersectPlane(aimPlane,_hit)){mouse.x=_hit.x;mouse.y=_hit.z}}
